@@ -1,0 +1,22 @@
+[build]
+  base = "apps/rcre-demo"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  RCRE_APP_MODE = "local"
+  NEXT_TELEMETRY_DISABLED = "1"
+  # Override SQLite workspace-boundary path to Netlify's writable /tmp
+  # Without this, the store module throws "RCRE workspace boundary required"
+  # because Netlify's cwd is apps/rcre-demo/ whose parent is not named "RCRE".
+  RCRE_TEST_DB = "/tmp/platform.sqlite"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
