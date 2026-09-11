@@ -1,0 +1,26 @@
+{
+  "preservedOpaqueSession": true,
+  "checks": [
+    {
+      "name": "contacts",
+      "persisted": true,
+      "count": 26
+    },
+    {
+      "name": "tasks",
+      "persisted": true,
+      "count": 7,
+      "completed": 1
+    },
+    {
+      "name": "settings/personal",
+      "persisted": true,
+      "count": 1
+    },
+    {
+      "name": "recruits",
+      "persisted": true,
+      "count": 8
+    }
+  ]
+}

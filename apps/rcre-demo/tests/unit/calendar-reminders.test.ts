@@ -1,0 +1,6 @@
+import {it,expect} from 'vitest'
+import {PERSONAS} from '../../src/lib/platform/auth'
+import {createAppointment,getSetting,saveSetting,processCalendarReminders} from '../../src/lib/platform/service'
+import {readRecords} from '../../src/lib/platform/store'
+const owner=PERSONAS.find(p=>p.role==='broker_owner')!,agent=PERSONAS[0]
+it('delivers one local reminder, honors disabled reminders and preserves a source link',()=>{const settings=getSetting(agent,'personal');saveSetting(agent,'personal',{calendarReminders:true,reminderMinutes:15,quietStart:0,quietEnd:0},settings.version);const startsAt='2097-04-01T14:10:00Z',now=Date.parse('2097-04-01T14:00:00Z');createAppointment(agent,{title:'Synthetic reminder',startsAt,endsAt:'2097-04-01T14:40:00Z'});expect(processCalendarReminders(owner,now).created).toBe(1);expect(processCalendarReminders(owner,now).created).toBe(0);const n=readRecords<any>('notifications').find(n=>n.title==='Calendar reminder: Synthetic reminder');expect(n.suppressed).toBe(false);expect(n.href).toContain('/calendar?date=');const current=getSetting(agent,'personal');saveSetting(agent,'personal',{...current.value,calendarReminders:false},current.version);createAppointment(agent,{title:'Disabled reminder',startsAt:'2097-04-02T14:10:00Z',endsAt:'2097-04-02T14:40:00Z'});expect(processCalendarReminders(owner,now+86400000).created).toBe(0)})

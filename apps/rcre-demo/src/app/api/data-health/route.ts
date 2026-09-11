@@ -1,0 +1,7 @@
+import {statSync,readdirSync,existsSync} from 'node:fs'
+import path from 'node:path'
+import {requireActor,assertCapability,AccessError} from '@/lib/platform/auth'
+import {readRecords,getRecord,storageRoot} from '@/lib/platform/store'
+import {getSetting} from '@/lib/platform/service'
+export const dynamic='force-dynamic'
+export async function GET(){try{const a=await requireActor();assertCapability(a,'settings.audit');const worker=getRecord<any>('local_worker',a.organizationId);const kinds=['contacts','tasks','appointments','recruits','marketing','library_assets','transaction_records','transaction_drafts','academy_progress','community_post'];return Response.json({mode:'local synthetic data',externalWritesEnabled:false,counts:Object.fromEntries(kinds.map(k=>[k,readRecords<any>(k).filter(r=>r.organizationId===a.organizationId).length])),worker:worker?{...worker,fresh:Date.now()-Date.parse(worker.lastRun)<45000}:null,auditPolicy:getSetting(a,'audit').value,backups:readdirSync(path.join(storageRoot,'backups')).filter(n=>/^platform-\d+\.sqlite$/.test(n)).map(name=>({name,bytes:statSync(path.join(storageRoot,'backups',name)).size,assetBundle:existsSync(path.join(storageRoot,'backups',name.replace(/\.sqlite$/,'.files'),'manifest.json'))})),databaseParity:'Canonical SQLite adapter. Original PostgreSQL policies tested separately; new role/schema parity is not established.'})}catch(e){return Response.json({error:e instanceof Error?e.message:'Unable to read local health'},{status:e instanceof AccessError?e.status:500})}}

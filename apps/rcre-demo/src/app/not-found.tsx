@@ -1,0 +1,3 @@
+import Link from 'next/link'
+import {PublicShell,PublicHero} from '@/components/public/PublicShell'
+export default function NotFound(){return <PublicShell><PublicHero label="404 · Page not found" title="Let’s find a better direction." description="This address does not match a published page. Your next step is still close by."><div className="public-actions"><Link className="public-button" href="/">Return home ↗</Link><Link className="public-text-link" href="/home-search/listings">Search homes →</Link><Link className="public-text-link" href="/contact">Contact RCRE →</Link></div></PublicHero></PublicShell>}

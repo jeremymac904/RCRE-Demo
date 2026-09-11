@@ -1,0 +1,277 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===========================================================================
+   RCRE THEME TOKENS
+   ---------------------------------------------------------------------------
+   Light is the default. Dark is opt-in via [data-theme="dark"] on <html>.
+   Nothing reads prefers-color-scheme automatically — the user's stored choice
+   wins, and the stored default is light.
+
+   Light is NOT an inversion of dark. Two things change substantively:
+
+   1. Brass splits into two tokens. #cfb077 on white is about 2:1 — unusable as
+      text. So --brass-fill stays #cfb077 for fills and borders (where it reads
+      as brass), and --brass-ink drops to #8a6a2e for text and thin marks. In
+      dark they converge.
+
+   2. Semantic colours get DARKER in light, not brighter — the opposite of the
+      instinct. Brex ships #126e22 green on white and saves the bright one for
+      dark mode; same principle here.
+
+   Depth also changes hands: dark uses surface lightness, light uses a hairline
+   plus one very shallow shadow. Light mode has no darker-surface trick
+   available, so structure has to come from edges.
+   =========================================================================== */
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg:            #f7f5f2;   /* warm off-white page ground */
+  --surface:       #ffffff;   /* panels, cards, rows */
+  --elevated:      #f1eee9;   /* hover / active / selected */
+  --overlay:       #ffffff;   /* popovers, sheets */
+  --sunken:        #ebe7e1;   /* wells, tracks, inset areas */
+
+  --text:          #14120f;   /* near-black, warm */
+  --text-muted:    #565049;
+  --text-faint:    #746d64;
+
+  --hair:          rgba(20, 18, 15, 0.10);
+  --hair-strong:   rgba(20, 18, 15, 0.20);
+  --hair-brass:    rgba(138, 106, 46, 0.34);
+
+  --brass-fill:    #cfb077;   /* the brand brass — fills and borders only */
+  --brass-ink:     #7e602b;   /* readable brass for text on light */
+  --brass-bright:  #b8974f;
+  --brass-dim:     #9a7838;
+
+  --urgent:        #a8401a;   /* deep terracotta */
+  --calm:          #2f6b52;
+  --warm:          #8a6a2e;
+
+  /* Avatar tones — soft tinted washes on light, so a row of people reads as
+     warm rather than as a column of dark blobs. */
+  /* Listing visual grounds — warm stone on light, so a property card reads as
+     architectural rather than as a grey void. */
+  --lv-1a: #e8e2d6; --lv-1b: #d8d0c0;
+  --lv-2a: #e2e6e6; --lv-2b: #cfd6d6;
+  --lv-3a: #ece2da; --lv-3b: #dcd0c4;
+  --lv-4a: #e0e5ea; --lv-4b: #ccd4dc;
+  --lv-5a: #e6e2ea; --lv-5b: #d4cedc;
+  --lv-6a: #eae5d8; --lv-6b: #dbd4c2;
+  --lv-line: #8a6a2e;
+  --lv-line-op: 0.34;
+  --lv-vignette: rgba(20, 18, 15, 0.10);
+
+  --av-1-bg: #efe7d8;  --av-1-fg: #7a5c22;
+  --av-2-bg: #e2ece7;  --av-2-fg: #2f6b52;
+  --av-3-bg: #f2e3dc;  --av-3-fg: #96401d;
+  --av-4-bg: #e2e9f0;  --av-4-fg: #37536d;
+  --av-5-bg: #e9e5f1;  --av-5-fg: #52447a;
+
+  --shadow-panel:  0 1px 2px rgba(20, 18, 15, 0.05);
+  --shadow-raised: 0 1px 2px rgba(20, 18, 15, 0.04), 0 6px 16px -6px rgba(20, 18, 15, 0.10);
+  --scrollbar:     rgba(20, 18, 15, 0.16);
+  --scrollbar-hover: rgba(20, 18, 15, 0.28);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg:            #0d0d0d;
+  --surface:       #121212;   /* RCRE brand black */
+  --elevated:      #191a1b;
+  --overlay:       #1a1a1a;
+  --sunken:        #0a0a0a;
+
+  --text:          #f5f3f0;
+  --text-muted:    #a8a29b;
+  --text-faint:    #9c948a;
+
+  --hair:          rgba(255, 255, 255, 0.09);
+  --hair-strong:   rgba(255, 255, 255, 0.17);
+  --hair-brass:    rgba(207, 176, 119, 0.34);
+
+  --brass-fill:    #cfb077;
+  --brass-ink:     #cfb077;
+  --brass-bright:  #e0c48f;
+  --brass-dim:     #a98f5f;
+
+  --urgent:        #dd8464;
+  --calm:          #7fa894;
+  --warm:          #cfb077;
+
+  --lv-1a: #2b2620; --lv-1b: #1a1714;
+  --lv-2a: #26282b; --lv-2b: #161819;
+  --lv-3a: #2b2422; --lv-3b: #1b1615;
+  --lv-4a: #242a27; --lv-4b: #161a18;
+  --lv-5a: #2a2733; --lv-5b: #18161d;
+  --lv-6a: #2d2a22; --lv-6b: #1c1a15;
+  --lv-line: #cfb077;
+  --lv-line-op: 0.30;
+  --lv-vignette: rgba(0, 0, 0, 0.42);
+
+  --av-1-bg: #2a2620;  --av-1-fg: #cfb077;
+  --av-2-bg: #242a28;  --av-2-fg: #7fa894;
+  --av-3-bg: #2b2422;  --av-3-fg: #dd8464;
+  --av-4-bg: #22262b;  --av-4-fg: #8fa8bd;
+  --av-5-bg: #282433;  --av-5-fg: #a695c4;
+
+  --shadow-panel:  none;
+  --shadow-raised: 0 8px 28px -12px rgba(0, 0, 0, 0.7);
+  --scrollbar:     rgba(255, 255, 255, 0.10);
+  --scrollbar-hover: rgba(255, 255, 255, 0.18);
+}
+
+/* A subtree that is always dark regardless of the chosen theme. Used on the
+   public pages, where rcregroup.com itself pairs a dark hero with lighter
+   content below it. Redeclaring the tokens is enough — every child class
+   already reads them. */
+.on-dark {
+  color-scheme: dark;
+  --bg:          #0d0d0d;
+  --surface:     #121212;
+  --elevated:    #191a1b;
+  --overlay:     #1a1a1a;
+  --sunken:      #0a0a0a;
+  --text:        #f5f3f0;
+  --text-muted:  #a8a29b;
+  --text-faint:  #9c948a;
+  --hair:        rgba(255, 255, 255, 0.09);
+  --hair-strong: rgba(255, 255, 255, 0.17);
+  --hair-brass:  rgba(207, 176, 119, 0.34);
+  --brass-ink:   #cfb077;
+  --brass-bright:#e0c48f;
+  --brass-dim:   #a98f5f;
+  --urgent:      #dd8464;
+  --calm:        #7fa894;
+  --warm:        #cfb077;
+  --shadow-panel: none;
+  background: var(--bg);
+  color: var(--text);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-ink text-chalk font-sans;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+
+  ::selection { background: color-mix(in srgb, var(--brass-fill) 34%, transparent); }
+
+  :focus-visible {
+    outline: 1px solid var(--brass-ink);
+    outline-offset: 2px;
+  }
+
+  /* Tabular figures wherever numbers are compared or change. */
+  .font-display, .tabular, table, dd, time { font-variant-numeric: tabular-nums; }
+
+  /* Theme-swapped assets. Both are in the DOM; CSS picks one, so the correct
+     mark is painted immediately without waiting for JavaScript. */
+  .light-hide { display: none; }
+  .dark-hide  { display: block; }
+  [data-theme='dark'] .light-hide { display: block; }
+  [data-theme='dark'] .dark-hide  { display: none; }
+
+  /* A forced-dark band needs the light-on-dark artwork too, whatever the
+     page theme is. */
+  .on-dark .light-hide { display: block; }
+  .on-dark .dark-hide  { display: none; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar);
+    border-radius: 6px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); background-clip: content-box; }
+
+  /* Honour the OS reduced-motion setting outright. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* RCRE's signature eyebrow: brass, uppercase, very wide tracking. */
+  .eyebrow {
+    @apply text-micro uppercase font-semibold;
+    color: var(--brass-ink);
+    letter-spacing: 0.18em;
+  }
+
+  /* Panels carry a hairline in both themes and one shallow shadow in light,
+     where a lighter surface is not available to signal elevation. */
+  .panel {
+    @apply rounded-panel border border-hair bg-ink-raised;
+    box-shadow: var(--shadow-panel);
+  }
+
+  .divider { @apply border-t border-hair; }
+
+  /* Controls are square and letter-spaced, as on rcregroup.com, and fill on
+     hover rather than starting filled. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 border border-brass-fill bg-brass-fill
+           px-5 py-2.5 text-[0.6875rem] font-semibold uppercase
+           transition-colors duration-200
+           disabled:opacity-40 disabled:pointer-events-none;
+    color: #14120f;                 /* brass fill takes dark ink in both themes */
+    letter-spacing: 0.16em;
+  }
+  .btn-primary:hover {
+    background: transparent;
+    color: var(--brass-ink);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 border border-hair-strong
+           px-5 py-2.5 text-[0.6875rem] font-semibold uppercase text-chalk-muted
+           transition-colors duration-200 hover:border-brass-fill hover:text-brass
+           disabled:opacity-40 disabled:pointer-events-none;
+    letter-spacing: 0.16em;
+  }
+
+  .btn-quiet {
+    @apply inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-chalk-muted
+           transition-colors duration-150 hover:text-brass;
+  }
+
+  .link-rule {
+    @apply relative inline-block pb-1 text-label uppercase tracking-[0.14em] text-chalk
+           after:absolute after:bottom-0 after:left-0 after:h-px after:w-full
+           after:bg-brass-fill after:transition-colors after:duration-300
+           hover:text-brass;
+  }
+
+  /* Inputs need a visible edge in light mode; a bare surface reads as a gap. */
+  .field {
+    @apply w-full border border-hair bg-ink-raised px-3.5 py-2.5 text-body text-chalk
+           transition-colors placeholder:text-chalk-faint
+           focus:border-brass-fill focus:outline-none;
+  }
+}
+
+/* Durable accessibility preferences */
+html[data-large-text="true"] { font-size: 112.5%; }
+html[data-reduced-motion="true"] *,html[data-reduced-motion="true"] *::before,html[data-reduced-motion="true"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 3px; }
+button,input,select,textarea { min-height: 36px; }
+input[type="checkbox"] { min-height: 20px; width:20px; }

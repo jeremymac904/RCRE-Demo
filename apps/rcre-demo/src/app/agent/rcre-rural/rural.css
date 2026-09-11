@@ -1,0 +1,847 @@
+/**
+ * RCRE Rural & Land Theme Styles
+ *
+ * Design system: RCRE Rural — grounded, regional, premium country property.
+ * Fonts: Playfair Display (display), Lora (body).
+ * Palette: oat/parchment, sage accents, barn-red CTAs, deep pine text.
+ * Corner: 12px radius. Motion: ken-burns hero, fade-up sections.
+ */
+
+/* ─── Theme tokens ────────────────────────────────────────────────────────── */
+:root {
+  --rural-primary: #5a4a3a;
+  --rural-accent: #7d8c6a;
+  --rural-bg: #f5f0e6;
+  --rural-surface: #e8dcc4;
+  --rural-text: #1f2a24;
+  --rural-muted: #5a4a3a;
+  --rural-border: rgba(125, 140, 106, 0.3);
+  --rural-border-solid: #7d8c6a;
+  --rural-cta: #7a2e2a;
+  --rural-cta-hover: #5e2420;
+  --rural-font-display: 'Playfair Display', Georgia, serif;
+  --rural-font-body: 'Lora', Georgia, serif;
+  --rural-radius: 12px;
+}
+
+/* ─── Google Fonts import ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
+
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
+.rural-root {
+  font-family: var(--rural-font-body);
+  background-color: var(--rural-bg);
+  color: var(--rural-text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Header ───────────────────────────────────────────────────────────────── */
+.rural-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: var(--rural-bg);
+  border-bottom: 1px solid var(--rural-border);
+  backdrop-filter: blur(8px);
+}
+
+.rural-header-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.rural-brand {
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rural-brand-name {
+  font-family: var(--rural-font-display);
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: var(--rural-text);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.rural-brand-sub {
+  font-size: 0.6rem;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  color: var(--rural-muted);
+  line-height: 1;
+}
+
+.rural-nav {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.rural-nav-link {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--rural-text);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.rural-nav-link:hover {
+  color: var(--rural-accent);
+}
+
+.rural-cta-btn {
+  display: inline-block;
+  background-color: var(--rural-cta);
+  color: #f5f0e6;
+  padding: 0.5rem 1.5rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.15s;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.rural-cta-btn:hover {
+  background-color: var(--rural-cta-hover);
+}
+
+/* ─── Hero ─────────────────────────────────────────────────────────────────── */
+.rural-hero {
+  position: relative;
+  min-height: 90vh;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  background-color: var(--rural-primary);
+}
+
+.rural-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Warm film-grain overlay on hero */
+.rural-hero-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  pointer-events: none;
+}
+
+.rural-hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(
+    to top,
+    rgba(31, 42, 36, 0.72) 0%,
+    rgba(31, 42, 36, 0.25) 55%,
+    transparent 100%
+  );
+}
+
+.rural-hero-content {
+  position: relative;
+  z-index: 3;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 5rem 2rem;
+  width: 100%;
+}
+
+.rural-hero-kicker {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(245, 240, 230, 0.65);
+  margin-bottom: 1.25rem;
+}
+
+.rural-hero-title {
+  font-family: var(--rural-font-display);
+  font-size: clamp(2.5rem, 5.5vw, 4rem);
+  font-weight: 400;
+  font-style: italic;
+  color: #f5f0e6;
+  line-height: 1.1;
+  margin-bottom: 1.25rem;
+  max-width: 680px;
+}
+
+.rural-hero-sub {
+  font-size: 1.05rem;
+  color: rgba(245, 240, 230, 0.8);
+  max-width: 480px;
+  line-height: 1.65;
+  margin-bottom: 2.5rem;
+  font-style: italic;
+}
+
+.rural-hero-cta {
+  display: inline-block;
+  background-color: var(--rural-cta);
+  color: #f5f0e6;
+  padding: 0.875rem 2.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.2s;
+  border-radius: 6px;
+}
+
+.rural-hero-cta:hover {
+  background-color: var(--rural-cta-hover);
+}
+
+/* ─── Sections ─────────────────────────────────────────────────────────────── */
+.rural-section {
+  padding: 5rem 2rem;
+}
+
+.rural-section-sm {
+  padding: 3.5rem 2rem;
+}
+
+.rural-wrap {
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.rural-section-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--rural-accent);
+  margin-bottom: 0.75rem;
+}
+
+.rural-section-title {
+  font-family: var(--rural-font-display);
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 500;
+  font-style: italic;
+  color: var(--rural-text);
+  line-height: 1.2;
+  margin-bottom: 1.25rem;
+}
+
+.rural-section-sub {
+  font-size: 1rem;
+  color: var(--rural-muted);
+  max-width: 640px;
+  line-height: 1.75;
+}
+
+/* Plowed-line divider */
+.rural-plow {
+  border: none;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--rural-border) 0px,
+    var(--rural-border) 4px,
+    transparent 4px,
+    transparent 12px
+  );
+  margin: 0;
+}
+
+/* ─── Cards ────────────────────────────────────────────────────────────────── */
+.rural-card {
+  background-color: var(--rural-surface);
+  border: 1px solid var(--rural-border);
+  border-radius: var(--rural-radius);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.rural-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(31, 42, 36, 0.18);
+}
+
+.rural-card-img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  background-color: var(--rural-border);
+}
+
+.rural-card-body {
+  padding: 1.5rem;
+}
+
+.rural-card-price {
+  font-family: var(--rural-font-display);
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--rural-text);
+  margin-bottom: 0.25rem;
+  line-height: 1;
+}
+
+.rural-card-address {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--rural-text);
+  margin-bottom: 0.25rem;
+}
+
+.rural-card-meta {
+  font-size: 0.78rem;
+  color: var(--rural-muted);
+  margin-bottom: 0.75rem;
+}
+
+.rural-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rural-accent);
+  background-color: rgba(125, 140, 106, 0.12);
+  border: 1px solid rgba(125, 140, 106, 0.3);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.rural-tag-warn {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rural-cta);
+  background-color: rgba(122, 46, 42, 0.08);
+  border: 1px solid rgba(122, 46, 42, 0.2);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.rural-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--rural-accent);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.rural-card-link:hover {
+  color: var(--rural-text);
+}
+
+.rural-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+
+/* ─── Working-land split ───────────────────────────────────────────────────── */
+.rural-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rem;
+  align-items: center;
+}
+
+.rural-split-img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--rural-radius);
+}
+
+.rural-story-text {
+  font-size: 1.05rem;
+  color: var(--rural-text);
+  line-height: 1.85;
+}
+
+.rural-story-text p {
+  margin-bottom: 1.25rem;
+}
+
+.rural-story-text em {
+  font-style: italic;
+  color: var(--rural-accent);
+}
+
+/* ─── Land profile ─────────────────────────────────────────────────────────── */
+.rural-land-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.rural-land-chip {
+  display: inline-block;
+  padding: 0.35rem 0.875rem;
+  background-color: var(--rural-surface);
+  border: 1px solid var(--rural-border);
+  border-radius: 99px;
+  font-size: 0.8rem;
+  color: var(--rural-text);
+}
+
+.rural-acres-note {
+  background-color: rgba(125, 140, 106, 0.08);
+  border: 1px solid rgba(125, 140, 106, 0.25);
+  border-radius: var(--rural-radius);
+  padding: 1.25rem 1.5rem;
+  font-size: 0.875rem;
+  color: var(--rural-muted);
+  line-height: 1.65;
+  margin-top: 1.25rem;
+}
+
+/* ─── Markets list ─────────────────────────────────────────────────────────── */
+.rural-markets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rural-markets li {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 1.75rem 0;
+}
+
+.rural-markets li + li {
+  border-top: 1px solid var(--rural-border);
+}
+
+.rural-market-name {
+  font-family: var(--rural-font-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--rural-text);
+  min-width: 180px;
+}
+
+.rural-market-desc {
+  font-size: 0.9rem;
+  color: var(--rural-muted);
+  line-height: 1.7;
+}
+
+/* ─── Testimonial ──────────────────────────────────────────────────────────── */
+.rural-testimonial {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.rural-testimonial blockquote {
+  font-family: var(--rural-font-display);
+  font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--rural-text);
+  line-height: 1.55;
+  margin: 0 0 1.5rem;
+}
+
+.rural-testimonial cite {
+  font-size: 0.875rem;
+  font-style: normal;
+  color: var(--rural-muted);
+  font-family: var(--rural-font-body);
+}
+
+/* ─── About ────────────────────────────────────────────────────────────────── */
+.rural-about-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 4rem;
+  align-items: start;
+}
+
+.rural-about-headshot {
+  width: 100%;
+  aspect-ratio: 4/5;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--rural-radius);
+  border: 1px solid var(--rural-border);
+}
+
+.rural-about-bio p {
+  font-size: 1.05rem;
+  color: var(--rural-text);
+  line-height: 1.85;
+  margin-bottom: 1.25rem;
+}
+
+.rural-land-note {
+  background-color: rgba(125, 140, 106, 0.08);
+  border-left: 3px solid var(--rural-accent);
+  padding: 1rem 1.25rem;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--rural-muted);
+  margin-top: 1.5rem;
+  border-radius: 0 var(--rural-radius) var(--rural-radius) 0;
+}
+
+.rural-license-note {
+  font-size: 0.75rem;
+  color: var(--rural-muted);
+  line-height: 1.6;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rural-border);
+}
+
+/* ─── Contact form ─────────────────────────────────────────────────────────── */
+.rural-form {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.rural-form-title {
+  font-family: var(--rural-font-display);
+  font-size: 1.75rem;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--rural-text);
+  margin-bottom: 0.5rem;
+}
+
+.rural-form-sub {
+  font-size: 0.9rem;
+  color: var(--rural-muted);
+  margin-bottom: 2rem;
+  line-height: 1.65;
+}
+
+.rural-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--rural-border);
+  background-color: var(--rural-surface);
+  font-family: var(--rural-font-body);
+  font-size: 0.9rem;
+  color: var(--rural-text);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+  border-radius: var(--rural-radius);
+}
+
+.rural-input:focus {
+  border-color: var(--rural-accent);
+}
+
+.rural-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--rural-border);
+  background-color: var(--rural-surface);
+  font-family: var(--rural-font-body);
+  font-size: 0.9rem;
+  color: var(--rural-text);
+  outline: none;
+  cursor: pointer;
+  border-radius: var(--rural-radius);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237d8c6a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
+}
+
+.rural-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--rural-border);
+  background-color: var(--rural-surface);
+  font-family: var(--rural-font-body);
+  font-size: 0.9rem;
+  color: var(--rural-text);
+  outline: none;
+  resize: vertical;
+  min-height: 120px;
+  box-sizing: border-box;
+  border-radius: var(--rural-radius);
+}
+
+.rural-textarea:focus {
+  border-color: var(--rural-accent);
+}
+
+.rural-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rural-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+  color: var(--rural-text);
+  cursor: pointer;
+}
+
+.rural-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--rural-accent);
+  cursor: pointer;
+}
+
+.rural-submit {
+  display: inline-block;
+  background-color: var(--rural-cta);
+  color: #f5f0e6;
+  padding: 0.875rem 2.5rem;
+  border: none;
+  font-family: var(--rural-font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-radius: 6px;
+}
+
+.rural-submit:hover {
+  background-color: var(--rural-cta-hover);
+}
+
+.rural-privacy {
+  font-size: 0.72rem;
+  color: var(--rural-muted);
+  line-height: 1.6;
+  margin-top: 1rem;
+  font-style: italic;
+}
+
+/* ─── Footer ───────────────────────────────────────────────────────────────── */
+.rural-footer {
+  background-color: var(--rural-primary);
+  color: rgba(245, 240, 230, 0.7);
+  padding: 3.5rem 2rem 2.5rem;
+  margin-top: 4rem;
+}
+
+.rural-footer-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.rural-footer-brand {
+  font-family: var(--rural-font-display);
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #f5f0e6;
+  margin-bottom: 0.5rem;
+}
+
+.rural-footer-divider {
+  border: none;
+  border-top: 1px solid rgba(245, 240, 230, 0.12);
+  margin: 2rem 0;
+}
+
+.rural-footer-disclosure {
+  font-size: 0.72rem;
+  line-height: 1.7;
+  color: rgba(245, 240, 230, 0.5);
+  max-width: 720px;
+  margin-bottom: 1.5rem;
+}
+
+.rural-footer-bottom {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: rgba(245, 240, 230, 0.45);
+}
+
+/* ─── Page hero (non-image) ─────────────────────────────────────────────────── */
+.rural-page-hero {
+  background-color: var(--rural-surface);
+  border-bottom: 1px solid var(--rural-border);
+  padding: 5rem 2rem 4rem;
+  text-align: center;
+}
+
+.rural-page-hero h1 {
+  font-family: var(--rural-font-display);
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 500;
+  font-style: italic;
+  color: var(--rural-text);
+  margin-bottom: 0.75rem;
+}
+
+.rural-page-hero p {
+  font-size: 1rem;
+  color: var(--rural-muted);
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* ─── CTA section ───────────────────────────────────────────────────────────── */
+.rural-cta-section {
+  background-color: var(--rural-surface);
+  border-top: 1px solid var(--rural-border);
+  border-bottom: 1px solid var(--rural-border);
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.rural-cta-section h2 {
+  font-family: var(--rural-font-display);
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 500;
+  font-style: italic;
+  color: var(--rural-text);
+  margin-bottom: 0.75rem;
+}
+
+.rural-cta-section p {
+  font-size: 1rem;
+  color: var(--rural-muted);
+  margin-bottom: 2rem;
+  line-height: 1.65;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ─── Market cards ──────────────────────────────────────────────────────────── */
+.rural-market-card {
+  border: 1px solid var(--rural-border);
+  border-radius: var(--rural-radius);
+  padding: 2rem;
+  background-color: var(--rural-surface);
+}
+
+.rural-market-card h2 {
+  font-family: var(--rural-font-display);
+  font-size: 1.5rem;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--rural-text);
+  margin-bottom: 0.75rem;
+}
+
+.rural-market-card p {
+  font-size: 0.875rem;
+  color: var(--rural-muted);
+  line-height: 1.7;
+}
+
+/* ─── Success message ──────────────────────────────────────────────────────── */
+.rural-success {
+  background-color: var(--rural-surface);
+  border: 1px solid var(--rural-border);
+  border-radius: var(--rural-radius);
+  padding: 2rem;
+  text-align: center;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.rural-success h3 {
+  font-family: var(--rural-font-display);
+  font-size: 1.5rem;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--rural-text);
+  margin-bottom: 0.75rem;
+}
+
+.rural-success p {
+  font-size: 0.875rem;
+  color: var(--rural-muted);
+  line-height: 1.65;
+}
+
+/* ─── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .rural-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .rural-split {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+  .rural-about-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .rural-nav {
+    display: none;
+  }
+  .rural-hero {
+    min-height: 80vh;
+  }
+  .rural-section {
+    padding: 4rem 1.5rem;
+  }
+  .rural-section-sm {
+    padding: 3rem 1.5rem;
+  }
+  .rural-grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .rural-header-inner {
+    padding: 0 1.5rem;
+  }
+  .rural-hero-content {
+    padding: 3rem 1.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .rural-markets li {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+}

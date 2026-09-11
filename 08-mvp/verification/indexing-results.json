@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Published page emits index directive",
+    "passed": true
+  },
+  {
+    "name": "Published page included in sitemap",
+    "passed": true
+  },
+  {
+    "name": "Draft indexing choice does not alter public sitemap",
+    "passed": true
+  },
+  {
+    "name": "Published exclusion emits noindex",
+    "passed": true
+  },
+  {
+    "name": "Published exclusion removes sitemap entry",
+    "passed": true
+  },
+  {
+    "name": "Public crawl policy preserves private exclusions",
+    "passed": true
+  },
+  {
+    "name": "Anonymous protected content remains denied",
+    "passed": true
+  }
+]

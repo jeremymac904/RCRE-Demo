@@ -1,0 +1,5 @@
+import { NextResponse } from 'next/server'
+import { createSession, revokeSession, SESSION_COOKIE, PERSONAS } from '@/lib/platform/auth'
+export const dynamic='force-dynamic'
+export async function POST(request:Request){const form=await request.formData();const id=String(form.get('userId')??'');try{const token=createSession(id);const a=PERSONAS.find(p=>p.id===id)!;const destination=a.role==='transaction_coordinator'?'/transactions':a.role==='trainer'?'/training':a.role==='marketing_admin'?'/marketing':['broker_owner','managing_broker','team_leader'].includes(a.role)?'/command':'/today';const res=NextResponse.redirect(new URL(destination,request.url),303);res.cookies.set(SESSION_COOKIE,token,{httpOnly:true,sameSite:'strict',path:'/',maxAge:43200});return res}catch{return NextResponse.redirect(new URL('/login?error=unavailable',request.url),303)}}
+export async function GET(request:Request){await revokeSession();const res=NextResponse.redirect(new URL('/login',request.url),303);res.cookies.delete(SESSION_COOKIE);return res}

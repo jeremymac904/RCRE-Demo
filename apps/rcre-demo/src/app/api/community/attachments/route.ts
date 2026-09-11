@@ -1,0 +1,3 @@
+import { actorOrNull } from '@/lib/platform/auth'
+import { saveAttachment } from '@/lib/academy-attachments'
+export async function POST(req:Request){const a=await actorOrNull();if(!a)return Response.json({error:'Sign in required'},{status:401});if(Number(req.headers.get('content-length'))>6*1024*1024)return Response.json({error:'File exceeds 5 MB'},{status:413});try{const form=await req.formData();const file=form.get('file');if(!(file instanceof File))throw new Error('Choose a file');return Response.json(saveAttachment(a,file.name,file.type,new Uint8Array(await file.arrayBuffer())))}catch(e){return Response.json({error:(e as Error).message},{status:400})}}

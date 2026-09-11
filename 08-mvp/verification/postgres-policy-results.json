@@ -1,0 +1,37 @@
+{
+  "engine": "PGlite PostgreSQL WASM, isolated migration/policy verification; canonical app remains SQLite",
+  "results": [
+    {
+      "name": "All original Postgres migrations execute",
+      "passed": true
+    },
+    {
+      "name": "Application role is not superuser or BYPASSRLS",
+      "passed": true
+    },
+    {
+      "name": "No context exposes no rows",
+      "passed": true
+    },
+    {
+      "name": "Agent selects only assigned own row",
+      "passed": true
+    },
+    {
+      "name": "Owner sees org rows without crossing tenant",
+      "passed": true
+    },
+    {
+      "name": "Application role cannot mutate mirrored people",
+      "passed": true
+    },
+    {
+      "name": "People table enables and forces RLS",
+      "passed": true
+    },
+    {
+      "name": "Privileged migration role separately confirmed",
+      "passed": true
+    }
+  ]
+}

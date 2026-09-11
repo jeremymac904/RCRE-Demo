@@ -1,0 +1,371 @@
+
+> rcre-demo@0.1.0 dev
+> next dev -p 3200
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3200
+   - Network:      http://192.168.1.71:3200
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling /api/session ...
+ ✓ Compiled /api/session in 862ms (304 modules)
+ POST /api/session 303 in 990ms
+ ○ Compiling /command ...
+ ✓ Compiled /command in 1832ms (675 modules)
+ GET /command 200 in 2174ms
+ ✓ Compiled /login in 317ms (649 modules)
+ GET /login 200 in 444ms
+ ✓ Compiled /training in 148ms (675 modules)
+ GET /training 200 in 278ms
+ ✓ Compiled /training/community in 145ms (696 modules)
+ GET /training/community 200 in 292ms
+ GET /training/community?category=Wins 200 in 41ms
+ GET /training/community?category=AI+Questions 200 in 41ms
+ ✓ Compiled /training/classroom/[courseId]/[lessonId] in 144ms (710 modules)
+ GET /training/classroom/c02/c02-l05 200 in 546ms
+ ✓ Compiled /training/classroom in 146ms (724 modules)
+ GET /training/classroom 200 in 276ms
+ ✓ Compiled /training/classroom/[courseId] in 157ms (735 modules)
+ GET /training/classroom/c01 200 in 551ms
+ GET /training/classroom/c13 200 in 44ms
+ GET /training/classroom/c01/c01-l01 200 in 53ms
+ GET /training/classroom/c01/c01-l07 200 in 35ms
+ GET /training/classroom/c04/c04-l01 200 in 38ms
+ ✓ Compiled /assistant in 159ms (747 modules)
+ GET /assistant?ask=learn-next 200 in 248ms
+ GET /assistant?ask=todays-training 200 in 24ms
+ GET /assistant?ask=training-on 200 in 20ms
+ ✓ Compiled /recruiting/[id] in 160ms (756 modules)
+ GET /recruiting/r-nia 200 in 551ms
+ ✓ Compiled /join in 174ms (768 modules)
+ GET /join 200 in 337ms
+ GET /join 200 in 44ms
+ GET /command 307 in 33ms
+ GET /training 307 in 37ms
+ GET /training/community 307 in 42ms
+ GET /training/classroom/nope 404 in 44ms
+ GET /training/classroom/c01/c02-l05 404 in 41ms
+ ✓ Compiled / in 304ms (773 modules)
+ GET / 200 in 429ms
+ GET /login 200 in 30ms
+ ✓ Compiled /today in 195ms (781 modules)
+ GET /today 200 in 345ms
+ GET /today 200 in 46ms
+ GET /assistant?ask=why-dana 200 in 29ms
+ GET /assistant?ask=draft-dana 200 in 20ms
+ GET /assistant?ask=approvals 200 in 21ms
+ ✓ Compiled /crm/[id] in 194ms (791 modules)
+ GET /crm/c-dana?from=/today 200 in 586ms
+ GET /crm/c-althea 200 in 35ms
+ ✓ Compiled /crm in 186ms (794 modules)
+ GET /crm?q=mandarin 200 in 290ms
+ ✓ Compiled /pipeline in 187ms (796 modules)
+ GET /pipeline 200 in 309ms
+ ✓ Compiled /listings/[id] in 220ms (805 modules)
+ GET /listings/l-2?from=/today 200 in 583ms
+ GET /listings/l-2 200 in 29ms
+ GET /training 200 in 42ms
+ ✓ Compiled /_not-found in 315ms (810 modules)
+ GET /training/c02 404 in 388ms
+ GET /training/c01/c01-l01 404 in 18ms
+ GET /training/c02/c02-l05 404 in 21ms
+ GET /assistant?ask=plan-my-day 200 in 36ms
+ GET /assistant?ask=learn-next 200 in 19ms
+ GET /assistant?ask=approvals 200 in 19ms
+ GET /login 200 in 26ms
+ GET /command 200 in 51ms
+ GET /command 200 in 46ms
+ GET /command 200 in 45ms
+ GET /crm/c-marcus?from=/command 200 in 39ms
+ ✓ Compiled /agents/[id] in 230ms (812 modules)
+ GET /agents/u-chad?from=/command 200 in 605ms
+ ✓ Compiled /command/reporting in 226ms (814 modules)
+ GET /command/reporting?from=/command 200 in 355ms
+ GET /command/reporting 200 in 43ms
+ ✓ Compiled /recruiting in 221ms (817 modules)
+ GET /recruiting 200 in 340ms
+ GET /recruiting/r-nia?from=/recruiting 200 in 39ms
+ GET /recruiting/r-nia 200 in 34ms
+ GET /join 200 in 54ms
+ GET / 200 in 48ms
+ GET /login 200 in 24ms
+ GET /today 200 in 57ms
+ GET /today 200 in 44ms
+ GET /assistant?ask=why-dana 200 in 26ms
+ GET /assistant?ask=draft-dana 200 in 20ms
+ GET /assistant?ask=approvals 200 in 21ms
+ GET /crm/c-dana?from=/today 200 in 45ms
+ GET /crm/c-althea 200 in 29ms
+ GET /crm?q=mandarin 200 in 33ms
+ GET /pipeline 200 in 56ms
+ GET /listings/l-2?from=/today 200 in 37ms
+ GET /listings/l-2 200 in 28ms
+ GET /training 200 in 38ms
+ GET /training/c02 404 in 19ms
+ GET /training/c01/c01-l01 404 in 13ms
+ GET /training/c02/c02-l05 404 in 13ms
+ GET /assistant?ask=plan-my-day 200 in 21ms
+ GET /assistant?ask=learn-next 200 in 22ms
+ GET /assistant?ask=approvals 200 in 21ms
+ GET /login 200 in 26ms
+ GET /command 200 in 82ms
+ GET /command 200 in 44ms
+ GET /command 200 in 48ms
+ GET /crm/c-marcus?from=/command 200 in 31ms
+ GET /agents/u-chad?from=/command 200 in 35ms
+ GET /command/reporting?from=/command 200 in 48ms
+ GET /command/reporting 200 in 43ms
+ GET /recruiting 200 in 51ms
+ GET /recruiting/r-nia?from=/recruiting 200 in 37ms
+ GET /recruiting/r-nia 200 in 34ms
+ GET /join 200 in 43ms
+ GET / 200 in 54ms
+ GET /login 200 in 23ms
+ GET /today 200 in 55ms
+ GET /today 200 in 46ms
+ GET /assistant?ask=why-dana 200 in 23ms
+ GET /assistant?ask=draft-dana 200 in 20ms
+ GET /assistant?ask=approvals 200 in 19ms
+ GET /crm/c-dana?from=/today 200 in 41ms
+ GET /crm/c-althea 200 in 29ms
+ GET /crm?q=mandarin 200 in 24ms
+ GET /pipeline 200 in 45ms
+ GET /listings/l-2?from=/today 200 in 32ms
+ GET /listings/l-2 200 in 34ms
+ GET /training 200 in 39ms
+ GET /training/classroom/c02 200 in 61ms
+ GET /training/classroom/c01/c01-l01 200 in 72ms
+ GET /training/classroom/c02/c02-l05 200 in 40ms
+ GET /assistant?ask=plan-my-day 200 in 24ms
+ GET /assistant?ask=learn-next 200 in 20ms
+ GET /assistant?ask=approvals 200 in 23ms
+ GET /login 200 in 20ms
+ GET /command 200 in 48ms
+ GET /command 200 in 43ms
+ GET /command 200 in 45ms
+ GET /crm/c-marcus?from=/command 200 in 32ms
+ GET /agents/u-chad?from=/command 200 in 31ms
+ GET /command/reporting?from=/command 200 in 44ms
+ GET /command/reporting 200 in 45ms
+ GET /recruiting 200 in 50ms
+ GET /recruiting/r-nia?from=/recruiting 200 in 38ms
+ GET /recruiting/r-nia 200 in 35ms
+ GET /join 200 in 46ms
+ GET /command 307 in 24ms
+ GET /command/reporting 307 in 28ms
+ GET /recruiting 307 in 23ms
+ GET /recruiting/r-nia 307 in 27ms
+ ✓ Compiled /agents in 388ms (819 modules)
+ GET /agents 307 in 489ms
+ GET /agents/u-chad 307 in 34ms
+ GET /crm/c-tobias 404 in 36ms
+ GET /today 307 in 32ms
+ GET /command 200 in 62ms
+ GET /recruiting/r-nia 200 in 50ms
+ GET /crm/c-tobias 200 in 33ms
+ GET /crm/c-dana 200 in 45ms
+ GET /today 307 in 23ms
+ GET /command 307 in 26ms
+ GET / 200 in 54ms
+ GET /login 200 in 28ms
+ GET /today 200 in 48ms
+ GET /today 200 in 46ms
+ GET /assistant?ask=why-dana 200 in 27ms
+ GET /assistant?ask=draft-dana 200 in 23ms
+ GET /assistant?ask=approvals 200 in 22ms
+ GET /crm/c-dana?from=/today 200 in 41ms
+ GET /crm/c-althea 200 in 34ms
+ GET /crm?q=mandarin 200 in 33ms
+ GET /pipeline 200 in 52ms
+ GET /listings/l-2?from=/today 200 in 40ms
+ GET /listings/l-2 200 in 31ms
+ GET /training 200 in 47ms
+ GET /training/classroom/c02 200 in 55ms
+ GET /training/classroom/c01/c01-l01 200 in 60ms
+ GET /training/classroom/c02/c02-l05 200 in 39ms
+ GET /assistant?ask=plan-my-day 200 in 26ms
+ GET /assistant?ask=learn-next 200 in 23ms
+ GET /assistant?ask=approvals 200 in 27ms
+ GET /login 200 in 24ms
+ GET /command 200 in 53ms
+ GET /command 200 in 47ms
+ GET /command 200 in 47ms
+ GET /crm/c-marcus?from=/command 200 in 33ms
+ GET /agents/u-chad?from=/command 200 in 31ms
+ GET /command/reporting?from=/command 200 in 55ms
+ GET /assistant 200 in 71ms
+ GET /command/reporting 200 in 53ms
+ GET /recruiting 200 in 80ms
+ GET /recruiting/r-nia?from=/recruiting 200 in 48ms
+ GET /recruiting/r-nia 200 in 49ms
+ GET /join 200 in 149ms
+ GET /training 200 in 32ms
+ GET /training/community 200 in 71ms
+ GET /training/community?category=Wins 200 in 40ms
+ GET /training/community?category=AI+Questions 200 in 41ms
+ GET /training/classroom/c02/c02-l05 200 in 39ms
+ GET /training/classroom 200 in 71ms
+ GET /training/classroom/c01 200 in 42ms
+ GET /training/classroom/c13 200 in 49ms
+ GET /training/classroom/c01/c01-l01 200 in 38ms
+ GET /training/classroom/c01/c01-l07 200 in 37ms
+ GET /training/classroom/c04/c04-l01 200 in 41ms
+ GET /assistant?ask=learn-next 200 in 23ms
+ GET /assistant?ask=todays-training 200 in 25ms
+ GET /assistant?ask=training-on 200 in 21ms
+ GET /recruiting/r-nia 200 in 39ms
+ GET /join 200 in 50ms
+ GET /join 200 in 48ms
+ GET /command 307 in 22ms
+ GET /training 307 in 27ms
+ GET /training/community 307 in 28ms
+ GET /training/classroom/nope 404 in 29ms
+ GET /training/classroom/c01/c02-l05 404 in 33ms
+ GET /training/classroom 200 in 86ms
+ GET /recruiting 200 in 49ms
+ GET /training/classroom 200 in 83ms
+ GET /agents 200 in 43ms
+ GET /training/classroom/c01/c01-l01 200 in 71ms
+ GET /crm 200 in 63ms
+ GET /pipeline 200 in 55ms
+ GET /crm/c-marcus?from=%2Fpipeline 200 in 32ms
+ GET /login 200 in 39ms
+ GET /login 200 in 22ms
+ GET /api/session 303 in 19ms
+ GET / 200 in 50ms
+ GET /login 200 in 13ms
+ POST /api/session 303 in 7ms
+ GET /today 200 in 69ms
+ GET /assistant 200 in 22ms
+ GET /crm 200 in 69ms
+ GET /pipeline 200 in 37ms
+ ✓ Compiled /listings in 332ms (758 modules)
+ GET /listings 200 in 439ms
+ ✓ Compiled /listings/[id] in 297ms (494 modules)
+ GET /listings/l-1?from=%2Flistings 200 in 374ms
+ ✓ Compiled /marketing in 225ms (753 modules)
+ GET /marketing 200 in 317ms
+ ✓ Compiled /training in 128ms (475 modules)
+ GET /training 200 in 201ms
+ ✓ Compiled /training/community in 276ms (462 modules)
+ GET /training/community 200 in 440ms
+ ✓ Compiled /training/classroom in 113ms (447 modules)
+ GET /training/classroom 200 in 200ms
+ ✓ Compiled /training/classroom/[courseId]/[lessonId] in 106ms (457 modules)
+ GET /training/classroom/c02/c02-l05 200 in 174ms
+ ✓ Compiled /training/classroom/[courseId] in 111ms (453 modules)
+ GET /training/classroom/c02 200 in 182ms
+ ✓ Compiled /api/session in 122ms (464 modules)
+ GET /api/session 303 in 257ms
+ ✓ Compiled / in 117ms (473 modules)
+ GET / 200 in 304ms
+ GET /login 200 in 41ms
+ POST /api/session 303 in 13ms
+ ✓ Compiled /command in 101ms (479 modules)
+ GET /command 200 in 250ms
+ ✓ Compiled /agents in 143ms (481 modules)
+ GET /agents 200 in 242ms
+ ✓ Compiled /agents/[id] in 130ms (471 modules)
+ GET /agents/u-chad?from=%2Fagents 200 in 193ms
+ ✓ Compiled /assistant in 403ms (430 modules)
+ GET /assistant 200 in 552ms
+ GET /login 200 in 211ms
+ ✓ Compiled in 454ms (284 modules)
+ ✓ Compiled in 169ms (284 modules)
+ ✓ Compiled in 91ms (284 modules)
+ ✓ Compiled in 428ms (696 modules)
+ ✓ Compiled /listings/[id] in 304ms (421 modules)
+ GET /listings/l-2 200 in 487ms
+ GET /agents 200 in 68ms
+ GET /agents 200 in 83ms
+ GET /agents 200 in 44ms
+ GET /agents 200 in 78ms
+ ✓ Compiled in 401ms (696 modules)
+ GET /agents 200 in 133ms
+ ✓ Compiled in 150ms (270 modules)
+ ✓ Compiled in 304ms (284 modules)
+ ✓ Compiled in 154ms (284 modules)
+ GET /command 307 in 57ms
+ ✓ Compiled /command/reporting in 238ms (414 modules)
+ GET /command/reporting 307 in 329ms
+ ✓ Compiled /recruiting in 138ms (418 modules)
+ GET /recruiting 307 in 245ms
+ ✓ Compiled /recruiting/[id] in 92ms (424 modules)
+ GET /recruiting/r-nia 307 in 185ms
+ GET /agents 307 in 28ms
+ GET /agents/u-chad 307 in 36ms
+ ✓ Compiled /crm/[id] in 111ms (433 modules)
+ GET /crm/c-tobias 404 in 205ms
+ ✓ Compiled /today in 108ms (439 modules)
+ GET /today 307 in 194ms
+ GET /command 200 in 51ms
+ GET /recruiting/r-nia 200 in 36ms
+ GET /crm/c-tobias 200 in 28ms
+ GET /crm/c-dana 200 in 38ms
+ GET /today 307 in 19ms
+ GET /command 307 in 18ms
+ ✓ Compiled / in 189ms (451 modules)
+ GET / 200 in 335ms
+ GET /login 200 in 67ms
+ GET /today 200 in 47ms
+ GET /today 200 in 41ms
+ GET /assistant?ask=why-dana 200 in 31ms
+ GET /assistant?ask=draft-dana 200 in 17ms
+ GET /assistant?ask=approvals 200 in 19ms
+ GET /crm/c-dana?from=/today 200 in 40ms
+ GET /crm/c-althea 200 in 29ms
+ ✓ Compiled /crm in 121ms (454 modules)
+ GET /crm?q=mandarin 200 in 214ms
+ ✓ Compiled /pipeline in 110ms (456 modules)
+ GET /pipeline 200 in 222ms
+ ✓ Compiled /listings/[id] in 176ms (463 modules)
+ GET /listings/l-2?from=/today 200 in 313ms
+ GET /listings/l-2 200 in 29ms
+ ✓ Compiled /training in 175ms (479 modules)
+ GET /training 200 in 322ms
+ ✓ Compiled /training/classroom/[courseId] in 149ms (487 modules)
+ GET /training/classroom/c02 200 in 265ms
+ ✓ Compiled /training/classroom/[courseId]/[lessonId] in 162ms (497 modules)
+ GET /training/classroom/c01/c01-l01 200 in 285ms
+ GET /training/classroom/c02/c02-l05 200 in 34ms
+ GET /assistant?ask=plan-my-day 200 in 26ms
+ GET /assistant?ask=learn-next 200 in 19ms
+ GET /assistant?ask=approvals 200 in 21ms
+ GET /login 200 in 24ms
+ GET /command 200 in 44ms
+ GET /command 200 in 43ms
+ GET /command 200 in 40ms
+ GET /crm/c-marcus?from=/command 200 in 32ms
+ GET /agents/u-chad?from=/command 200 in 33ms
+ GET /command/reporting?from=/command 200 in 50ms
+ GET /command/reporting 200 in 42ms
+ GET /recruiting 200 in 56ms
+ GET /recruiting/r-nia?from=/recruiting 200 in 36ms
+ GET /recruiting/r-nia 200 in 34ms
+ ✓ Compiled /join in 172ms (502 modules)
+ GET /join 200 in 295ms
+ GET /training 200 in 51ms
+ ✓ Compiled /training/community in 271ms (515 modules)
+ GET /training/community 200 in 487ms
+ GET /training/community?category=Wins 200 in 37ms
+ GET /training/community?category=AI+Questions 200 in 38ms
+ GET /training/classroom/c02/c02-l05 200 in 45ms
+ ✓ Compiled /training/classroom in 191ms (525 modules)
+ GET /training/classroom 200 in 326ms
+ GET /training/classroom/c01 200 in 39ms
+ GET /training/classroom/c13 200 in 45ms
+ GET /training/classroom/c01/c01-l01 200 in 37ms
+ GET /training/classroom/c01/c01-l07 200 in 33ms
+ GET /training/classroom/c04/c04-l01 200 in 33ms
+ GET /assistant?ask=learn-next 200 in 21ms
+ GET /assistant?ask=todays-training 200 in 22ms
+ GET /assistant?ask=training-on 200 in 19ms
+ GET /recruiting/r-nia 200 in 36ms
+ GET /join 200 in 53ms
+ GET /join 200 in 46ms
+ GET /command 307 in 21ms
+ GET /training 307 in 27ms
+ GET /training/community 307 in 30ms
+ GET /training/classroom/nope 404 in 28ms
+ GET /training/classroom/c01/c02-l05 404 in 31ms

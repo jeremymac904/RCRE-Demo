@@ -1,0 +1,8 @@
+runtime/
+**/node_modules/
+**/.next*/
+**/.env*
+!**/.env.example
+**/*.tsbuildinfo
+.runtime/
+RCRE & Jeremy AI + - 2026_08_26 09_58 EDT - Recording.mp4

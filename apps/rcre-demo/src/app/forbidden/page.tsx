@@ -1,0 +1,2 @@
+import Link from 'next/link'
+export default function Forbidden(){return <main className="p-10 max-w-2xl mx-auto"><h1 className="font-display text-4xl">This workspace is outside your scope.</h1><p className="my-5 text-chalk-muted">Your role does not have access to this record or operation. Return to your workspace or choose another synthetic persona.</p><Link href="/login">Choose a local role</Link></main>}

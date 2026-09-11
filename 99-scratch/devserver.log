@@ -1,0 +1,60 @@
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3100
+   - Network:      http://192.168.1.71:3100
+
+ ✓ Starting...
+ ✓ Ready in 6.4s
+ ○ Compiling / ...
+ ✓ Compiled / in 660ms (584 modules)
+ GET / 200 in 1089ms
+ ✓ Compiled /today in 181ms (605 modules)
+ GET /today 200 in 419ms
+ ✓ Compiled /command in 78ms (607 modules)
+ GET /command 200 in 202ms
+ ✓ Compiled /join in 77ms (609 modules)
+ GET /join 200 in 164ms
+ GET /today 200 in 62ms
+ ✓ Compiled in 4.7s (623 modules)
+ GET /today 200 in 612ms
+ GET /today 200 in 23ms
+ ✓ Compiled /dev/role in 248ms (626 modules)
+ GET /dev/role?as=agent 307 in 375ms
+ GET / 200 in 114ms
+ GET /today 200 in 50ms
+ GET /command 200 in 27ms
+ GET /join 200 in 31ms
+ GET /today 200 in 37ms
+ GET /today 200 in 56ms
+ GET /dev/role?as=agent 307 in 20ms
+ GET /today 200 in 73ms
+ ✓ Compiled in 228ms (640 modules)
+ GET /today 200 in 79ms
+ GET /today 200 in 78ms
+ GET /today 200 in 54ms
+ GET /command 200 in 53ms
+ GET /dev/role?as=broker 307 in 23ms
+ GET /today 200 in 66ms
+ ✓ Compiled in 144ms (634 modules)
+ GET /today 200 in 57ms
+ GET /dev/role?as=broker 307 in 18ms
+ GET /command 200 in 65ms
+ ✓ Compiled /join in 74ms (401 modules)
+ GET /join 200 in 174ms
+ GET /today 200 in 72ms
+ ✓ Compiled / in 78ms (405 modules)
+ GET / 200 in 153ms
+ GET /today 200 in 45ms
+ GET /command 200 in 37ms
+ GET /join 200 in 30ms
+ GET /dev/role?as=agent&back=/today 307 in 16ms
+ GET /today 200 in 50ms
+ GET /today 200 in 179ms
+ GET /today 200 in 33ms
+ GET /command 200 in 18ms
+ GET /join 200 in 24ms
+ GET /dev/role?as=broker 307 in 19ms
+ GET /join 200 in 56ms
+ GET /today 200 in 28ms
+ GET /command 200 in 46ms
+ GET /join 200 in 33ms
+[?25h

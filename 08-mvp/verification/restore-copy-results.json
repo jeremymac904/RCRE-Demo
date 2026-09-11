@@ -1,0 +1,8 @@
+{
+  "integrity": "ok",
+  "backupContactCount": 21,
+  "restoredScopedContacts": 18,
+  "restoredCompletedTask": true,
+  "isolatedCopy": "runtime/data/restore-validation.sqlite",
+  "liveDatabaseReset": false
+}

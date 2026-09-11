@@ -1,0 +1,4 @@
+import {actorOrNull} from '@/lib/platform/auth'
+import {academyManager} from '@/lib/academy-service'
+import {createAcademyUpload} from '@/lib/academy-uploads'
+export async function POST(req:Request){const a=await actorOrNull();if(!a)return Response.json({error:'Sign in required'},{status:401});if(!academyManager(a))return Response.json({error:'Trainer permission required'},{status:403});if(Number(req.headers.get('content-length'))>101*1024*1024)return Response.json({error:'100 MB maximum'},{status:413});try{const form=await req.formData(),file=form.get('file');if(!(file instanceof File)||file.size>100*1024*1024)throw new Error('Choose a resource up to 100 MB');return Response.json(createAcademyUpload(a,file.name,file.type,Buffer.from(await file.arrayBuffer())))}catch(e){return Response.json({error:(e as Error).message},{status:400})}}

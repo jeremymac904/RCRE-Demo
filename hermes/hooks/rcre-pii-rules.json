@@ -1,0 +1,72 @@
+{
+  "$comment": "Canonical RCRE PII rule table. SINGLE SOURCE OF TRUTH. Read at runtime by hermes/hooks/block-pii-memory.mjs (the deployed Hermes pre_tool_call hook) and imported by mcp/rcre-mcp-server/src/pii-guard.ts (the tested implementation). Changing a pattern here changes both. Patterns are JavaScript regular-expression sources.",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "id": "email_address",
+      "category": "email address",
+      "pattern": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
+      "flags": "g"
+    },
+    {
+      "id": "phone_number",
+      "category": "phone number",
+      "pattern": "\\b(?:\\+?1[-. ]?)?\\(?\\d{3}\\)?[-. ]?\\d{3}[-. ]?\\d{4}\\b",
+      "flags": "g"
+    },
+    {
+      "id": "ssn",
+      "category": "government identifier",
+      "pattern": "\\b\\d{3}-\\d{2}-\\d{4}\\b",
+      "flags": "g"
+    },
+    {
+      "id": "street_address",
+      "category": "street address",
+      "pattern": "\\b\\d{1,6}\\s+(?:[A-Za-z0-9.'-]+\\s+){0,3}(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Circle|Cir|Way|Terrace|Ter|Place|Pl|Highway|Hwy)\\b",
+      "flags": "gi"
+    },
+    {
+      "id": "money_amount",
+      "category": "financial figure",
+      "pattern": "\\$\\s?\\d{1,3}(?:,\\d{3})+(?:\\.\\d{2})?|\\$\\s?\\d+(?:\\.\\d+)?\\s?[kKmM]\\b",
+      "flags": "g"
+    },
+    {
+      "id": "long_numeric_id",
+      "category": "account or licence number",
+      "pattern": "\\b\\d{9,}\\b",
+      "flags": "g"
+    },
+    {
+      "id": "date_of_birth",
+      "category": "date of birth",
+      "pattern": "\\b(?:date of birth|d\\.?o\\.?b\\.?|born on)\\b",
+      "flags": "gi"
+    },
+    {
+      "id": "financial_status",
+      "category": "client financial status",
+      "pattern": "\\b(?:pre-?approved|pre-?qualified|credit score|down ?payment|debt-to-income|dti|loan amount)\\b",
+      "flags": "gi"
+    },
+    {
+      "id": "client_then_name",
+      "category": "client identity",
+      "pattern": "\\b(?:client|lead|buyer|seller|prospect|borrower|customer|contact)\\b[^\\n.]{0,80}?\\b[A-Z][a-z]+\\s+[A-Z][a-z]+\\b",
+      "flags": "g"
+    },
+    {
+      "id": "name_then_client",
+      "category": "client identity",
+      "pattern": "\\b[A-Z][a-z]+\\s+[A-Z][a-z]+\\b[^\\n.]{0,80}?\\b(?:client|lead|buyer|seller|prospect|borrower|customer|is looking to|wants to buy|wants to sell)\\b",
+      "flags": "g"
+    },
+    {
+      "id": "record_identifier",
+      "category": "CRM record identifier",
+      "pattern": "\\b(?:person|contact|lead|deal)[_-]?id\\b",
+      "flags": "gi"
+    }
+  ]
+}

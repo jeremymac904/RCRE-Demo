@@ -1,0 +1,781 @@
+/**
+ * RCRE New Construction Theme Styles
+ *
+ * Design system: RCRE New Construction — precise, architectural, build-literate.
+ * Fonts: Outfit (display + body).
+ * Palette: deep navy, bright blue accent, clean white surfaces.
+ * Corner: 2px radius. Motion: crisp, purposeful.
+ */
+
+/* ─── Theme tokens ────────────────────────────────────────────────────────── */
+:root {
+  --nc-primary: #1a1a2e;
+  --nc-accent: #4f8ef7;
+  --nc-bg: #f8f9fc;
+  --nc-surface: #ffffff;
+  --nc-text: #1a1a2e;
+  --nc-muted: #64748b;
+  --nc-border: #e2e8f0;
+  --nc-cta: #4f8ef7;
+  --nc-cta-hover: #3a7ce0;
+  --nc-font-display: 'Outfit', system-ui, sans-serif;
+  --nc-font-body: 'Outfit', system-ui, sans-serif;
+  --nc-radius: 2px;
+}
+
+/* ─── Google Fonts import ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
+.nc-root {
+  font-family: var(--nc-font-body);
+  background-color: var(--nc-bg);
+  color: var(--nc-text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Header ───────────────────────────────────────────────────────────────── */
+.nc-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: rgba(248, 249, 252, 0.95);
+  border-bottom: 1px solid var(--nc-border);
+  backdrop-filter: blur(8px);
+}
+
+.nc-header-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.nc-brand {
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nc-brand-name {
+  font-family: var(--nc-font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--nc-primary);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.nc-brand-sub {
+  font-size: 0.6rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--nc-muted);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.nc-nav {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.nc-nav-link {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--nc-text);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.nc-nav-link:hover {
+  color: var(--nc-accent);
+}
+
+.nc-cta-btn {
+  display: inline-block;
+  background-color: var(--nc-cta);
+  color: #ffffff;
+  padding: 0.5rem 1.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s;
+  border-radius: var(--nc-radius);
+}
+
+.nc-cta-btn:hover {
+  background-color: var(--nc-cta-hover);
+}
+
+/* ─── Hero ─────────────────────────────────────────────────────────────────── */
+.nc-hero {
+  position: relative;
+  min-height: 90vh;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  background-color: var(--nc-primary);
+}
+
+.nc-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nc-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(26, 26, 46, 0.88) 0%,
+    rgba(26, 26, 46, 0.4) 50%,
+    rgba(26, 26, 46, 0.1) 100%
+  );
+}
+
+.nc-hero-content {
+  position: relative;
+  z-index: 2;
+  padding: 5rem 2rem 4rem;
+  max-width: 1320px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.nc-hero-kicker {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--nc-accent);
+  margin-bottom: 0.875rem;
+}
+
+.nc-hero-title {
+  font-family: var(--nc-font-display);
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+  margin-bottom: 1rem;
+  max-width: 720px;
+}
+
+.nc-hero-sub {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 2rem;
+  max-width: 540px;
+  font-weight: 400;
+}
+
+.nc-hero-cta {
+  display: inline-block;
+  background-color: var(--nc-cta);
+  color: #ffffff;
+  padding: 0.875rem 2.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s;
+  border-radius: var(--nc-radius);
+  letter-spacing: 0.01em;
+}
+
+.nc-hero-cta:hover {
+  background-color: var(--nc-cta-hover);
+}
+
+/* Timeline badges */
+.nc-timeline {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 2.5rem;
+}
+
+.nc-timeline-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(79, 142, 247, 0.15);
+  border: 1px solid rgba(79, 142, 247, 0.35);
+  color: #ffffff;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border-radius: var(--nc-radius);
+}
+
+.nc-timeline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--nc-accent);
+}
+
+/* ─── Sections ──────────────────────────────────────────────────────────────── */
+.nc-section {
+  padding: 5rem 2rem;
+}
+
+.nc-section-sm {
+  padding: 3rem 2rem;
+}
+
+.nc-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.nc-section-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--nc-accent);
+  margin-bottom: 0.5rem;
+}
+
+.nc-section-title {
+  font-family: var(--nc-font-display);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 700;
+  color: var(--nc-text);
+  margin-bottom: 0.75rem;
+  line-height: 1.2;
+}
+
+.nc-section-sub {
+  font-size: 0.95rem;
+  color: var(--nc-muted);
+  max-width: 640px;
+  line-height: 1.7;
+  margin-bottom: 2.5rem;
+}
+
+/* ─── Cards ─────────────────────────────────────────────────────────────────── */
+.nc-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .nc-grid-3 { grid-template-columns: 1fr; }
+}
+
+.nc-card {
+  background: var(--nc-surface);
+  border: 1px solid var(--nc-border);
+  border-radius: var(--nc-radius);
+  overflow: hidden;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.nc-card:hover {
+  box-shadow: 0 8px 32px rgba(26, 26, 46, 0.08);
+  transform: translateY(-2px);
+}
+
+.nc-card-img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+}
+
+.nc-card-body {
+  padding: 1.5rem;
+}
+
+.nc-card-price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--nc-text);
+  margin-bottom: 0.25rem;
+}
+
+.nc-card-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--nc-text);
+  margin-bottom: 0.375rem;
+}
+
+.nc-card-meta {
+  font-size: 0.8rem;
+  color: var(--nc-muted);
+  margin-bottom: 0.75rem;
+}
+
+.nc-card-tag {
+  display: inline-block;
+  background: rgba(79, 142, 247, 0.08);
+  color: var(--nc-accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--nc-radius);
+  text-transform: uppercase;
+  margin-right: 0.375rem;
+  margin-bottom: 0.25rem;
+}
+
+.nc-card-link {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--nc-cta);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.nc-card-link:hover {
+  color: var(--nc-cta-hover);
+}
+
+/* ─── How I Help / Phases ───────────────────────────────────────────────────── */
+.nc-phases {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  position: relative;
+}
+
+@media (max-width: 900px) {
+  .nc-phases { grid-template-columns: 1fr; }
+}
+
+.nc-phase {
+  padding: 2rem 1.25rem;
+  border-left: 1px solid var(--nc-border);
+  position: relative;
+}
+
+.nc-phase:first-child {
+  border-left: none;
+}
+
+@media (max-width: 900px) {
+  .nc-phase { border-left: none; border-top: 1px solid var(--nc-border); }
+  .nc-phase:first-child { border-top: none; }
+}
+
+.nc-phase-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: var(--nc-accent);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+  font-family: var(--nc-font-display);
+}
+
+.nc-phase-title {
+  font-family: var(--nc-font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--nc-text);
+  margin-bottom: 0.5rem;
+}
+
+.nc-phase-desc {
+  font-size: 0.82rem;
+  color: var(--nc-muted);
+  line-height: 1.65;
+}
+
+/* ─── Builder Logos ──────────────────────────────────────────────────────────── */
+.nc-builder-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .nc-builder-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.nc-builder-card {
+  background: var(--nc-surface);
+  border: 1px solid var(--nc-border);
+  border-radius: var(--nc-radius);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.nc-builder-logo {
+  width: 100%;
+  height: 56px;
+  background: var(--nc-bg);
+  border-radius: var(--nc-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.875rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--nc-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--nc-border);
+}
+
+.nc-builder-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--nc-text);
+  margin-bottom: 0.25rem;
+}
+
+.nc-builder-type {
+  font-size: 0.78rem;
+  color: var(--nc-muted);
+}
+
+/* ─── Resources ─────────────────────────────────────────────────────────────── */
+.nc-resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 600px;
+}
+
+.nc-resource-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--nc-surface);
+  border: 1px solid var(--nc-border);
+  border-radius: var(--nc-radius);
+  padding: 1rem 1.25rem;
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.nc-resource-item:hover {
+  border-color: var(--nc-accent);
+  box-shadow: 0 4px 16px rgba(79, 142, 247, 0.1);
+}
+
+.nc-resource-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  background: rgba(79, 142, 247, 0.08);
+  border-radius: var(--nc-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nc-resource-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--nc-text);
+  margin-bottom: 0.125rem;
+}
+
+.nc-resource-desc {
+  font-size: 0.78rem;
+  color: var(--nc-muted);
+}
+
+.nc-resource-arrow {
+  margin-left: auto;
+  color: var(--nc-accent);
+  font-size: 0.8rem;
+}
+
+/* ─── About grid ────────────────────────────────────────────────────────────── */
+.nc-about-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 3.5rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .nc-about-grid { grid-template-columns: 1fr; }
+}
+
+.nc-about-headshot {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: var(--nc-radius);
+  display: block;
+}
+
+.nc-about-bio {
+  padding-top: 0.5rem;
+}
+
+.nc-license-note {
+  font-size: 0.75rem;
+  color: var(--nc-muted);
+  line-height: 1.6;
+  border-top: 1px solid var(--nc-border);
+  padding-top: 1rem;
+  margin-top: 1.5rem;
+}
+
+/* ─── Form ─────────────────────────────────────────────────────────────────── */
+.nc-form {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.nc-form-title {
+  font-family: var(--nc-font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--nc-text);
+  margin-bottom: 0.5rem;
+}
+
+.nc-form-sub {
+  font-size: 0.9rem;
+  color: var(--nc-muted);
+  line-height: 1.65;
+  margin-bottom: 2rem;
+}
+
+.nc-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9rem;
+  font-family: var(--nc-font-body);
+  background: var(--nc-surface);
+  border: 1px solid var(--nc-border);
+  border-radius: var(--nc-radius);
+  color: var(--nc-text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+
+.nc-input:focus {
+  border-color: var(--nc-accent);
+  box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.15);
+}
+
+.nc-textarea {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9rem;
+  font-family: var(--nc-font-body);
+  background: var(--nc-surface);
+  border: 1px solid var(--nc-border);
+  border-radius: var(--nc-radius);
+  color: var(--nc-text);
+  outline: none;
+  resize: vertical;
+  min-height: 120px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+
+.nc-textarea:focus {
+  border-color: var(--nc-accent);
+  box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.15);
+}
+
+.nc-select {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9rem;
+  font-family: var(--nc-font-body);
+  background: var(--nc-surface);
+  border: 1px solid var(--nc-border);
+  border-radius: var(--nc-radius);
+  color: var(--nc-text);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.nc-select:focus {
+  border-color: var(--nc-accent);
+  box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.15);
+}
+
+.nc-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nc-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--nc-text);
+  cursor: pointer;
+  padding: 0.375rem 0.75rem;
+  background: var(--nc-bg);
+  border: 1px solid var(--nc-border);
+  border-radius: var(--nc-radius);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.nc-checkbox-label:has(input:checked) {
+  background: rgba(79, 142, 247, 0.08);
+  border-color: var(--nc-accent);
+  color: var(--nc-accent);
+}
+
+.nc-submit {
+  width: 100%;
+  background-color: var(--nc-cta);
+  color: #ffffff;
+  padding: 0.875rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: var(--nc-font-body);
+  border: none;
+  border-radius: var(--nc-radius);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.nc-submit:hover:not(:disabled) {
+  background-color: var(--nc-cta-hover);
+}
+
+.nc-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nc-privacy {
+  font-size: 0.75rem;
+  color: var(--nc-muted);
+  text-align: center;
+  margin-top: 1rem;
+  line-height: 1.5;
+}
+
+.nc-success {
+  text-align: center;
+  padding: 2.5rem 2rem;
+  background: var(--nc-surface);
+  border: 1px solid var(--nc-border);
+  border-radius: var(--nc-radius);
+}
+
+.nc-success h3 {
+  font-family: var(--nc-font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--nc-text);
+  margin-bottom: 0.75rem;
+}
+
+.nc-success p {
+  font-size: 0.875rem;
+  color: var(--nc-muted);
+  line-height: 1.6;
+}
+
+/* ─── CTA Banner ────────────────────────────────────────────────────────────── */
+.nc-cta-section {
+  background: var(--nc-primary);
+  color: #ffffff;
+  padding: 5rem 2rem;
+  text-align: center;
+}
+
+.nc-cta-section h2 {
+  font-family: var(--nc-font-display);
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.nc-cta-section p {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  max-width: 560px;
+  margin: 0 auto 2rem;
+  line-height: 1.7;
+}
+
+/* ─── Footer ────────────────────────────────────────────────────────────────── */
+.nc-footer {
+  background-color: var(--nc-primary);
+  color: #ffffff;
+  padding: 3rem 2rem 2rem;
+}
+
+.nc-footer-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.nc-footer-brand {
+  font-family: var(--nc-font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+}
+
+.nc-footer-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1.5rem 0;
+}
+
+.nc-footer-disclosure {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+}
+
+.nc-footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.nc-footer-bottom a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .nc-nav { display: none; }
+  .nc-hero { min-height: 75vh; }
+  .nc-hero-content { padding: 3rem 1.5rem 2.5rem; }
+  .nc-section { padding: 3.5rem 1.5rem; }
+  .nc-section-sm { padding: 2.5rem 1.5rem; }
+  .nc-timeline { gap: 0.375rem; }
+}

@@ -1,0 +1,3 @@
+// This loopback build serves the public site's intended crawl policy. Private
+// data is protected by authorization; crawler directives are not access control.
+export function GET(){const privatePaths=['/api/','/admin/','/settings','/login','/access/','/recovery','/onboarding','/today','/crm','/pipeline','/calendar','/command','/agents','/transactions','/assistant','/integrations','/marketing','/approvals','/recruiting','/training','/notifications','/workspace-search','/home-search','/properties/demo-','/academy-preview','/thank-you'];return new Response('User-agent: *\nAllow: /\n'+privatePaths.map(p=>'Disallow: '+p).join('\n')+'\n\nSitemap: https://rcregroup.com/sitemap.xml\n',{headers:{'Content-Type':'text/plain; charset=utf-8'}})}

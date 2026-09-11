@@ -1,0 +1,777 @@
+/**
+ * RCRE Luxury Theme Styles
+ *
+ * Design system: RCRE Luxury — architectural editorial, restrained and refined.
+ * Fonts: Cormorant Garamond (display), DM Sans (body).
+ * Palette: ivory/parchment base, brass accents, oxblood CTAs, charcoal text.
+ * Corner: sharp (0px radius). Motion: restrained.
+ */
+
+/* ─── Theme tokens (override CSS vars via JS-injected :root) ──────────────── */
+:root {
+  --lux-primary: #f4efe6;
+  --lux-accent: #a88a4f;
+  --lux-bg: #faf7f0;
+  --lux-surface: #f4efe6;
+  --lux-text: #1c1c1c;
+  --lux-muted: #a6a29a;
+  --lux-border: rgba(168, 138, 79, 0.3);
+  --lux-border-solid: #a88a4f;
+  --lux-cta: #5c2a2e;
+  --lux-cta-hover: #4a2328;
+  --lux-font-display: 'Cormorant Garamond', Georgia, serif;
+  --lux-font-body: 'DM Sans', system-ui, sans-serif;
+  --lux-radius: 0px;
+}
+
+/* ─── Google Fonts import ────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap');
+
+/* ─── Base ────────────────────────────────────────────────────────────────── */
+.lux-root {
+  font-family: var(--lux-font-body);
+  background-color: var(--lux-bg);
+  color: var(--lux-text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────────── */
+.lux-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: var(--lux-surface);
+  border-bottom: 1px solid var(--lux-border);
+  backdrop-filter: blur(8px);
+}
+
+.lux-header-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.lux-brand {
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lux-brand-name {
+  font-family: var(--lux-font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--lux-text);
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.lux-brand-sub {
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lux-muted);
+  line-height: 1;
+}
+
+.lux-nav {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.lux-nav-link {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--lux-text);
+  text-decoration: none;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.lux-nav-link:hover {
+  color: var(--lux-accent);
+  border-bottom-color: var(--lux-accent);
+}
+
+.lux-cta-btn {
+  display: inline-block;
+  background-color: var(--lux-cta);
+  color: #faf7f0;
+  padding: 0.5rem 1.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: background-color 0.15s;
+  border: none;
+  cursor: pointer;
+}
+
+.lux-cta-btn:hover {
+  background-color: var(--lux-cta-hover);
+}
+
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
+.lux-hero {
+  position: relative;
+  min-height: 90vh;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  background-color: var(--lux-text);
+}
+
+.lux-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lux-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(28, 28, 28, 0.72) 0%,
+    rgba(28, 28, 28, 0.2) 55%,
+    transparent 100%
+  );
+}
+
+.lux-hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 5rem 2rem;
+  width: 100%;
+}
+
+.lux-hero-kicker {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lux-accent);
+  margin-bottom: 1.25rem;
+}
+
+.lux-hero-title {
+  font-family: var(--lux-font-display);
+  font-size: clamp(2.75rem, 6vw, 4.25rem);
+  font-weight: 300;
+  color: #faf7f0;
+  line-height: 1.05;
+  margin-bottom: 1.25rem;
+  max-width: 700px;
+  letter-spacing: -0.01em;
+}
+
+.lux-hero-sub {
+  font-size: 1.05rem;
+  color: rgba(250, 247, 240, 0.8);
+  max-width: 480px;
+  line-height: 1.65;
+  margin-bottom: 2.5rem;
+  font-weight: 300;
+}
+
+.lux-hero-cta {
+  display: inline-block;
+  background-color: var(--lux-cta);
+  color: #faf7f0;
+  padding: 0.875rem 2.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: background-color 0.2s;
+}
+
+.lux-hero-cta:hover {
+  background-color: var(--lux-cta-hover);
+}
+
+/* ─── Sections ────────────────────────────────────────────────────────────── */
+.lux-section {
+  padding: 6rem 2rem;
+}
+
+.lux-section-sm {
+  padding: 4rem 2rem;
+}
+
+.lux-wrap {
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.lux-section-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lux-accent);
+  margin-bottom: 0.75rem;
+}
+
+.lux-section-title {
+  font-family: var(--lux-font-display);
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 400;
+  color: var(--lux-text);
+  line-height: 1.2;
+  margin-bottom: 1.25rem;
+}
+
+.lux-section-title em {
+  font-style: italic;
+  color: var(--lux-muted);
+}
+
+.lux-section-sub {
+  font-size: 1rem;
+  color: var(--lux-muted);
+  max-width: 640px;
+  line-height: 1.75;
+  font-weight: 300;
+}
+
+/* Hairline divider */
+.lux-hairline {
+  border: none;
+  border-top: 1px solid var(--lux-border);
+  margin: 0;
+}
+
+/* ─── Cards ───────────────────────────────────────────────────────────────── */
+.lux-card {
+  background-color: var(--lux-surface);
+  border: 1px solid var(--lux-border);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.lux-card:hover {
+  border-color: var(--lux-border-solid);
+}
+
+.lux-card-img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+  background-color: var(--lux-border);
+}
+
+.lux-card-body {
+  padding: 1.25rem;
+}
+
+.lux-card-price {
+  font-family: var(--lux-font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--lux-text);
+  margin-bottom: 0.25rem;
+  line-height: 1;
+}
+
+.lux-card-address {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--lux-text);
+  margin-bottom: 0.25rem;
+}
+
+.lux-card-meta {
+  font-size: 0.78rem;
+  color: var(--lux-muted);
+  margin-bottom: 0.75rem;
+}
+
+.lux-card-tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lux-muted);
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--lux-border);
+  margin-bottom: 0.75rem;
+}
+
+.lux-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--lux-accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--lux-border);
+  padding-bottom: 1px;
+  transition: border-color 0.15s;
+}
+
+.lux-card-link:hover {
+  border-bottom-color: var(--lux-accent);
+}
+
+.lux-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+
+/* ─── Provenance / Split layout ───────────────────────────────────────────── */
+.lux-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rem;
+  align-items: center;
+}
+
+.lux-split-img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  display: block;
+}
+
+.lux-editorial-text {
+  font-family: var(--lux-font-display);
+  font-size: 1.125rem;
+  font-weight: 300;
+  color: var(--lux-text);
+  line-height: 1.85;
+}
+
+.lux-editorial-text em {
+  font-style: italic;
+  color: var(--lux-muted);
+}
+
+/* ─── Markets list ─────────────────────────────────────────────────────────── */
+.lux-markets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lux-markets li {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+}
+
+.lux-markets li + li {
+  border-top: 1px solid var(--lux-border);
+}
+
+.lux-market-name {
+  font-family: var(--lux-font-display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--lux-text);
+  min-width: 160px;
+}
+
+.lux-market-desc {
+  font-size: 0.9rem;
+  color: var(--lux-muted);
+  line-height: 1.65;
+  font-weight: 300;
+}
+
+/* ─── Journal ──────────────────────────────────────────────────────────────── */
+.lux-journal {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.lux-journal-title {
+  font-family: var(--lux-font-display);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--lux-text);
+  margin-bottom: 1.5rem;
+  line-height: 1.3;
+}
+
+.lux-journal-body {
+  font-size: 1.05rem;
+  color: var(--lux-text);
+  line-height: 1.85;
+  font-weight: 300;
+}
+
+.lux-journal-body p {
+  margin-bottom: 1.5rem;
+}
+
+.lux-journal-sig {
+  margin-top: 2rem;
+  font-family: var(--lux-font-display);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--lux-muted);
+}
+
+/* ─── About ───────────────────────────────────────────────────────────────── */
+.lux-about-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 4rem;
+  align-items: start;
+}
+
+.lux-about-headshot {
+  width: 100%;
+  aspect-ratio: 4/5;
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--lux-border);
+}
+
+.lux-about-bio p {
+  font-size: 1.05rem;
+  color: var(--lux-text);
+  line-height: 1.85;
+  font-weight: 300;
+  margin-bottom: 1.25rem;
+}
+
+.lux-license-note {
+  font-size: 0.75rem;
+  color: var(--lux-muted);
+  line-height: 1.6;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--lux-border);
+}
+
+/* ─── Contact form ─────────────────────────────────────────────────────────── */
+.lux-form {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.lux-form-title {
+  font-family: var(--lux-font-display);
+  font-size: 1.75rem;
+  font-weight: 300;
+  color: var(--lux-text);
+  margin-bottom: 0.5rem;
+}
+
+.lux-form-sub {
+  font-size: 0.9rem;
+  color: var(--lux-muted);
+  margin-bottom: 2rem;
+  line-height: 1.65;
+}
+
+.lux-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--lux-border);
+  background-color: var(--lux-surface);
+  font-family: var(--lux-font-body);
+  font-size: 0.9rem;
+  color: var(--lux-text);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+  border-radius: var(--lux-radius);
+}
+
+.lux-input:focus {
+  border-color: var(--lux-accent);
+}
+
+.lux-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--lux-border);
+  background-color: var(--lux-surface);
+  font-family: var(--lux-font-body);
+  font-size: 0.9rem;
+  color: var(--lux-text);
+  outline: none;
+  cursor: pointer;
+  border-radius: var(--lux-radius);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a88a4f' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
+}
+
+.lux-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--lux-border);
+  background-color: var(--lux-surface);
+  font-family: var(--lux-font-body);
+  font-size: 0.9rem;
+  color: var(--lux-text);
+  outline: none;
+  resize: vertical;
+  min-height: 120px;
+  box-sizing: border-box;
+  border-radius: var(--lux-radius);
+}
+
+.lux-textarea:focus {
+  border-color: var(--lux-accent);
+}
+
+.lux-submit {
+  display: inline-block;
+  background-color: var(--lux-cta);
+  color: #faf7f0;
+  padding: 0.875rem 2.5rem;
+  border: none;
+  font-family: var(--lux-font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-radius: var(--lux-radius);
+}
+
+.lux-submit:hover {
+  background-color: var(--lux-cta-hover);
+}
+
+.lux-privacy {
+  font-size: 0.72rem;
+  color: var(--lux-muted);
+  line-height: 1.6;
+  margin-top: 1rem;
+}
+
+/* ─── Footer ───────────────────────────────────────────────────────────────── */
+.lux-footer {
+  background-color: var(--lux-text);
+  color: rgba(250, 247, 240, 0.7);
+  padding: 3.5rem 2rem 2.5rem;
+  margin-top: 4rem;
+}
+
+.lux-footer-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.lux-footer-brand {
+  font-family: var(--lux-font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #faf7f0;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+}
+
+.lux-footer-divider {
+  border: none;
+  border-top: 1px solid rgba(250, 247, 240, 0.12);
+  margin: 2rem 0;
+}
+
+.lux-footer-disclosure {
+  font-size: 0.72rem;
+  line-height: 1.7;
+  color: rgba(250, 247, 240, 0.5);
+  max-width: 720px;
+  margin-bottom: 1.5rem;
+}
+
+.lux-footer-bottom {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: rgba(250, 247, 240, 0.45);
+}
+
+.lux-eho {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ─── Page hero (non-image) ────────────────────────────────────────────────── */
+.lux-page-hero {
+  background-color: var(--lux-primary);
+  border-bottom: 1px solid var(--lux-border);
+  padding: 5rem 2rem 4rem;
+  text-align: center;
+}
+
+.lux-page-hero h1 {
+  font-family: var(--lux-font-display);
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 300;
+  color: var(--lux-text);
+  margin-bottom: 0.75rem;
+}
+
+.lux-page-hero p {
+  font-size: 1rem;
+  color: var(--lux-muted);
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.7;
+  font-weight: 300;
+}
+
+/* ─── CTA section ──────────────────────────────────────────────────────────── */
+.lux-cta-section {
+  background-color: var(--lux-primary);
+  border-top: 1px solid var(--lux-border);
+  border-bottom: 1px solid var(--lux-border);
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.lux-cta-section h2 {
+  font-family: var(--lux-font-display);
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 300;
+  color: var(--lux-text);
+  margin-bottom: 0.75rem;
+}
+
+.lux-cta-section p {
+  font-size: 1rem;
+  color: var(--lux-muted);
+  margin-bottom: 2rem;
+  line-height: 1.65;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ─── Filters ──────────────────────────────────────────────────────────────── */
+.lux-filter-bar {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--lux-border);
+}
+
+/* ─── Market cards ─────────────────────────────────────────────────────────── */
+.lux-market-card {
+  border: 1px solid var(--lux-border);
+  padding: 2rem;
+  background-color: var(--lux-surface);
+}
+
+.lux-market-card h2 {
+  font-family: var(--lux-font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--lux-text);
+  margin-bottom: 0.75rem;
+}
+
+.lux-market-card p {
+  font-size: 0.875rem;
+  color: var(--lux-muted);
+  line-height: 1.7;
+}
+
+/* ─── Success message ──────────────────────────────────────────────────────── */
+.lux-success {
+  background-color: var(--lux-primary);
+  border: 1px solid var(--lux-border);
+  padding: 2rem;
+  text-align: center;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.lux-success h3 {
+  font-family: var(--lux-font-display);
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: var(--lux-text);
+  margin-bottom: 0.75rem;
+}
+
+.lux-success p {
+  font-size: 0.875rem;
+  color: var(--lux-muted);
+  line-height: 1.65;
+}
+
+/* ─── Grid responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .lux-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .lux-split {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+  .lux-about-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .lux-nav {
+    display: none;
+  }
+  .lux-hero {
+    min-height: 80vh;
+  }
+  .lux-section {
+    padding: 4rem 1.5rem;
+  }
+  .lux-section-sm {
+    padding: 3rem 1.5rem;
+  }
+  .lux-grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .lux-header-inner {
+    padding: 0 1.5rem;
+  }
+  .lux-hero-content {
+    padding: 3rem 1.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .lux-markets li {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+}

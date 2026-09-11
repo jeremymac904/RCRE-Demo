@@ -1,0 +1,14 @@
+import {describe,it,expect,beforeAll} from 'vitest'
+import {PERSONAS,can,scopedOwner} from '../../src/lib/platform/auth'
+import {getRecord,putRecord,transaction} from '../../src/lib/platform/store'
+import {listContacts,createContact,createTask,completeTask,listTasks,updateContact,report,saveSetting,priorities,getSetting,createAppointment} from '../../src/lib/platform/service'
+const agent=PERSONAS.find(a=>a.id==='u-sarah')!,other=PERSONAS.find(a=>a.id==='u-vito')!,owner=PERSONAS.find(a=>a.role==='broker_owner')!,broker=PERSONAS.find(a=>a.role==='managing_broker')!
+describe('Canonical local platform',()=>{
+it('scopes contacts by organization, office and assignment',()=>{expect(listContacts(agent).every(c=>c.ownerId===agent.id)).toBe(true);expect(listContacts(broker).every(c=>c.officeId==='al')).toBe(true);expect(listContacts({...agent,organizationId:'other'})).toHaveLength(0);expect(can(PERSONAS.find(a=>a.role==='trainer')!,'crm')).toBe(false)})
+it('persists task completion in the canonical repository and rejects stale writes',()=>{const t=createTask(agent,{title:'Acceptance task',dueAt:new Date().toISOString()});completeTask(agent,t.id,t.version,true);expect(listTasks(agent).find(x=>x.id===t.id)?.done).toBe(true);expect(()=>completeTask(agent,t.id,t.version,false)).toThrow();expect(()=>completeTask(other,t.id,t.version,true)).toThrow()})
+it('rejects cross-office assignments and optimistic conflicts',()=>{const c=createContact(other,{firstName:'Scoped',lastName:'Test'});expect(()=>updateContact(broker,c.id,{version:c.version,ownerId:agent.id})).toThrow();updateContact(other,c.id,{version:c.version,stage:'Connected'});expect(()=>updateContact(other,c.id,{version:c.version,stage:'Closed'})).toThrow()})
+it('changes reporting based on actual event dates',()=>{const a=report(owner,'2026-01-01','2027-01-01'),b=report(owner,'1990-01-01','1990-02-01');expect(a.events.length).toBeGreaterThan(b.events.length);expect(b.firstResponseMedianMinutes).toBeNull()})
+it('changes real policy behavior and rejects forbidden direct settings writes',()=>{expect(()=>saveSetting(agent,'leads',{},0)).toThrow();const previous=getSetting(owner,'leads');saveSetting(owner,'leads',{enabled:false,responseMinutes:10080,graceMinutes:0},previous.version);expect(priorities(owner).every(p=>!p.reasons.some(r=>r.includes('guideline')))).toBe(true);saveSetting(owner,'leads',previous.value,previous.version+1)})
+it('prevents appointment overlap and preserves records',()=>{const startsAt='2098-01-01T15:00:00.000Z',endsAt='2098-01-01T16:00:00.000Z';const event=createAppointment(agent,{title:'Unique '+Date.now(),startsAt,endsAt});expect(()=>createAppointment(agent,{title:'Overlap',startsAt,endsAt})).toThrow();expect(getRecord('appointments',event.id)).toBeTruthy()})
+it('rolls back failed transactions',()=>{expect(()=>transaction(()=>{putRecord('test',{id:'rollback'});throw Error('abort')})).toThrow();expect(getRecord('test','rollback')).toBeNull()})
+})

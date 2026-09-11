@@ -1,0 +1,26 @@
+import {AccessError,assertCapability,PERSONAS,directory,scopedOwner,type PlatformActor} from './platform/auth'
+import {listContacts,listTasks,listAppointments,priorities,getSetting} from './platform/service'
+import {readRecords,getRecord} from './platform/store'
+import {listTransactions,drafts} from './services/transactions'
+import {calculateDeadline} from './services/deadlines'
+import {progressFor,assignmentsFor,type AcademyDraft} from './academy-service'
+import {academy} from '@/data/academy'
+export function inspectAgents(actor:PlatformActor,selectedId?:string,now=Date.now()){
+ assertCapability(actor,'command')
+ const contacts=listContacts(actor),tasks=listTasks(actor),appointments=listAppointments(actor),transactions=listTransactions(actor)
+ const actors:PlatformActor[]=directory(actor.organizationId).filter(p=>['agent','team_leader'].includes(p.role)&&scopedOwner(actor,p.id,p.officeId))
+ for(const contact of contacts)if(!actors.some(p=>p.id===contact.ownerId))actors.push({id:contact.ownerId,userId:contact.ownerId,organizationId:actor.organizationId,role:'agent',name:'Synthetic agent',market:contact.officeId==='al'?'Alabama':'Florida',officeId:contact.officeId,teamId:contact.officeId})
+ const roster=[...new Map(actors.map(a=>[a.id,a])).values()].map(a=>({id:a.id,name:a.name,market:a.market,officeId:a.officeId,leads:contacts.filter(c=>c.ownerId===a.id).length,overdueTasks:tasks.filter(t=>t.ownerId===a.id&&!t.done&&Date.parse(t.dueAt)<now).length})).sort((a,b)=>b.overdueTasks-a.overdueTasks||a.name.localeCompare(b.name))
+ if(!selectedId)return {roster,agent:null}
+ const person=actors.find(a=>a.id===selectedId);if(!person)throw new AccessError('Agent outside your authorized scope',404)
+ const inactiveDays=Number(getSetting(person,'leads').value.followUpDays??7);const owned=contacts.filter(c=>c.ownerId===person.id),ownedTasks=tasks.filter(t=>t.ownerId===person.id),ownedAppointments=appointments.filter(t=>t.ownerId===person.id)
+ const events=owned.flatMap(c=>c.timeline.map((e,index)=>({...e,contactId:c.id,contactName:`${c.firstName} ${c.lastName}`,evidenceId:`${c.id}:${index}`,href:'/crm/'+c.id}))).sort((a,b)=>b.at.localeCompare(a.at))
+ const calls=events.filter(e=>e.kind==='call'&&e.direction==='out'),progress=progressFor(person),assignments=assignmentsFor(person)
+ const courses=readRecords<AcademyDraft>('academy_course').filter(c=>c.organizationId===actor.organizationId)
+ const completed=progress.completedLessonIds.filter(id=>academy.lessons.some(l=>l.id===id)||courses.some(c=>c.id===id))
+ const stageEvidence=priorities(actor).filter(p=>p.contact.ownerId===person.id).map(p=>({contactId:p.contact.id,name:`${p.contact.firstName} ${p.contact.lastName}`,reasons:p.reasons,href:'/crm/'+p.contact.id}))
+ const transactionConcerns=transactions.filter(t=>t.ownerId===person.id).map(t=>({id:t.id,address:t.address,status:t.status,closingDate:t.closingDate,tcAssigned:!!t.tcId,missingItems:t.checklist.filter(i=>!i.done).map(i=>i.label),pendingApprovals:drafts(actor,t.id).filter(d=>d.state==='awaiting_approval').length,deadlines:t.deadlines.map(term=>({label:term.label,sourceTerm:term.sourceTerm,...calculateDeadline(term)})),href:'/transactions/'+t.id}))
+ const sourceCoverage=[...new Set(owned.map(c=>c.source))].map(source=>({source,records:owned.filter(c=>c.source===source).length,coverage:'Local synthetic records only. External call, message, delivery and historical synchronization coverage are unverified.'}))
+ return {roster,agent:{inactiveDays,id:person.id,name:person.name,market:person.market,officeId:person.officeId,contacts:owned.map(c=>({id:c.id,name:`${c.firstName} ${c.lastName}`,source:c.source,stage:c.stage,receivedAt:c.receivedAt,stageEnteredAt:c.stageEnteredAt,lastOutboundAt:c.lastOutboundAt,firstTouchAt:c.firstTouchAt,href:'/crm/'+c.id})),summary:{leads:owned.length,noRecordedFirstOutreach:owned.filter(c=>!c.firstTouchAt).length,contactedInactive:owned.filter(c=>c.firstTouchAt&&(!c.lastOutboundAt||now-Date.parse(c.lastOutboundAt)>inactiveDays*86400000)).length,recordedCallAttempts:calls.length,explicitConnectedConversations:calls.filter(e=>e.label.startsWith('Connected conversation')).length,overdueTasks:ownedTasks.filter(t=>!t.done&&Date.parse(t.dueAt)<now).length},tasks:ownedTasks,appointments:ownedAppointments.sort((a,b)=>a.startsAt.localeCompare(b.startsAt)),events,stageEvidence,transactionConcerns,sourceCoverage,training:{completedLessonCount:completed.length,totalImportedLessons:academy.lessons.length,lastViewedLessonId:progress.lastViewedLessonId,updatedAt:progress.updatedAt,assignments:assignments.map(a=>({...a,title:academy.courses.find(c=>c.id===a.courseId)?.title??courses.find(c=>c.id===a.courseId)?.title??'Archived course',complete:academy.courses.some(c=>c.id===a.courseId)?academy.lessons.filter(l=>l.courseId===a.courseId).every(l=>completed.includes(l.id)):completed.includes(a.courseId)}))},assignmentHistory:readRecords<{organizationId:string;contactId:string;from:string;to:string;at:string;actorId:string}>('assignment_history').filter(h=>h.organizationId===actor.organizationId&&owned.some(c=>c.id===h.contactId)),generatedAt:new Date(now).toISOString()}}
+}
+export type AgentInspection=ReturnType<typeof inspectAgents>

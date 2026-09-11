@@ -1,0 +1,128 @@
+# RCRE broker profile — template.
+# Instantiated for the broker-owner and managing brokers only. Not installed
+# by this MVP. The broker-only tools below are refused for any non-broker role
+# by the RCRE MCP server; listing them here grants nothing.
+
+profile:
+  name: rcre-broker
+  description: RCRE broker-owner assistant — brokerage-wide visibility
+
+# ---------------------------------------------------------------------------
+# AI PROVIDER — deliberately unset.
+#
+# RCRE does NOT provision or pay for per-agent frontier inference (ADR-0011).
+# The broker configures their own provider in Hermes:
+#   * their own AI subscription through Hermes' supported paths
+#   * the OAuth path for their existing subscription where supported
+#   * their own API credentials
+#   * a free or local model
+# RCRE's product must work regardless of which one they pick.
+# ---------------------------------------------------------------------------
+model: {}
+
+# ---------------------------------------------------------------------------
+# Toolsets — least privilege.
+# Disabled here is a defence-in-depth measure; the real boundary is the RCRE
+# MCP server, which the agent cannot reconfigure.
+# ---------------------------------------------------------------------------
+toolsets:
+  enabled:
+    - web          # market and property research
+  disabled:
+    - terminal     # no shell on an agent's machine
+    - code         # no code execution
+    - computer     # computer use off by default (integration ladder rank 5)
+    - browser      # enable per-agent only if a real need survives the pilot
+
+# ---------------------------------------------------------------------------
+# Approvals — never 'off'.
+# ---------------------------------------------------------------------------
+approvals:
+  mode: smart
+  deny:
+    - "rm -rf*"
+    - "curl*|*sh"
+    - "*sudo*"
+
+# ---------------------------------------------------------------------------
+# Skills — staged for review before an agent-authored skill is committed.
+# ---------------------------------------------------------------------------
+skills:
+  write_approval: true
+
+# Only RCRE-reviewed plugins. Desktop plugins are trusted renderer code, not a
+# sandbox, so an agent-installed plugin is not acceptable.
+plugins:
+  enabled: []
+
+# ---------------------------------------------------------------------------
+# MCP — the only route to RCRE data.
+# OAuth 2.1; Hermes handles discovery, PKCE, exchange and refresh.
+# The tool list is a defence-in-depth allowlist; the server enforces authority.
+# ---------------------------------------------------------------------------
+mcp_servers:
+  rcre:
+    url: "${RCRE_MCP_URL}"
+    auth: oauth
+    include:
+      - get_my_today
+      - get_hot_leads
+      - get_unanswered_leads
+      - get_stale_leads
+      - get_contact
+      - get_contact_history
+      - get_tasks
+      - get_appointments
+      - get_pipeline
+      - get_my_performance
+      - draft_follow_up
+      - create_follow_up_task
+      - request_stage_update
+      # Broker-only. Listing them here does not grant them — the RCRE MCP
+      # server checks the authenticated role on every call.
+      - get_broker_exceptions
+      - get_source_performance
+
+security:
+  allow_private_urls: false
+
+# ---------------------------------------------------------------------------
+# HOOKS — technical enforcement, not prompt-based safety.
+#
+# `pre_tool_call` shell hooks can BLOCK a tool call (exit code 2, or
+# {"action":"block"} on stdout). `fail_closed: true` means a guard that errors
+# or times out blocks the call rather than waving it through.
+#
+# block-pii-memory.mjs is the enforcement of goal.md's "no PII in Hermes long
+# term memory". It self-classifies every call it sees, so the matchers below
+# are a performance filter, not the control. Install it with:
+#
+#   mkdir -p ~/.hermes/rcre-hooks
+#   cp RCRE/hermes/hooks/block-pii-memory.mjs \
+#      RCRE/hermes/hooks/rcre-pii-rules.json ~/.hermes/rcre-hooks/
+#   chmod +x ~/.hermes/rcre-hooks/block-pii-memory.mjs
+#
+# Verify matcher syntax and the stdin envelope against the Hermes hooks
+# documentation on the pilot machine before relying on the matchers; the hook
+# itself blocks on any envelope it cannot identify.
+# ---------------------------------------------------------------------------
+hooks:
+  pre_tool_call:
+    - matcher: "*memory*"
+      command: "node ~/.hermes/rcre-hooks/block-pii-memory.mjs"
+      timeout: 5
+      fail_closed: true
+    - matcher: "*remember*"
+      command: "node ~/.hermes/rcre-hooks/block-pii-memory.mjs"
+      timeout: 5
+      fail_closed: true
+    - matcher: "*soul*"
+      command: "node ~/.hermes/rcre-hooks/block-pii-memory.mjs"
+      timeout: 5
+      fail_closed: true
+    # File-writing tools are covered because MEMORY.md / SOUL.md / ~/.hermes
+    # are a second route into long-term memory.
+    - matcher: "*file*"
+      command: "node ~/.hermes/rcre-hooks/block-pii-memory.mjs"
+      timeout: 5
+      fail_closed: true

@@ -1,0 +1,19 @@
+import {describe,it,expect,afterAll,vi} from 'vitest'
+import {randomUUID} from 'node:crypto'
+import * as auth from '../../src/lib/platform/auth'
+import {manageAcademy,visibleAcademyCourses,academyReviews,type AcademyDraft} from '../../src/lib/academy-service'
+import {readRecords,deleteRecord} from '../../src/lib/platform/store'
+import {GET} from '../../src/app/api/academy/manage/route'
+const organizationId='academy-review-'+randomUUID()
+const trainer:auth.PlatformActor={id:'trainer',userId:'trainer',organizationId,role:'trainer',name:'Synthetic Trainer',market:'Florida',officeId:'fl',teamId:'fl'}
+const owner:auth.PlatformActor={...trainer,id:'owner',userId:'owner',role:'broker_owner'}
+const learner:auth.PlatformActor={...trainer,id:'learner',userId:'learner',role:'agent'}
+afterAll(()=>{vi.restoreAllMocks();for(const kind of ['academy_course','academy_policy'])for(const row of readRecords<{id:string;organizationId:string}>(kind))if(row.organizationId===organizationId)deleteRecord(kind,row.id)})
+const submit=(title:string,extra:Record<string,unknown>={})=>manageAcademy(trainer,{title,body:'Synthetic reviewed text',status:'review',...extra}) as AcademyDraft
+
+describe('Academy review and restricted text regressions',()=>{
+ it('omits restricted custom course text from the actual manage GET handler',async()=>{const draft=submit('Restricted course');const published=manageAcademy(owner,{...draft,status:'published'}) as AcademyDraft;manageAcademy(owner,{action:'policy',courseId:published.id,roles:['trainer']});expect(visibleAcademyCourses(learner).some(c=>c.id===published.id)).toBe(false);const spy=vi.spyOn(auth,'actorOrNull').mockResolvedValue(learner);try{const response=await GET();const body=await response.json();expect(response.status).toBe(200);expect(body.courses.some((c:AcademyDraft)=>c.id===published.id)).toBe(false);expect(JSON.stringify(body)).not.toContain('Synthetic reviewed text')}finally{spy.mockRestore()}expect(visibleAcademyCourses(trainer).some(c=>c.id===published.id)).toBe(true)})
+ it('prevents the latest editing reviewer from publishing their own submitted revision',()=>{const original=submit('Two-person review');const edited=manageAcademy(owner,{...original,body:'Changed by the owner',status:'review'}) as AcademyDraft;expect(edited.submittedBy).toBe(owner.id);expect(academyReviews(owner).find(r=>r.id==='academy:'+edited.id)?.state).toBe('Awaiting an independent reviewer');expect(()=>manageAcademy(owner,{...edited,status:'published'})).toThrow('different');const published=manageAcademy(trainer,{...edited,status:'published'}) as AcademyDraft;expect(published.reviewedBy).toBe(trainer.id);expect(published.submittedBy).toBe(owner.id)})
+ it('does not disclose draft revision bodies with published learner content',()=>{const original=submit('Published revision',{body:'Private abandoned draft text'});const edited=manageAcademy(trainer,{...original,body:'Approved current lesson',status:'review'}) as AcademyDraft;const published=manageAcademy(owner,{...edited,status:'published'}) as AcademyDraft;const visible=visibleAcademyCourses(learner).find(c=>c.id===published.id)!;expect(visible.body).toBe('Approved current lesson');expect(visible.revisions).toEqual([]);expect(JSON.stringify(visible)).not.toContain('Private abandoned draft text');expect(visibleAcademyCourses(trainer).find(c=>c.id===published.id)!.revisions.length).toBeGreaterThan(0)})
+ it('binds prerequisite and order to the exact submitted version',()=>{const draft=submit('Scoped prerequisites',{order:4,prerequisite:'c01'});expect(()=>manageAcademy(owner,{...draft,prerequisite:'',status:'published'})).toThrow('review again');expect(()=>manageAcademy(owner,{...draft,order:5,status:'published'})).toThrow('review again');const published=manageAcademy(owner,{...draft,status:'published'}) as AcademyDraft;expect(published.order).toBe(4);expect(published.prerequisite).toBe('c01')})
+})

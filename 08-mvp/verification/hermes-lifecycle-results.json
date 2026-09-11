@@ -1,0 +1,25 @@
+{
+  "kind": "Actual owned-process lifecycle with a synthetic Node process; no Hermes/model execution claimed",
+  "checks": [
+    {
+      "name": "Unavailable replacement model preserves existing process identity",
+      "passed": true
+    },
+    {
+      "name": "Existing fixture still alive",
+      "passed": true
+    },
+    {
+      "name": "Stop works independently of failed HTTP health",
+      "passed": true
+    },
+    {
+      "name": "Stopped state clears PID only after process termination",
+      "passed": true
+    },
+    {
+      "name": "Unrelated process identity is rejected before signal",
+      "passed": true
+    }
+  ]
+}

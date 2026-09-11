@@ -1,0 +1,3 @@
+import { actorOrNull } from '@/lib/platform/auth'
+import { loadAttachment } from '@/lib/academy-attachments'
+export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){const a=await actorOrNull();if(!a)return Response.json({error:'Sign in required'},{status:401});try{const {record:r,bytes}=loadAttachment(a,(await params).id);return new Response(bytes,{headers:{'Content-Type':r.type,'Content-Disposition':`attachment; filename="${r.name}"`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Length':String(r.bytes)}})}catch{return Response.json({error:'Attachment unavailable'},{status:404})}}

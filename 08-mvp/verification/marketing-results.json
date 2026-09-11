@@ -1,0 +1,46 @@
+[
+  {
+    "name": "Agent draft created",
+    "passed": true
+  },
+  {
+    "name": "Other-office private draft excluded",
+    "passed": true
+  },
+  {
+    "name": "Other-office edit denied",
+    "passed": true
+  },
+  {
+    "name": "Owner exact approval",
+    "passed": true
+  },
+  {
+    "name": "Approved reuse visible",
+    "passed": true
+  },
+  {
+    "name": "Batch creates fresh draft",
+    "passed": true
+  },
+  {
+    "name": "Copied version has no inherited approval",
+    "passed": true
+  },
+  {
+    "name": "Batch pause persists",
+    "passed": true
+  },
+  {
+    "name": "Batch cancellation persists",
+    "passed": true
+  },
+  {
+    "name": "Revision invalidates approval",
+    "passed": true
+  },
+  {
+    "name": "Anonymous operational health denied",
+    "passed": true
+  }
+]

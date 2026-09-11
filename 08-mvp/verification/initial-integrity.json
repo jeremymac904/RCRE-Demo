@@ -1,0 +1,44 @@
+[
+  {
+    "path": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/CLAUDE.md",
+    "resolved": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/CLAUDE.md",
+    "sha256": "02bf794d83a9b6f29c3f558a3605edc98d44a682d1e2c36a746e1df33f355d08",
+    "size": 7325
+  },
+  {
+    "path": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/GOVERNANCE.md",
+    "resolved": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/GOVERNANCE.md",
+    "sha256": "22ce6731bb94a6531dd202154e99dcfc4348d1e54d5e0243618f99261bddd231",
+    "size": 6746
+  },
+  {
+    "path": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/CODEX_RCRE_COMPLETE_BUILD_MANDATE.md",
+    "resolved": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/CODEX_RCRE_COMPLETE_BUILD_MANDATE.md",
+    "sha256": "f7d03f6fed8140bbf29c55d6e506ef5932fbc10749b19fc4fb74f2bb3acb401b",
+    "size": 61001
+  },
+  {
+    "path": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre/package-lock.json",
+    "resolved": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre/package-lock.json",
+    "sha256": "3abff9398e7db9baee8cbef6345652e4cde595d83f87b0e526a129d7e1d484cb",
+    "size": 124854
+  },
+  {
+    "path": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre/package.json",
+    "resolved": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre/package.json",
+    "sha256": "23cf5f1a96533338621a4ac67194538d2e881ba70519818817641744eced2f25",
+    "size": 813
+  },
+  {
+    "path": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/package-lock.json",
+    "resolved": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/package-lock.json",
+    "sha256": "c0ad9727a4dcaa93492b14e2451c51f966c53c8c891eb2a454070643ef5f8761",
+    "size": 125372
+  },
+  {
+    "path": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/package.json",
+    "resolved": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/package.json",
+    "sha256": "8b9bf9e170715c4fe3d34b3b6db2c39d485e335b2e54334a36041aef0aaea986",
+    "size": 823
+  }
+]

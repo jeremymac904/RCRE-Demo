@@ -1,0 +1,8 @@
+import {it,expect} from 'vitest'
+import {PERSONAS} from '../../src/lib/platform/auth'
+import {getSetting,saveSetting} from '../../src/lib/platform/service'
+import {createTransaction,uploadDocument,saveDraft,reviewDraft} from '../../src/lib/services/transactions'
+const owner=PERSONAS.find(p=>p.role==='broker_owner')!,tc=PERSONAS.find(p=>p.role==='transaction_coordinator')!
+const lender={name:'Jeremy McDonald',phone:'(904) 442-3213',email:'jeremy@mcdonald-mtg.com',website:'https://www.mcdonald-mtg.com',individualNmls:'1195266',companyNmls:'320841'}
+it('rejects invalid default hours and unknown designated reviewers',()=>{const settings=getSetting(owner,'brokerage');expect(()=>saveSetting(owner,'brokerage',{lender,workStart:'17:00',workEnd:'09:00'},settings.version)).toThrow();expect(()=>saveSetting(owner,'brokerage',{lender,documentOwners:'unknown-user'},settings.version)).toThrow()})
+it('enforces a designated document reviewer on exact draft approval',()=>{const settings=getSetting(owner,'brokerage');saveSetting(owner,'brokerage',{lender,documentOwners:owner.id},settings.version);const t=createTransaction(tc,{address:'Synthetic reviewer-policy property',client:'Synthetic client'});const doc=uploadDocument(tc,t.id,'synthetic.txt','text/plain',Buffer.from('1. Synthetic inspection finding.'));const d=saveDraft(tc,t.id,{documentId:doc.id,numbers:[1]});reviewDraft(tc,t.id,d.id,d.version,'submit');expect(()=>reviewDraft(tc,t.id,d.id,d.version,'approve')).toThrow('designated document reviewer');expect(reviewDraft(owner,t.id,d.id,d.version,'approve').state).toBe('completed_locally')})

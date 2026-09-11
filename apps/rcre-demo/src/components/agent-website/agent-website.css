@@ -1,0 +1,495 @@
+/**
+ * Agent Website Shared Styles
+ *
+ * Styles for the shared layout shell, cards, sections, and
+ * component primitives used across all agent website pages.
+ * Each theme provides CSS vars; this sheet consumes them.
+ */
+
+/* Agent website global */
+.agent-website {
+  font-family: var(--font-body, 'DM Sans', system-ui, sans-serif);
+}
+
+/* Nav link hover */
+.agent-nav-link:hover {
+  color: var(--color-accent, #c9a84c) !important;
+}
+
+/* CTA button hover */
+.agent-cta-btn:hover {
+  background-color: var(--color-cta-hover, #b8953a) !important;
+}
+
+/* Responsive: show hamburger on small screens */
+@media (max-width: 768px) {
+  .hidden-mobile {
+    display: none !important;
+  }
+
+  .mobile-menu-btn {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu-btn {
+    display: none !important;
+  }
+}
+
+/* Section base */
+.agent-section {
+  padding: 5rem 1.5rem;
+}
+
+.agent-section-sm {
+  padding: 3rem 1.5rem;
+}
+
+.agent-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Section headings */
+.agent-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent, #c9a84c);
+  margin-bottom: 0.5rem;
+}
+
+.agent-section-title {
+  font-family: var(--font-display, 'Cormorant Garamond', Georgia, serif);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 600;
+  color: var(--color-primary, #1a2e4a);
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+.agent-section-sub {
+  font-size: 1.05rem;
+  color: var(--color-text-muted, #6b7280);
+  max-width: 600px;
+  line-height: 1.7;
+}
+
+/* Cards */
+.agent-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e5e0d8);
+  border-radius: var(--radius-card, 4px);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.agent-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.agent-card-body {
+  padding: 1.25rem;
+}
+
+/* Grid layouts */
+.agent-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.agent-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .agent-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .agent-grid-3,
+  .agent-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Buttons */
+.agent-btn-primary {
+  display: inline-block;
+  background-color: var(--color-cta, #c9a84c);
+  color: #ffffff;
+  padding: 0.75rem 2rem;
+  border-radius: var(--radius-card, 4px);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s;
+  border: none;
+  cursor: pointer;
+}
+
+.agent-btn-primary:hover {
+  background-color: var(--color-cta-hover, #b8953a);
+}
+
+.agent-btn-outline {
+  display: inline-block;
+  background: transparent;
+  color: var(--color-primary, #1a2e4a);
+  padding: 0.75rem 2rem;
+  border-radius: var(--radius-card, 4px);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1.5px solid var(--color-primary, #1a2e4a);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.agent-btn-outline:hover {
+  background-color: var(--color-primary, #1a2e4a);
+  color: #ffffff;
+}
+
+/* Hero */
+.agent-hero {
+  position: relative;
+  min-height: 600px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  background-color: var(--color-primary, #1a2e4a);
+}
+
+.agent-hero-bg {
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+.agent-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(26, 46, 74, 0.85) 0%,
+    rgba(26, 46, 74, 0.4) 50%,
+    rgba(26, 46, 74, 0.1) 100%
+  );
+}
+
+.agent-hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+  width: 100%;
+}
+
+.agent-hero-kicker {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent, #c9a84c);
+  margin-bottom: 0.75rem;
+}
+
+.agent-hero-title {
+  font-family: var(--font-display, 'Cormorant Garamond', Georgia, serif);
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.1;
+  margin-bottom: 1rem;
+  max-width: 700px;
+}
+
+.agent-hero-sub {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 540px;
+  line-height: 1.6;
+  margin-bottom: 1.75rem;
+}
+
+.agent-hero-ctas {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Quick stats */
+.agent-stats {
+  background-color: var(--color-surface, #ffffff);
+  border-top: 1px solid var(--color-border, #e5e0d8);
+  border-bottom: 1px solid var(--color-border, #e5e0d8);
+  padding: 2.5rem 1.5rem;
+}
+
+.agent-stats-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .agent-stats-inner {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.agent-stat-number {
+  font-family: var(--font-display, 'Cormorant Garamond', Georgia, serif);
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: var(--color-accent, #c9a84c);
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.agent-stat-label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #6b7280);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Listing card */
+.agent-listing-card-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  background-color: var(--color-border, #e5e0d8);
+}
+
+.agent-listing-card-body {
+  padding: 1.25rem;
+}
+
+.agent-listing-price {
+  font-family: var(--font-display, 'Cormorant Garamond', Georgia, serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-primary, #1a2e4a);
+  margin-bottom: 0.25rem;
+}
+
+.agent-listing-address {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text, #1a1a1a);
+  margin-bottom: 0.25rem;
+}
+
+.agent-listing-meta {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.agent-listing-badge {
+  display: inline-block;
+  background-color: #dcfce7;
+  color: #166534;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+/* Markets pills */
+.agent-markets-scroll {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.agent-market-pill {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  border: 1.5px solid var(--color-accent, #c9a84c);
+  border-radius: 99px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-primary, #1a2e4a);
+  text-decoration: none;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.agent-market-pill:hover {
+  background-color: var(--color-accent, #c9a84c);
+  color: #ffffff;
+}
+
+/* Feature grid (How I Work) */
+.agent-feature-icon {
+  width: 48px;
+  height: 48px;
+  background-color: rgba(201, 168, 76, 0.12);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  color: var(--color-accent, #c9a84c);
+}
+
+/* About preview split */
+.agent-about-split {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  .agent-about-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Contact CTA section */
+.agent-cta-section {
+  background-color: var(--color-primary, #1a2e4a);
+  color: #ffffff;
+  padding: 4rem 1.5rem;
+  text-align: center;
+}
+
+.agent-cta-section h2 {
+  font-family: var(--font-display, 'Cormorant Garamond', Georgia, serif);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+}
+
+.agent-cta-section p {
+  font-size: 1.05rem;
+  opacity: 0.85;
+  margin-bottom: 1.75rem;
+}
+
+/* Preferred lender card */
+.agent-lender-card {
+  background-color: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: var(--radius-card, 4px);
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+/* Resource card */
+.agent-resource-icon {
+  width: 40px;
+  height: 40px;
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e5e0d8);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  color: var(--color-primary, #1a2e4a);
+}
+
+/* Page hero (non-image) */
+.agent-page-hero {
+  background-color: var(--color-primary, #1a2e4a);
+  color: #ffffff;
+  padding: 4rem 1.5rem 3rem;
+  text-align: center;
+}
+
+.agent-page-hero h1 {
+  font-family: var(--font-display, 'Cormorant Garamond', Georgia, serif);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 0.75rem;
+}
+
+.agent-page-hero p {
+  font-size: 1.05rem;
+  opacity: 0.85;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* Contact page layout */
+.agent-contact-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 4rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .agent-contact-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Map placeholder */
+.agent-map-placeholder {
+  background-color: var(--color-border, #e5e0d8);
+  border-radius: var(--radius-card, 4px);
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+/* Filter bar */
+.agent-filter-bar {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-border, #e5e0d8);
+}
+
+.agent-filter-select {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border, #e5e0d8);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background-color: var(--color-surface, #ffffff);
+  cursor: pointer;
+}
+
+/* Market cards grid */
+.agent-market-card {
+  border: 1px solid var(--color-border, #e5e0d8);
+  border-radius: var(--radius-card, 4px);
+  padding: 1.5rem;
+  background-color: var(--color-surface, #ffffff);
+  transition: box-shadow 0.2s;
+}
+
+.agent-market-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07);
+}

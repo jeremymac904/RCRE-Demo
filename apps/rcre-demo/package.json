@@ -1,0 +1,50 @@
+{
+  "name": "rcre-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RCRE premium platform demo. Synthetic data only.",
+  "scripts": {
+    "dev": "next dev -p 3200",
+    "build": "next build",
+    "start": "next start -p 3200",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src tests",
+    "local:dev": "node ../../scripts/local.mjs dev",
+    "local:build": "node ../../scripts/local.mjs build",
+    "local:start": "node ../../scripts/local.mjs start",
+    "local:backup": "node ../../scripts/local.mjs backup",
+    "local:restore": "node ../../scripts/local.mjs restore",
+    "local:reset": "node ../../scripts/local.mjs reset"
+  },
+  "dependencies": {
+    "next": "^15.5.25",
+    "pdf-lib": "^1.17.1",
+    "pg": "^8.13.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "server-only": "^0.0.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.25",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.23"
+    },
+    "sharp": "^0.35.4"
+  }
+}

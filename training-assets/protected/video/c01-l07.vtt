@@ -1,0 +1,151 @@
+WEBVTT
+
+00:00.162 --> 00:02.379
+AI is incredibly useful, but
+
+00:02.325 --> 00:03.199
+that doesn't mean we should
+
+00:03.173 --> 00:04.399
+throw every piece of private
+
+00:04.259 --> 00:05.609
+information we have into it.
+
+00:05.765 --> 00:06.581
+I'm going to give you
+
+00:06.508 --> 00:07.448
+a few simple rules so
+
+00:07.394 --> 00:08.906
+you can use AI aggressively
+
+00:08.766 --> 00:10.793
+without being careless with client
+
+00:10.653 --> 00:11.414
+information.
+
+00:11.592 --> 00:13.639
+Do not paste passwords, Social
+
+00:13.529 --> 00:16.554
+Security numbers, bank information, complete
+
+00:16.414 --> 00:19.281
+unredacted credit reports, taxpayer data,
+
+00:19.269 --> 00:21.049
+or authentication information into an
+
+00:21.018 --> 00:22.443
+ordinary AI chat.
+
+00:22.421 --> 00:23.539
+If someone could use the
+
+00:23.488 --> 00:25.407
+information to access an account,
+
+00:25.267 --> 00:27.007
+identify a person, or create
+
+00:26.976 --> 00:28.855
+financial harm, it does not
+
+00:28.982 --> 00:30.187
+belong in the prompt.
+
+00:30.406 --> 00:32.315
+The same common-sense rule applies
+
+00:32.285 --> 00:34.602
+to sensitive customer information, private
+
+00:34.532 --> 00:37.426
+contracts, and private documents.
+
+00:37.286 --> 00:38.609
+Do not assume a real
+
+00:38.469 --> 00:40.090
+client record is safe to
+
+00:40.029 --> 00:41.482
+paste just because you are
+
+00:41.580 --> 00:42.754
+trying to get help with
+
+00:42.614 --> 00:43.082
+it.
+
+00:42.942 --> 00:45.120
+Keep sensitive operational work in
+
+00:44.980 --> 00:46.571
+approved secure systems.
+
+00:46.850 --> 00:48.278
+When you are learning, use
+
+00:48.138 --> 00:50.822
+redacted or synthetic examples.
+
+00:50.921 --> 00:52.588
+Describe the situation without the
+
+00:52.448 --> 00:54.504
+private details, replace real names
+
+00:54.364 --> 00:56.270
+with fictional ones, and remove
+
+00:56.130 --> 00:57.756
+anything the agent is not
+
+00:57.616 --> 00:59.403
+authorized to share.
+
+00:59.512 --> 01:00.410
+That lets you learn the
+
+01:00.270 --> 01:00.590
+workflow
+
+01:01.019 --> 01:02.326
+without exposing the people you
+
+01:02.186 --> 01:02.635
+serve.
+
+01:02.899 --> 01:04.025
+The goal is not to
+
+01:03.885 --> 01:05.357
+be afraid of AI.
+
+01:05.318 --> 01:06.292
+The goal is to use
+
+01:06.152 --> 01:07.674
+it with good judgment.
+
+01:07.778 --> 01:09.524
+Give it useful context, keep
+
+01:09.384 --> 01:11.923
+confidential information protected, and pause
+
+01:11.783 --> 01:13.306
+before you paste anything that
+
+01:13.166 --> 01:14.424
+would be a problem if
+
+01:14.284 --> 01:15.725
+it appeared somewhere it should
+
+01:15.585 --> 01:15.819
+not.

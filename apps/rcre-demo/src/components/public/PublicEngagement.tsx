@@ -1,0 +1,4 @@
+'use client'
+import {useEffect} from 'react'
+import {usePathname} from 'next/navigation'
+export function PublicEngagement(){const pathname=usePathname();useEffect(()=>{function record(){try{const consent=JSON.parse(localStorage.getItem('rcre-public-consent')||'{}');if(consent.analytics!==true)return;const events=JSON.parse(localStorage.getItem('rcre-public-engagement')||'[]');events.push({type:'public_page_view',path:pathname,at:new Date().toISOString()});localStorage.setItem('rcre-public-engagement',JSON.stringify(events.slice(-100)));if(/^\/academy-preview\/c\d+$/.test(pathname))void fetch('/api/public/engagement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:pathname,analyticsConsent:true})}).catch(()=>{})}catch{}}record();window.addEventListener('rcre-consent-updated',record);return ()=>window.removeEventListener('rcre-consent-updated',record)},[pathname]);return null}
