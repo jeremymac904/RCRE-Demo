@@ -4,7 +4,8 @@
   publish = ".next"
 
 [build.environment]
-  NODE_VERSION = "20"
+  # node:sqlite requires Node 22.5+. Netlify defaults to Node 20.
+  NODE_VERSION = "22"
   NEXT_TELEMETRY_DISABLED = "1"
   # Skip the "cwd's parent's basename must equal RCRE" check. The Netlify
   # build runs inside apps/rcre-demo/ where the workspace boundary does not
