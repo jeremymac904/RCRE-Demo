@@ -1,0 +1,3430 @@
+{
+  "schemaVersion": "1.0",
+  "auditDate": "2026-09-17",
+  "localRoot": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE",
+  "githubRemote": "https://github.com/jeremymac904/RCRE-Demo.git",
+  "branch": "codex/rcre-ecosystem-handoff-2026-09-17",
+  "commit": "d4ae90d8f40edcff3a2e5996ab0267e6c56c8966",
+  "commitMeaning": "HEAD at implementation audit before documentation commit; documentation commit is resolved with git log -1 -- 08-mvp/ecosystem-handoff. Final response reports delivered hash; no self-referential commit hash is embedded.",
+  "sourceDeliveryWarning": "Documentation-only branch. Modified/untracked application sources were deliberately not staged. Remote clone does not reproduce current local application. Separately review and authorize implementation delivery.",
+  "canonicalApp": "apps/rcre-demo",
+  "convergenceEvidence": [
+    "scripts/local.mjs invokes apps/rcre-demo Next binary with apps/rcre-demo cwd",
+    "Public, portal, service APIs and PostgreSQL record store coexist there",
+    "apps/rcre retained as historical reference, not a second runtime to launch"
+  ],
+  "deployment": {
+    "changed": false,
+    "liveWebsite": "https://rcregroup.com",
+    "liveWebsiteRelationship": "existing public website, not proof of this build deployment",
+    "localUrl": "http://localhost:3200",
+    "localHttpObservation": "unreachable during 2026-09-17 audit; not started by documentation task",
+    "hostedSupabase": "not activated in dated evidence"
+  },
+  "verification": {
+    "currentUnitTests": 728,
+    "currentUnitFiles": 52,
+    "currentEvidence": "runtime/handoff/current-unit-tests.txt",
+    "historicalBuildTypecheckBrowserEvidence": "08-mvp/LIVE-LOCAL-ACTIVATION-2026-09-14.md",
+    "newBuildOrBrowserRun": false
+  },
+  "paths": {
+    "canonicalApplication": {
+      "relative": "apps/rcre-demo",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "historicalApplication": {
+      "relative": "apps/rcre",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "launcher": {
+      "relative": "scripts/local.mjs",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/scripts/local.mjs",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/scripts/local.mjs",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "supportingServices": {
+      "relative": "apps/rcre-demo/src/lib/services",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/services",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "canonicalMcpTransport": {
+      "relative": "apps/rcre-demo/src/app/api/mcp/route.ts",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/app/api/mcp/route.ts",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/mcp/route.ts",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "canonicalMcpService": {
+      "relative": "apps/rcre-demo/src/lib/services/mcp.ts",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/services/mcp.ts",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/mcp.ts",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "legacyMcpRegistry": {
+      "relative": "mcp/rcre-mcp-server",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/mcp/rcre-mcp-server",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/mcp/rcre-mcp-server",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "hermesProfiles": {
+      "relative": "hermes",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/hermes",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/hermes",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "hermesRuntime": {
+      "relative": "apps/rcre-demo/src/lib/services/hermes-runtime.ts",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/services/hermes-runtime.ts",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/hermes-runtime.ts",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "database": {
+      "relative": "apps/rcre-demo/src/lib/platform/postgres-store.ts",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/platform/postgres-store.ts",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/platform/postgres-store.ts",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "databaseWorker": {
+      "relative": "apps/rcre-demo/src/lib/platform/postgres-worker.cjs",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/platform/postgres-worker.cjs",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/platform/postgres-worker.cjs",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "migrations": {
+      "relative": "apps/rcre-demo/supabase/migrations",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/supabase/migrations",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/supabase/migrations",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "authentication": {
+      "relative": "apps/rcre-demo/src/lib/platform/auth.ts",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/platform/auth.ts",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/platform/auth.ts",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "people": {
+      "relative": "apps/rcre-demo/src/lib/people",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/people",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/people",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "publicWebsite": {
+      "relative": "apps/rcre-demo/src/components/public",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/components/public",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "publicRoutes": {
+      "relative": "apps/rcre-demo/src/app/[...publicPath]/page.tsx",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/app/[...publicPath]/page.tsx",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/[...publicPath]/page.tsx",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "portal": {
+      "relative": "apps/rcre-demo/src/components/PlatformWorkspace.tsx",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/components/PlatformWorkspace.tsx",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/PlatformWorkspace.tsx",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "portalShell": {
+      "relative": "apps/rcre-demo/src/components/AppShell.tsx",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/components/AppShell.tsx",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AppShell.tsx",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "training": {
+      "relative": "apps/rcre-demo/src/data/academy.ts",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/data/academy.ts",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/data/academy.ts",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "trainingAssets": {
+      "relative": "training-assets",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/training-assets",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/training-assets",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "trainingKnowledge": {
+      "relative": "Legends_Realtor_Coach_2026_Knowledge_Base",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/Legends_Realtor_Coach_2026_Knowledge_Base",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/Legends_Realtor_Coach_2026_Knowledge_Base",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "crm": {
+      "relative": "apps/rcre-demo/src/lib/fub",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/fub",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/fub",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "transactions": {
+      "relative": "apps/rcre-demo/src/lib/services/transactions.ts",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/services/transactions.ts",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/transactions.ts",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "marketing": {
+      "relative": "apps/rcre-demo/src/lib/platform/library.ts",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/platform/library.ts",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/platform/library.ts",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "content": {
+      "relative": "apps/rcre-demo/src/lib/public",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/public",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/public",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "recruiting": {
+      "relative": "apps/rcre-demo/src/lib/platform/recruiting.ts",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/platform/recruiting.ts",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/platform/recruiting.ts",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "integrations": {
+      "relative": "apps/rcre-demo/src/lib/integrations",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/integrations",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/integrations",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "tests": {
+      "relative": "apps/rcre-demo/tests",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/tests",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "designTokens": {
+      "relative": "apps/rcre-demo/src/app/globals.css",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/app/globals.css",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/globals.css",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "tailwind": {
+      "relative": "apps/rcre-demo/tailwind.config.ts",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/tailwind.config.ts",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tailwind.config.ts",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "websiteEngine": {
+      "relative": "apps/rcre-demo/src/lib/agent-website",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/lib/agent-website",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/agent-website",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "websiteManagement": {
+      "relative": "apps/rcre-demo/src/components/agent-website/management",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/apps/rcre-demo/src/components/agent-website/management",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/agent-website/management",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "documentation": {
+      "relative": "08-mvp",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/08-mvp",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/08-mvp",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    },
+    "handoff": {
+      "relative": "08-mvp/ecosystem-handoff",
+      "absolute": "/Volumes/LegendsOS/Jeremy's_2026_Master_Build_Folder/RCRE/08-mvp/ecosystem-handoff",
+      "githubBaselineTreeUrl": "https://github.com/jeremymac904/RCRE-Demo/tree/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/08-mvp/ecosystem-handoff",
+      "githubWarning": "Baseline URL may be absent or older; inspect sourceSnapshots. Training assets are reference-only and not redistributed."
+    }
+  },
+  "candidates": [
+    {
+      "name": "PublicShell",
+      "path": "apps/rcre-demo/src/components/public/PublicShell.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "PublicInteractions",
+      "path": "apps/rcre-demo/src/components/public/PublicInteractions.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "PropertySearch",
+      "path": "apps/rcre-demo/src/components/public/PropertySearch.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "PeopleDirectory",
+      "path": "apps/rcre-demo/src/components/public/PeopleDirectory.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "VerifiedProfile",
+      "path": "apps/rcre-demo/src/components/public/VerifiedProfile.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "PublicContentStudio",
+      "path": "apps/rcre-demo/src/components/public/PublicContentStudio.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "PublicEngagement",
+      "path": "apps/rcre-demo/src/components/public/PublicEngagement.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "MetroJournal",
+      "path": "apps/rcre-demo/src/components/public/MetroJournal.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "BlogPhotography",
+      "path": "apps/rcre-demo/src/components/public/BlogPhotography.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "MetroPhotoCredit",
+      "path": "apps/rcre-demo/src/components/public/MetroPhotoCredit.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "MarketExplorer",
+      "path": "apps/rcre-demo/src/components/public/MarketExplorer.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "ImageWall",
+      "path": "apps/rcre-demo/src/components/public/ImageWall.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "CinematicFilm",
+      "path": "apps/rcre-demo/src/components/public/CinematicFilm.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "CinematicGallery",
+      "path": "apps/rcre-demo/src/components/public/CinematicGallery.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "HomepageMotion",
+      "path": "apps/rcre-demo/src/components/public/HomepageMotion.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "AgentWebsiteShowcase",
+      "path": "apps/rcre-demo/src/components/public/AgentWebsiteShowcase.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "AgentTemplatePreview",
+      "path": "apps/rcre-demo/src/components/agent-website/AgentTemplatePreview.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "SiteSections",
+      "path": "apps/rcre-demo/src/components/agent-website/SiteSections.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "WebsiteManager",
+      "path": "apps/rcre-demo/src/components/agent-website/management/WebsiteManager.tsx",
+      "kind": "website"
+    },
+    {
+      "name": "site-seo",
+      "path": "apps/rcre-demo/src/lib/agent-website/site-seo.ts",
+      "kind": "website"
+    },
+    {
+      "name": "AppShell",
+      "path": "apps/rcre-demo/src/components/AppShell.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "PlatformWorkspace",
+      "path": "apps/rcre-demo/src/components/PlatformWorkspace.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "SettingsWorkspace",
+      "path": "apps/rcre-demo/src/components/SettingsWorkspace.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "AgentInspector",
+      "path": "apps/rcre-demo/src/components/AgentInspector.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "FubSignalsWorkspace",
+      "path": "apps/rcre-demo/src/components/FubSignalsWorkspace.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "Transactions",
+      "path": "apps/rcre-demo/src/components/Transactions.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "MarketingComposer",
+      "path": "apps/rcre-demo/src/components/MarketingComposer.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "MarketingBatches",
+      "path": "apps/rcre-demo/src/components/MarketingBatches.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "LibraryAssets",
+      "path": "apps/rcre-demo/src/components/LibraryAssets.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "AcademyManager",
+      "path": "apps/rcre-demo/src/components/AcademyManager.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "AcademyProgressProvider",
+      "path": "apps/rcre-demo/src/components/AcademyProgressProvider.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "AcademyLessonStage",
+      "path": "apps/rcre-demo/src/components/AcademyLessonStage.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "CommunityFeed",
+      "path": "apps/rcre-demo/src/components/CommunityFeed.tsx",
+      "kind": "portal"
+    },
+    {
+      "name": "RecruitDetail",
+      "path": "apps/rcre-demo/src/components/RecruitDetail.tsx",
+      "kind": "portal"
+    }
+  ],
+  "candidateCounts": {
+    "website": 20,
+    "portal": 14
+  },
+  "sourceSnapshots": [
+    {
+      "path": "apps/rcre-demo/src/app/layout.tsx",
+      "sha256": "32e07b773f4bdbbe5592d5f9f57ec292e037ad509e4cface6902eb6e6ffef560",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/layout.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/error.tsx",
+      "sha256": "3d22b7e3bec5bbed5e05395c4b3f7512c6ce8806781f1a989741800922ad85ce",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/error.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/page.tsx",
+      "sha256": "8b7a060deec37da1d0ca632e5f073d291b300d331e242c1436cf5200f1dddcb9",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/globals.css",
+      "sha256": "a158cee6967574adfb2fa3e952613ead6fc109bd8c441cb4fafcf3cb3981c13c",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/globals.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/not-found.tsx",
+      "sha256": "6eceaab3d6d3e7d033d247a1029ff58de6ace2ffa47b21209e94cd23518f2c1a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/not-found.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/assistant/page.tsx",
+      "sha256": "3de62bb25075b1dc75c78cf85fb1ee2699e5abdfcafdcfa52dc9475b6e51b006",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/assistant/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/settings/page.tsx",
+      "sha256": "e2cc6f8eab26ded7ac92db8fdc8464460acae7bc0957ecad895251c77043cf85",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/settings/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/settings/[group]/page.tsx",
+      "sha256": "e2cc6f8eab26ded7ac92db8fdc8464460acae7bc0957ecad895251c77043cf85",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/settings/[group]/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/settings/integrations/google/workspace.tsx",
+      "sha256": "90dd4b9dc032c5816250b3710e76c8e4525e6a1358c5448e9e150088c93d1e0a",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/settings/integrations/google/page.tsx",
+      "sha256": "0139f0c4b95413c8bb99c6960812d880be176a02b97822eb9d04a850268447c9",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/settings/ai/AISettingsClient.tsx",
+      "sha256": "9e4c451b6983b22485e304943db73e920a94c3e007f2a6f64edb13fca7b9dcb8",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/settings/ai/AISettingsClient.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/settings/ai/page.tsx",
+      "sha256": "d5e3abe700ef389ba65a5c4982be46077bab08cc881ed3bec92f98ad2bafeafc",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/settings/ai/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/pipeline/page.tsx",
+      "sha256": "05356344fb0847f76346850f67638ac0f2a3418a24b7045c6ac52a2322f471b7",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/pipeline/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/calendar/page.tsx",
+      "sha256": "85f9881b591e1b0a6bbed77d28de4c075c26aa9c4054674a68664772d1154060",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/calendar/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/financing/page.tsx",
+      "sha256": "e63f3d4be1b8eaea2b91fff0bedf6e2aeff968681c504c056a75f9a5212c8b9a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/financing/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/join/page.tsx",
+      "sha256": "1214f636ef5ccf5db04db0f15a0eb2fcdd8b8a43aa6a10d8f668bb2a0871cd80",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/access/[token]/page.tsx",
+      "sha256": "280f540c536b2981a57e22091935ea82dd0c9af8f40d6ec4a86f52c488e9635c",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/access/[token]/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/today/page.tsx",
+      "sha256": "13828b68e090e09b841eba6ee28a9b0dcc034591302c0852efcce915bce4fae9",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/faq/page.tsx",
+      "sha256": "f9b2daedd1abfbd44d7a88c957af6668bf7be6ccf7e73e6c279e0fc3591fc364",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/faq/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/recovery/page.tsx",
+      "sha256": "3945a16b9be2fd82eff25340398ac1dd9c34412d1a02aeb725a7c373474ad34f",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/recovery/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/training/layout.tsx",
+      "sha256": "bf739ae69d5583ef7aade490e474497308a4d205d5ae2ac7441de6e5db4eabd2",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/training/layout.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/training/page.tsx",
+      "sha256": "afe93368d672fcfd1ae643b31abce65baa1e678927db9c25deaa3910355ac8f1",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/training/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/training/classroom/page.tsx",
+      "sha256": "6da723c5d4bf0983c4f0c6868b080e52cd885eeae64f1f5974e6ba84ae49ffcb",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/training/classroom/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/training/classroom/[courseId]/page.tsx",
+      "sha256": "d7b13b0b1a60f8c5996df49df01e8b69d3068c1eae92e613cc79ca2d4535cac3",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/training/classroom/[courseId]/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/training/classroom/[courseId]/[lessonId]/page.tsx",
+      "sha256": "79bbaca652234d6a9ba41735e6b8e1563ec5f025786e2e6c62294654d8c4c3f5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/training/classroom/[courseId]/[lessonId]/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/training/manage/page.tsx",
+      "sha256": "735f2e5fb20bb17245cb5e71e9b8650f5ebf23f34510a70abdb93ed1354b9811",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/training/manage/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/training/community/page.tsx",
+      "sha256": "74dbd5dfc97fea193ad671b445158e561e73c5119a4730d017bd3efa483a3f7c",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/training/community/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/listings/page.tsx",
+      "sha256": "0884248f37cb9eeea839022e4aefefc1907f5611dfd0d257fe2e394f0f070408",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/listings/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/listings/[id]/page.tsx",
+      "sha256": "0884248f37cb9eeea839022e4aefefc1907f5611dfd0d257fe2e394f0f070408",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/listings/[id]/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/website/website.css",
+      "sha256": "e7c327ca660161b327df8d77ceba3e2e3dfe3d71fbdfa8ae93c9387df4a443ca",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/website/website.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/website/page.tsx",
+      "sha256": "501fe2113e4861182e2ae283dd807bc7aea0479f852c957e6980cdf73be42ca3",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/website/settings/page.tsx",
+      "sha256": "32d8baec31d976456690b809e867dabb6e3158b0ff47b6622d304b511371fac4",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/website/gallery/page.tsx",
+      "sha256": "003757b69ff9571e4f53e551460d2e31dc15c86129f12c64be750e9af593e086",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/website/preview/[id]/page.tsx",
+      "sha256": "c3e39f44bfae7940c8c7c6b9ee0fd64a8969a6ded81b2ff9a93b90e39ba6c791",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/crm/page.tsx",
+      "sha256": "b1e46bf1f510c8efaaba87740ca9874cff2e4b23ca056d321c8c45070e6fd879",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/crm/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/crm/[id]/page.tsx",
+      "sha256": "b1e46bf1f510c8efaaba87740ca9874cff2e4b23ca056d321c8c45070e6fd879",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/crm/[id]/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/content-library/page.tsx",
+      "sha256": "c6a842bdc5bd4f46ba43ea24d621a9616e0e4934b3bf76bbf17c4fc0bc7430a9",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/content-library/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/fub-validation/page.tsx",
+      "sha256": "2fb8d1dba1e33f49b444ecfaf72256893e9a69e00dcfb7e03ffcabc632d022b0",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/ai-provider/page.tsx",
+      "sha256": "f2fb9474139caaef1150be734253f60337839d3c27d4e21cc7d689e7b07cd1ce",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/ai-provider/ProviderStatus.tsx",
+      "sha256": "f4c2f76b0cfce65cd86e1c26faead082e31eadd5eebdb82087feceb976b17d04",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/website/page.tsx",
+      "sha256": "9b9b1c135c57a9f653c67bff65409f26e824640639140bfc4298ceb300fc593f",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/website/content/page.tsx",
+      "sha256": "70839f96223b73224c6f8b669e41a9b0252eee64690a8a90d6043eafe8833a72",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/website/preview/page.tsx",
+      "sha256": "632b069b7320c1f13836b620796f936fac2ff4fb93f4e062b43e76e4ae6713a3",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/admin/website/preview/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/audit/page.tsx",
+      "sha256": "c38e0b6353bd6e27803e4a7e2ce99b42647c0cdef45979059ce80a71c93876e6",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/admin/audit/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/people/page.tsx",
+      "sha256": "3d1c8bd8acf0b134d2edbc413618359e4374b43065d193d61e4dbddf2fad4da1",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/fub-sync/fub-read.css",
+      "sha256": "19e979854a4ddbd48c8a1a7eb5b7dc255134afa236b6411a9a385126197c1cb8",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/fub-sync/page.tsx",
+      "sha256": "a55230fa1aad9ee171b78adcc9227569e0a24d5b1aa77c5a9f5e78491a9a4823",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/fub-sync/FubReadControl.tsx",
+      "sha256": "74e2a98bccfdf33afdcb9e54b83ad4934d3021addd645f5973fb421d5a615166",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/admin/fub-users/page.tsx",
+      "sha256": "0b024434339b33dc1b862d57622f0b967d56c97a557037bb1e19fc0a587d1c3e",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/image-credits/page.tsx",
+      "sha256": "84bddf608337e467cd29e22b49c5f49a68a93b8a8d0dc44b8c7131858273275d",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agents/page.tsx",
+      "sha256": "80f9214d9b249681a1c7c8230d43bba42d23ce47b7c9b105f2f0e1c1e8093511",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agents/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agents/[id]/page.tsx",
+      "sha256": "80f9214d9b249681a1c7c8230d43bba42d23ce47b7c9b105f2f0e1c1e8093511",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agents/[id]/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-rural/RuralLayout.tsx",
+      "sha256": "b695c6529ffe078cd34c43a4c6dceab396b68499ff98285c07280ba61f6350ff",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-rural/RuralLayout.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-rural/rural.css",
+      "sha256": "86180a65c7fad9eb2b7353c3b62f102a948be5bc4d2db62bd2cb29f784a6642a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-rural/rural.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-rural/RuralContactForm.tsx",
+      "sha256": "ec73d1945a7ea5d5890f9f0895f70f498414dec92171af924a57e7d27e182e53",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-rural/page.tsx",
+      "sha256": "0e5806cc2f36a29fdd6fcb7b3334c4ad4b3bcf3f0a8e188452eeb6d9adc89490",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-rural/RuralSEO.tsx",
+      "sha256": "2ae3d7477c5927bd64adbc6b58a40839aab398d822ce944a1be3e433bddd1e86",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-rural/RuralSEO.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-rural/contact/page.tsx",
+      "sha256": "0e5806cc2f36a29fdd6fcb7b3334c4ad4b3bcf3f0a8e188452eeb6d9adc89490",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-rural/listings/page.tsx",
+      "sha256": "0e5806cc2f36a29fdd6fcb7b3334c4ad4b3bcf3f0a8e188452eeb6d9adc89490",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-rural/about/page.tsx",
+      "sha256": "0e5806cc2f36a29fdd6fcb7b3334c4ad4b3bcf3f0a8e188452eeb6d9adc89490",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-rural/markets/page.tsx",
+      "sha256": "0e5806cc2f36a29fdd6fcb7b3334c4ad4b3bcf3f0a8e188452eeb6d9adc89490",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-rural/buy/page.tsx",
+      "sha256": "0e5806cc2f36a29fdd6fcb7b3334c4ad4b3bcf3f0a8e188452eeb6d9adc89490",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/birmingham-historic/HistoricContactForm.tsx",
+      "sha256": "94e5e97b7b7885b68f1dfc4f361f40a9ea046d0fb21c782cd5b5cdb1392bdbc8",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/birmingham-historic/HistoricLayout.tsx",
+      "sha256": "e44ab2b0862d4f470aa289aa8ac0911a9ea564fe40040461675894bf491c5a92",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/birmingham-historic/HistoricLayout.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/birmingham-historic/HistoricSEO.tsx",
+      "sha256": "cc6eab5b205bf0567f1c83c296f57cef3ba0b9f4dca314194a136073f01ec38a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/birmingham-historic/HistoricSEO.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/birmingham-historic/historic.css",
+      "sha256": "a256292aff14660a9d50db2fb5298dcd314f1ca116ab396b9ee895cb88cff148",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/birmingham-historic/historic.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/birmingham-historic/page.tsx",
+      "sha256": "1ab075a9d65154c02c2f32bc3b2187865c189ff5ab7d3e8207f4a8a5380a1d81",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/birmingham-historic/contact/page.tsx",
+      "sha256": "1ab075a9d65154c02c2f32bc3b2187865c189ff5ab7d3e8207f4a8a5380a1d81",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/birmingham-historic/about/page.tsx",
+      "sha256": "1ab075a9d65154c02c2f32bc3b2187865c189ff5ab7d3e8207f4a8a5380a1d81",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/birmingham-historic/markets/page.tsx",
+      "sha256": "1ab075a9d65154c02c2f32bc3b2187865c189ff5ab7d3e8207f4a8a5380a1d81",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-urban/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-urban/contact/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-urban/listings/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-urban/about/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-urban/markets/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-urban/buy/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-luxury/LuxurySEO.tsx",
+      "sha256": "12201777d0d3221aed56009d26dcd75314b03a2e8078354a07ea5ae463dc5c76",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-luxury/LuxurySEO.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-luxury/luxury.css",
+      "sha256": "317e11445bfa6b9f88d4606b195cb38e96235ffa8c371c91eab1e6c1950c0718",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-luxury/luxury.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-luxury/LuxuryContactForm.tsx",
+      "sha256": "c8376f6df16eec1783759051ebc35578950e5a9ac1732202d753825a35a78d81",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-luxury/page.tsx",
+      "sha256": "ec372d6f03f676e26a43129a15c1082bb0b706872056b873ae197d09b813601b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-luxury/LuxuryLayout.tsx",
+      "sha256": "5354d9115efd74bd24c86dfada0a7b877d1d0cfba78cdd8753bf7b84cd51b537",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-luxury/LuxuryLayout.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-luxury/contact/page.tsx",
+      "sha256": "ec372d6f03f676e26a43129a15c1082bb0b706872056b873ae197d09b813601b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-luxury/listings/page.tsx",
+      "sha256": "ec372d6f03f676e26a43129a15c1082bb0b706872056b873ae197d09b813601b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-luxury/about/page.tsx",
+      "sha256": "ec372d6f03f676e26a43129a15c1082bb0b706872056b873ae197d09b813601b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-luxury/markets/page.tsx",
+      "sha256": "ec372d6f03f676e26a43129a15c1082bb0b706872056b873ae197d09b813601b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-luxury/buy/page.tsx",
+      "sha256": "ec372d6f03f676e26a43129a15c1082bb0b706872056b873ae197d09b813601b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/family/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/family/contact/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/family/listings/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/family/about/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/family/markets/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/family/buy/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-suburban/SuburbanContactForm.tsx",
+      "sha256": "51662cb6867025b12a2a49d36f9e86827617622d1d53b2d8c4457c44b17730b5",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-suburban/rcre-suburban.css",
+      "sha256": "cb41a95abf63b8afa76abcd39d2d78a5cfee02afca1edd16eab6bf5370578360",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-suburban/rcre-suburban.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-suburban/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-suburban/SuburbanLayout.tsx",
+      "sha256": "e1f2c6916fd26888079ae359719c99468cfe0401097d8f7a37eb2a08c52bfe06",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-suburban/SuburbanLayout.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-suburban/SuburbanSEO.tsx",
+      "sha256": "f329b6367aca7b8ac9e17c0735b618b7cc7cddb7998b4b81d0464106bdef9b21",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-suburban/SuburbanSEO.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-suburban/contact/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-suburban/listings/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-suburban/about/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-suburban/markets/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-suburban/buy/page.tsx",
+      "sha256": "757c0062d97920920d8553e713bb4389bce3a52628c2b74a6a7e32767b66391b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/preview/[theme]/page.tsx",
+      "sha256": "e52c3806c2445463af6d7c478ab6bb5268fd9e71d8f7619850299071566c56c6",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-newconstruction/NewConstructionContactForm.tsx",
+      "sha256": "90b30bb831eb783c2e7cae1c622e25cec909d34eaef8bdee7c13b644c14b13c7",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-newconstruction/NewConstructionSEO.tsx",
+      "sha256": "4b0f53e51b706799d0286a47b4444721616c42c865648b162e49b3183454ee12",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/jacksonville-newconstruction/NewConstructionSEO.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-newconstruction/NewConstructionLayout.tsx",
+      "sha256": "72c31147b30807b6801ca5b7b321886aabed23fdf6cea6c546f1b7aba7edb0d6",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/jacksonville-newconstruction/NewConstructionLayout.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-newconstruction/newconstruction.css",
+      "sha256": "9827401f1b0199903c559e44ef5ed81f12ebdc01a66b312187140a49e9ab9b3d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/jacksonville-newconstruction/newconstruction.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-newconstruction/page.tsx",
+      "sha256": "8c92994fd8c3e57d11fb4ab82d007bb4869824c81908a669373ff3981eaab3bf",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-newconstruction/contact/page.tsx",
+      "sha256": "8c92994fd8c3e57d11fb4ab82d007bb4869824c81908a669373ff3981eaab3bf",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-newconstruction/listings/page.tsx",
+      "sha256": "8c92994fd8c3e57d11fb4ab82d007bb4869824c81908a669373ff3981eaab3bf",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-newconstruction/about/page.tsx",
+      "sha256": "8c92994fd8c3e57d11fb4ab82d007bb4869824c81908a669373ff3981eaab3bf",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/jacksonville-newconstruction/buy/page.tsx",
+      "sha256": "8c92994fd8c3e57d11fb4ab82d007bb4869824c81908a669373ff3981eaab3bf",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-investor/rcre-investor.css",
+      "sha256": "c297ee023f9ca9c0ee5c3ba1dd455607ba6d58832df31a1368250e51fb76612d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-investor/rcre-investor.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-investor/InvestorContactForm.tsx",
+      "sha256": "696d5ae60052192ea07443d09cb74bf6e00824d05f189944d01f21ab7430b696",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-investor/InvestorLayout.tsx",
+      "sha256": "19fcaed50b9700c553a33e40a3bbe4610efb7576fae61b2f6464da3451e702df",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-investor/InvestorLayout.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-investor/InvestorSEO.tsx",
+      "sha256": "23a33a9d3528c90558c3da6148d3ce084dfbaacba1b032d913c3c9d69b63647a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-investor/InvestorSEO.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-investor/page.tsx",
+      "sha256": "ba1c95d4fa71950414f35747bba5cea08fe5c135b132625e1f1ebd0cf4753280",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-investor/contact/page.tsx",
+      "sha256": "ba1c95d4fa71950414f35747bba5cea08fe5c135b132625e1f1ebd0cf4753280",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-investor/listings/page.tsx",
+      "sha256": "ba1c95d4fa71950414f35747bba5cea08fe5c135b132625e1f1ebd0cf4753280",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-investor/resources/page.tsx",
+      "sha256": "ba1c95d4fa71950414f35747bba5cea08fe5c135b132625e1f1ebd0cf4753280",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-investor/about/page.tsx",
+      "sha256": "ba1c95d4fa71950414f35747bba5cea08fe5c135b132625e1f1ebd0cf4753280",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-urban/UrbanSEO.tsx",
+      "sha256": "0a2c6942b00253ef86f422e9eb57ef2d4a23d45f77cfb7e38f27af00980c46d9",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-urban/UrbanSEO.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-urban/rcre-urban.css",
+      "sha256": "7fb76a381d6dbf0cc37d14cd12774ad50ba1183a003136cd188a99860adcf845",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-urban/rcre-urban.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-urban/UrbanLayout.tsx",
+      "sha256": "8353a584546b3cdcd07d118c0212ecfb5b87470a7b3d1bf3b89fc6ec01b01a19",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/rcre-urban/UrbanLayout.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-urban/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-urban/UrbanContactForm.tsx",
+      "sha256": "57f717494ddc96d115bff7df17277a0abfe62f91f003ac11ee100628e0100e82",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-urban/contact/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-urban/listings/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-urban/about/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-urban/markets/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/rcre-urban/buy/page.tsx",
+      "sha256": "1c521a1dae25b5736ad96f5d008e616aeb5f2317e6ad3699ceef73e12bcd3094",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/[slug]/page.tsx",
+      "sha256": "5e7d92b75d42b4c76ab5e3fb0a9dfce0f5ccaca50c99123af5fb61a4d7b772b7",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/[slug]/sell/page.tsx",
+      "sha256": "bd1942dcfb57a484f9157f4c045a40fab15dbd744487f7986262dc5c4f778bdb",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/[slug]/contact/AgentContactClient.tsx",
+      "sha256": "bb9394093fe8a06356b6d38af9b2a039e8115d9722c5ad08ce508d88df3793e1",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/agent/[slug]/contact/AgentContactClient.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/[slug]/contact/page.tsx",
+      "sha256": "1ecd390ad6e4294e91e23cfbb2f66774b5c34fd9d67987b1aa040bf35163d4eb",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/[slug]/listings/page.tsx",
+      "sha256": "1ecd390ad6e4294e91e23cfbb2f66774b5c34fd9d67987b1aa040bf35163d4eb",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/[slug]/resources/page.tsx",
+      "sha256": "a27fbd5678529390bb314571fbc9e4f62e5e3a6f4812029c205cf4d85272580b",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/[slug]/about/page.tsx",
+      "sha256": "9da5c52fb714a26892077ddcdca0719ddc33c4c53a9d225968b8d367f031cf0c",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/[slug]/markets/page.tsx",
+      "sha256": "e1b57d432988ea9db860850628bb713991da4184545c49ded3f0da4524b289c9",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/agent/[slug]/buy/page.tsx",
+      "sha256": "8d69cda9488ef841ab38702ea70ad68904be3930be192a1dd5d2db8397e19f5d",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/integrations/page.tsx",
+      "sha256": "5f389c787dd47e0291896a30d1e0acd351687e5fdc9eb111501ad999984d6940",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/integrations/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/integrations/fub/page.tsx",
+      "sha256": "bddcbd7cbfca038b33f0a1b7f811f08f3ce20a6920fb5c2b068906f8a5bce23e",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/integrations/fub/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/sites/[slug]/page.tsx",
+      "sha256": "f6ed684bd65399ebf558d881eb6b98b48defca8e569fa0573dbf2fc429ad7553",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/forbidden/page.tsx",
+      "sha256": "caed693a7f03a37cade68512fa8e8632e3e6b22ec005e3c1b6c82f0a5ad086ea",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/forbidden/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/transactions/page.tsx",
+      "sha256": "ba2ff2be15fea27dfdef2c5f43ba2dd73162733424be89ae58da0c5bd08bd0f6",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/transactions/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/transactions/my-transactions/page.tsx",
+      "sha256": "56044125e2d16e9a14675471be70862b174094782decd914b7c83675413e52b0",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/transactions/my-transactions/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/transactions/broker-exceptions/page.tsx",
+      "sha256": "d56c6aefb2238d433b88fd463911863c2c095de4873b3865f94c223a6d1f25d0",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/transactions/broker-exceptions/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/transactions/tc-queue/page.tsx",
+      "sha256": "0a8539826125db3a8466151b46db53d5e762c062da6f6abf6e7ae40fa72c853e",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/transactions/tc-queue/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/transactions/[id]/page.tsx",
+      "sha256": "50b30372c52b598a84d63d341c5eea1c9f1d53018900558a35ad8c4b5cb45ab7",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/transactions/[id]/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/workspace-search/page.tsx",
+      "sha256": "2f0fa5e9229f376d41159a0e4c1229b1f20e083c33e52c0f40bef7b47d688a90",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/workspace-search/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/assistant/route.ts",
+      "sha256": "c5c6fc08587156a411f45c9f188c00522d90853bac292e1524d8267444f85bc2",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/fub-read/route.ts",
+      "sha256": "73402dfafd0c8a4ccced90f8085c8f486106537a159a853aaee4a88e6eb084d1",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/approval-center/route.ts",
+      "sha256": "c46668252c1db31583f7d69198f8b51528c50bc5bbccd926b53bf48fa6403866",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/approval-center/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/platform/[...path]/route.ts",
+      "sha256": "5df13b6230e4a26b34fd24476c4048c4bb0bc6a752126af29cbe6229fe21c7db",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/agent-inspector/route.ts",
+      "sha256": "1d8b4b9c9394aa7b9412aee9d4e63e43602f1457ff8e7b2b26ba50c3abe54dcd",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/agent-inspector/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/admin/ai-provider/route.ts",
+      "sha256": "58e78da27ede42fca3305c47d325962ace08f4afc187cc5608a06cfcbf6f8440",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/admin/fub-users/route.ts",
+      "sha256": "b74f5192d0e8bbec9738971cba77bfef3e9a9abeb6edb2e818b1a4bf244c14ab",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/day-plan/route.ts",
+      "sha256": "bc204279a4b8b3f5d48291687183be90db501e9db85afbb43c568df7282707bd",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/day-plan/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/library/assets/route.ts",
+      "sha256": "cdc3eab9978174af05ad8817911e0232754cfe436361a8e2254364ed331cb2cd",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/library/assets/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/library/assets/[id]/route.ts",
+      "sha256": "c715fbd2c24d8a25fd48546e1ffe616bc3ef468bb0ea1aeda5db4ca6c76fb6bd",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/library/assets/[id]/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/mcp/route.ts",
+      "sha256": "d3ce58fbddfa4a1984355e71935af110e400cce8a711b6ebd5a53ee36bb9326a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/mcp/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/local-worker/route.ts",
+      "sha256": "7d19600d0b43ef78041ba7ab14f7027c7f332f3db691ef41b3a20ffd570b2984",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/academy/progress/route.ts",
+      "sha256": "9e398fabad4bee94adc02df70cc53c9227e9b0553f8c4868105e6f282d3641e2",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/academy/progress/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/academy/uploads/route.ts",
+      "sha256": "96873888d02180fa777454b9dfe3034c7fd9c9940ee832321906efd046c6d169",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/academy/uploads/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/academy/uploads/[id]/route.ts",
+      "sha256": "6569c37e9162b7aff83a4e97b29024de3a2704bae57bed12912a10902d0a3e6a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/academy/uploads/[id]/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/academy/manage/route.ts",
+      "sha256": "9a5c2f314d97645474ec228a3a757cc1bf04e0e08377bb30dc64bc5a332b5acd",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/academy/manage/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/academy/media/[...asset]/route.ts",
+      "sha256": "ce33d2d107ce74d22f501d20f5582f5f0e30b4b31b605b5c65ebbac6848922e2",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/academy/media/[...asset]/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/integrations/google/[[...path]]/route.ts",
+      "sha256": "f98552aaee0c735cee48e1e585414825b123c242e8d940859a760710a40db50d",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/transactions/route.ts",
+      "sha256": "0485f52742e8cff637248dbf3070381bf2fa82ab3bc1ad7ac773a05e563eed60",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/transactions/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/transactions/broker-exceptions/route.ts",
+      "sha256": "d3210d3a0ed51022e4de11bb6fc15333e45a09a195cdc9dd9e2fe09b7dfc51e5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/transactions/broker-exceptions/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/transactions/broker-exceptions/[id]/resolve/route.ts",
+      "sha256": "3bc48a7217c830a7e29c93dbefc79eb30d5e754652459192043e5bf2fb76c51e",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/transactions/broker-exceptions/[id]/resolve/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/transactions/tc-queue/route.ts",
+      "sha256": "982e4b03df22c8fc15d0e7068d3600ad15fdbee1c731d2b60896fba1453eb2ad",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/transactions/tc-queue/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/transactions/my/route.ts",
+      "sha256": "86f858e4674314d0d411c79c84cddf850a37c8c7f925edb4d3073f23e76d3a49",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/transactions/my/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/public/chat/route.ts",
+      "sha256": "fa37d7103d456d4ea7da7659a2b532672bfbb2b1067b338dcf0a09edd374858b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/public/chat/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/public/resources/[slug]/route.ts",
+      "sha256": "5dbc9441903e38481f6882ea45a388608cd1765bc3c4a2d83cf21bf3d344cddc",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/public/resources/[slug]/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/public/engagement/route.ts",
+      "sha256": "7955f654e9bd4d279f4070a97508ae5ed1cf60ebaf908280bfd9004414f72393",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/public/engagement/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/public/content-admin/route.ts",
+      "sha256": "a85f16f91e513fc822991055c52d733076602e005b3a826a7c8778145c353d81",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/public/content-admin/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/public/search-state/route.ts",
+      "sha256": "77f3bde16615f5935c51c15374149451dce95e9825000b4b4cbeb5fb603d2114",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/public/search-state/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/data-health/route.ts",
+      "sha256": "d5547d11ac36d37c68e0c9936f0d8fd20501e92405d89bf2bfed097ef049700c",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/data-health/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/profile/photo/route.ts",
+      "sha256": "6c8543bad88d1998d56efd6ddfece8e27877840f33b80371f6aff31d96b51851",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/profile/photo/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/hermes-runtime/route.ts",
+      "sha256": "730b5899b22e10388e2d444278136394667d4c39264c75780e16805c42752b5a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/hermes-runtime/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/people/route.ts",
+      "sha256": "55cc71aa0c498cf802897410c8bb2594684046f64dc11bdcebcf4034d699c5ff",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/workspace-search/route.ts",
+      "sha256": "c43a235487e00c57ab88a2c2cf3505060fee2c48d0f2914863e9248f8b32d1de",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/workspace-search/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/agent-sites/[[...path]]/route.ts",
+      "sha256": "50224b7fb259d39ecc94090bd21656e64ff773eb4c01ddd1ee703d1866ecef57",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/document-inspection/route.ts",
+      "sha256": "40f2c45b159da03aa737967d8311e8d76ff9eec2a0418232fd450b59cada47f2",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/document-inspection/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/marketing-batches/route.ts",
+      "sha256": "43d9a05120fc25539a5c7ff12677d7410502cf232b410e7903f35490966ac2df",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/marketing-batches/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/cloud-ai/validate/route.ts",
+      "sha256": "656093b4bbb27bfa6c47e56fd3ae01b7b92d3789ba4ea8246572ca59b5c1d6e3",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/cloud-ai/validate/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/lead-campaign/route.ts",
+      "sha256": "5fd00a78f50dbf7e340c2caa60d0b7b42a4be7b2d9cb330a770257b1c8aff531",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/lead-campaign/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/community/route.ts",
+      "sha256": "279b4ed9e6adbecf10ba67bad6cb2ec382c9706f046e850716c32749ea26b00f",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/community/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/community/attachments/route.ts",
+      "sha256": "980f02218d5bcf38fe85b60ad285d81e1e7fe310875f9c5c5518d59f585ecb82",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/community/attachments/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/community/attachments/[id]/route.ts",
+      "sha256": "39475e5bc03778bf2c379daedf5781f4ea4b97c310e08c565b72293c3da29b65",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/community/attachments/[id]/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/webhooks/fub-read/[account]/route.ts",
+      "sha256": "c8183ccb0ef455ccad1b23b15d8a57b16596ee68b3949cca10099081caf0214d",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/webhooks/fub/route.ts",
+      "sha256": "82cfe404fc208e28647cbdcddd3652936c977b46c30f9b4104d06d3bdf0eeb1c",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/webhooks/fub/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/recruiting/[id]/route.ts",
+      "sha256": "167bf485f2ffcb3720b902e116fa4406c60147ee09131af79750386ea154bda5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/recruiting/[id]/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/fub/route.ts",
+      "sha256": "d360d0ba9ec2a9ffaae904de26da629eaa141e328a9587abeaddbaba0d957040",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/fub/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/fub/intelligence/route.ts",
+      "sha256": "6f7a97fdae44419286dcc1923e23116e069076b1b83e074c18a07c68b4f77c83",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/api/session/route.ts",
+      "sha256": "7468ac8f60caba93d5e06c776b1bc45e00ef7460f894452424264a775f6d86c3",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/api/session/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/marketing/page.tsx",
+      "sha256": "c6a842bdc5bd4f46ba43ea24d621a9616e0e4934b3bf76bbf17c4fc0bc7430a9",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/marketing/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/academy-preview/[courseId]/page.tsx",
+      "sha256": "92835492cf06bd1cfaaf52f12e9ad41d9aa6b2e84c76db6871df593e69d23603",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/academy-preview/[courseId]/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/sitemap.xml/route.ts",
+      "sha256": "190424986479d4853cf72822067209acc74ddf312b30c50dc1d122f6863f9489",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/command/page.tsx",
+      "sha256": "3019c4689bc89bf5e2d00832be532268c484877198f10c0dfd247a65de974f26",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/command/reporting/page.tsx",
+      "sha256": "756d5d956fb88da6c2d9cb653cad9c6aa16579163b0bfea4c6484ffe6f1ae880",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/robots.txt/route.ts",
+      "sha256": "86eda9c1c70f8ee8009a1d2e069695cce2e26691e7541a32abf75973e94e619e",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/robots.txt/route.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/approvals/page.tsx",
+      "sha256": "ca36dddb1215d21e3eabbb4c29d59c72330704ca24d6bc9de37c49991e93a3d5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/approvals/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/notifications/page.tsx",
+      "sha256": "8343e0d5cd5c343bc8c33f560b56b69976d0ffd262137d4bf5c35e3dad4c282a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/notifications/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/login/page.tsx",
+      "sha256": "89ded70def613165e278b24408c77ecdfbbcc53732981f3a09f538f9725e3b18",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/recruiting/page.tsx",
+      "sha256": "916c337e2cda6db1f728dab4dd7ff867fe4f589301f3b67c02678c118d4b4027",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/recruiting/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/recruiting/[id]/page.tsx",
+      "sha256": "dda9335b56f3bb559626eed249142f6a0c92e7c9101cc4acf8157fe5c93f69cf",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/recruiting/[id]/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/[...publicPath]/page.tsx",
+      "sha256": "08c68aa098b0e86d5e5f646fc8bf8d206bf7296b74812b61bc584fdfb26e4ef5",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/app/onboarding/page.tsx",
+      "sha256": "6fe76766ef854c303470783ca383f4f8627ed0d825abc5869217301412980ec3",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/app/onboarding/page.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/app/website-content/[id]/route.ts",
+      "sha256": "660f38d26adeb7ff8fcb06ee8a6d6e50a0421a77f6a741648d4f9a6797df6118",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/CampaignBuilder.tsx",
+      "sha256": "0801cf10d4668524e03be3f7cabd3ba20eaf9eff23174f6aca835da7e3e373a8",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/CampaignBuilder.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/MarketingComposer.tsx",
+      "sha256": "07df9d083e3e82e0856419b450da0006af902f09fb4240d682d5d550a5d62953",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/MarketingComposer.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/InvitationManager.tsx",
+      "sha256": "99647d63ba1a7ce45be3a2bff6e5f66a7faf4199e0780e73c1e5283f6619459d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/InvitationManager.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AttentionRow.tsx",
+      "sha256": "6f27d6d5682605c99a713ac8eaa92dde5c96f2199540bf90a72794719ea42e5b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AttentionRow.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/CrmSearch.tsx",
+      "sha256": "febf91bd228cffce55c707d4be67b3aece9c4e9f08c57266b4fe7be414b9b0b0",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/CrmSearch.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyContinueCard.tsx",
+      "sha256": "1c41201a10ad54f10d401bb7130a51714ab4276f78ac4689ca347537e85de11d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyContinueCard.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/CommunityRail.tsx",
+      "sha256": "f9beba7dd3b2f9d4d86322cbcc16b6e419662380224a27559ab17130884f9dcd",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/CommunityRail.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/DataHealth.tsx",
+      "sha256": "6ac08170a6c4b935828e5e6c875ac5629c124284c0bc6c2553cf03a2dd84c632",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/DataHealth.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyLessonStage.tsx",
+      "sha256": "6abe93c0e45ff5200de1ab5fc3e6e0201c0b574bd7ded6d7f216f7e4b68417c5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyLessonStage.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyMarkComplete.tsx",
+      "sha256": "811d6fabd2967eeebb9700719d77d2790c83c9ddb5e9eb04429206dc46993d16",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyMarkComplete.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/CommunityPromptBlock.tsx",
+      "sha256": "50345ddbf6ab1a25973f83124bcb28e86fbeb47d5c99113b6d0126982e32b81d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/CommunityPromptBlock.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/LogCallButton.tsx",
+      "sha256": "ff9fc14c64aa32bf845853df1f4064f2bf8e4755b008f28ed34996c43d8085d3",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/LogCallButton.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/DemoAction.tsx",
+      "sha256": "083fdb09ac1bf27ae1ceb9276f5b5224c15ecfd4fd58aa2c869f1e174f702743",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/DemoAction.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/Transactions.tsx",
+      "sha256": "fd0991727d4713a979f0b4ddbba951558b16874c5dfb1328bddc23600b55094f",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/Transactions.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/StageChip.tsx",
+      "sha256": "25333fadb69e0258139c5be68a8d6cee836978c1f22889c352fa2a24b5c8e451",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/StageChip.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/Assistant.tsx",
+      "sha256": "bba77c87921fae313c467692f5d3121bc573cf58c0cfe720d1e6e1a6931613ee",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyCourseCard.tsx",
+      "sha256": "7b200508b18a80824981c2e97e20d5f7e7dce38cd2979f42864c170ce1b51e1a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyCourseCard.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/TrainingNav.tsx",
+      "sha256": "70ef9209e7b57d387f7ad59dba3d271e6746a09f62e9a0a64d56f26d325e7b78",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/TrainingNav.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/PageHeader.tsx",
+      "sha256": "89be9a5a294ff5258e3868ed3c1f2303f8e3ffa8e3a43a05933f4fe42b41aab4",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/PageHeader.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyLessonRow.tsx",
+      "sha256": "67d1c5291c5260351aca0e5b28982705a2fb29ac8e497380424251331e6a67c7",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyLessonRow.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyVideo.tsx",
+      "sha256": "82337993589820f3f8a331a47f3ca1e5e8125d60dba71300d5aaf313370607b5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyVideo.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/TrainingAccess.tsx",
+      "sha256": "d999d233e72725fa5b76a69029e1643933e1b530cf295761712ffb3c0236023d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/TrainingAccess.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/LibraryAssets.tsx",
+      "sha256": "ccb50a7d7a0e0eb2a449e7c4fb4a26f057628dbbdc48dae54811bf1290393079",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/LibraryAssets.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/PriorityCard.tsx",
+      "sha256": "0c20cbeb9e9e256a2586849f67ba5aba45d1ceecfb862645602ffcc031dafbcc",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/PriorityCard.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AppShell.tsx",
+      "sha256": "038f8b3ad4a260abbf8eaabc1632d00487ba4947a23eaed6eefbb551adec9566",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/MarketingBatches.tsx",
+      "sha256": "6b917bcc97a9e7b0dcd392c02fb7c04b21dfb4f69b0c5d5fc3fa68e304e8071d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/MarketingBatches.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/PlatformWorkspace.tsx",
+      "sha256": "2b1faf6d46bbd56da62967de1c2f95fb0b789b413d66fc12eabe7c7786d2f5ca",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/SettingsWorkspace.tsx",
+      "sha256": "fe9515754fff1c54a0e05dba36b6f1eb6038dcda09adf77f0de65127b4bee321",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyCatalogCard.tsx",
+      "sha256": "84d6cdd3faf55689ae74205d9af7d21645e504253ce7c57cc5432dbf7d36bb75",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyCatalogCard.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/PersonalPreferences.tsx",
+      "sha256": "c453202bfa2ff2c96e4463a9487d7450bd5caecd5d63199dfad465fd89066926",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/PersonalPreferences.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/DayPlanner.tsx",
+      "sha256": "3ffc6c424134fc3da2dbb8817b95ea8a9e0153f3487a72c1a956b7153f2365c9",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/DayPlanner.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/DayPlan.tsx",
+      "sha256": "abfd1603fe648d82d4202181ce034c3ab30086b980e5c55efe1df47bfb5b478c",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/DayPlan.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AccessFlow.tsx",
+      "sha256": "20e4d119f6b51827b10c17aecef17338d84836cf9fcb0669d4828b5c8c5cf814",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AccessFlow.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/FubOperations.tsx",
+      "sha256": "cffa8242cd96c77a01fd5405e4ebf9c818cf5076fca92e787f890a1476d36ba3",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/DraftOutreachButton.tsx",
+      "sha256": "f4e64cdda077d60ec736a2339c18b5ee6dca4896d67199e25f7b2fd20cd41ca5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/DraftOutreachButton.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/FubUsersAdmin.tsx",
+      "sha256": "d294ffd9d3a7c375c977e54697a82d293d72e015f9a9927cfe170352e816f606",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyOverviewProgress.tsx",
+      "sha256": "70c5343bd992be45a3b6304ab2f3c9cd3b22de8cfd7861bcee24907bbc4be1c4",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyOverviewProgress.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/FubSignalsWorkspace.tsx",
+      "sha256": "99ca296d62074a54f8a50678e9bcfbb0f81dab0491a929f6cd06de5043db28b1",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyLessonTools.tsx",
+      "sha256": "51427d451d94164faea87212597260b4228d2385ef30540fa7fadcdfaad1ab31",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyLessonTools.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/ListingWorkspace.tsx",
+      "sha256": "dbb6f0e956805adeca9007d17a103426d842d7be61168d26fceefa2b37e54710",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/ListingWorkspace.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/CrmSignals.tsx",
+      "sha256": "18d45424124f5dfa28fd5e9b5b4ebf45db2cb8e57326a9ea2c336bb16df74258",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/CrmSignals.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyResourceList.tsx",
+      "sha256": "280f5087a86ab49b17165f013cbe45e103be95782a444a6de121aa9eebe403e3",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyResourceList.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/PeopleAdmin.tsx",
+      "sha256": "eae6505116dd52e95f84c5e94d6c6ee03637c07e360560487af6eb88179c9aeb",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/Avatar.tsx",
+      "sha256": "df12e3027a9691a8c7d326dbc9d8d772e9aee9c3993b43e7c63cbab057fd3ab1",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/JoinPillars.tsx",
+      "sha256": "97a57f00dbf4f5e3cb18b1a6383eeb6821dfb358d4aa034eb89867067b98d19b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/JoinPillars.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/RecruitSignals.tsx",
+      "sha256": "79dbccea8b2bb3783111e886023b1fd1f183a9600ae2d637961796c804fcba34",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/RecruitSignals.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/CommunityModel.ts",
+      "sha256": "880fa080b2a0bd51c8f310a8d841f5b077c097ce3bb227f72989ce0b47cccf8e",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/CommunityModel.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/ThemeToggle.tsx",
+      "sha256": "c660340361c30318f95094ec07f4f0aee109891c6612cb2b604a7981d9aab1d3",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/ThemeToggle.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/RecruitDetail.tsx",
+      "sha256": "302bd8d2be45219ee16a8e50ff1db3e465586c33cc48be9eaa703ad774cf6dd2",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/RecruitDetail.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/Logo.tsx",
+      "sha256": "99ae9497887cd800ad980cc60d73790bd8df1d52d35789c62e8aeb14b2c1412b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/Logo.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/EditorialCalendar.tsx",
+      "sha256": "6bd1cb5f89b516571546d88b5114a626548c1c9446f03f06dd9502d5388494e6",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/EditorialCalendar.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/PreviewShowcase.tsx",
+      "sha256": "c4493faa8e19075465f5146367398169df63f76ef5d5d2d0860a02bb8f7a6e39",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/PreviewShowcase.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/ListingEngagement.tsx",
+      "sha256": "ff4ded6bbc07147ec1b042de1e36b6ae2ee9c45b8aee05712dfd5eec3060ee56",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/ListingEngagement.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/RecruitPipeline.tsx",
+      "sha256": "409387df81647f129325b45c788127784d4bcabefb60ecbff8268a2babeeb3c6",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/RecruitPipeline.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/CommunityComposer.tsx",
+      "sha256": "257d3c8fb1ab8de49a366ac6b131d94fac97937b7252c0eee04f27549ac74645",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/CommunityComposer.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyProgressProvider.tsx",
+      "sha256": "2a0af00019b259a072c19539eaabd7a10b75940e2fca26af491e4f0423b925b0",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyProgressProvider.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/CommunityFilters.tsx",
+      "sha256": "56aea671ecb14c7bc68c29d59b289f7c3e1fd887775b076da0e56800afb25ede",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/CommunityFilters.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/CommunityPost.tsx",
+      "sha256": "41f92d7f5c57f9c67784afa508ee4df96e1309c80869a4d123c3c763c2349aa7",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/CommunityPost.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/ApprovalCenter.tsx",
+      "sha256": "2c190918c2d9fb3918b8e82d02193fa8dd3950940196346992cada474b36ea81",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/ApprovalCenter.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/WorkspaceSearch.tsx",
+      "sha256": "5dc2736a735cbb2024c37b7f8ed26b1730f29de0427ebfd991f525348705a614",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/WorkspaceSearch.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyCourseResume.tsx",
+      "sha256": "05f1048100f22d32192afa6f90981586a3651f31b55707afb4a756030de44fe9",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyCourseResume.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/PublicPillars.tsx",
+      "sha256": "6415d8fe2d7f4801923c72c52f481523af22d11e351a3e6eee1c16f8bf57fbbc",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/PublicPillars.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/PreviewSurfaces.tsx",
+      "sha256": "a218ebdd73cc1fd2294aa0e8973777394d1e0bb4374071d186547010d73ed91b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/PreviewSurfaces.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyLessonNavigator.tsx",
+      "sha256": "2a37a68c6566b001ea59f0cc73b2cc475b65d5ac81cf51697e0c95910d404691",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyLessonNavigator.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/ListingVisual.tsx",
+      "sha256": "afeee64367ab1ca7bd18c6c2530d45ba481adcc20548e982789810a592112413",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/ListingVisual.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyProgressBar.tsx",
+      "sha256": "e1023a5d75c6d19c27fa1c421c267cc2c3583b598918e7344d01045afa4f9477",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyProgressBar.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/LeadCampaign.tsx",
+      "sha256": "c7833f32d42955145191a263e47133325e8e15d75a789bb3642f1d3e3c9d89fc",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/LeadCampaign.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyManager.tsx",
+      "sha256": "bd37783c9f17a84a968ad618db325c09421ffbce9a061dc71267482c5f46213d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyManager.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AgentInspector.tsx",
+      "sha256": "ca66e10d79107c2a4f187c793cdb3f9ff732adaea4798e2f354796f41a009c01",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AgentInspector.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/ProfilePhoto.tsx",
+      "sha256": "6c5f83c08ab794b1811738f1ceff9a1fa529b368c2c4864244a11ab8ce7820c8",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/ProfilePhoto.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/AcademyProgressSummary.tsx",
+      "sha256": "f9dc4fc4ac4e6e57af30d29d0b099bfc870e47f06d59c4d3992e625e16eb2342",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/AcademyProgressSummary.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/CommunityFeed.tsx",
+      "sha256": "9d8a4a36840c5a22c3ef655ebc7e3f5005752f8696f10ccc60dd18b7ab1b1c4b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/CommunityFeed.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/HermesRuntimeControls.tsx",
+      "sha256": "087d2eadd60aede05de1c5e7ba4981f30161277da6d5b067c6aa41fbafa5fde1",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/HermesRuntimeControls.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/BackLink.tsx",
+      "sha256": "62228013cce5d3bc1fb2d87d75d7170b51dbea3d3f92c2f02587c8eeadf73987",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/BackLink.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/PublicEngagement.tsx",
+      "sha256": "238301fba633a67df083af4300942b3efe78aa057bc92221f486dc52f0aec917",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/PublicEngagement.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/MetroPhotoCredit.tsx",
+      "sha256": "401a583ed877e7ae81b4b3e6d831a3f840b69c6f7e8c128b010038b836ea068b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/MetroPhotoCredit.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/public.css",
+      "sha256": "7a073ac58d3878053f729ea597f03ddca1333bac5678e328084452feda5d7e45",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/public.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/home-journal.css",
+      "sha256": "4d0f59a3fa99a353874ba6449b7655d9a35db8c173eb06405de73dadfbcfd0ea",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/home-journal.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/cinematic-film.css",
+      "sha256": "c08e35b33cee78dce6b7e4f3aef9a74417fbdab0cde0af0c470cd7fbc2df3424",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/cinematic-film.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/AgentWebsiteShowcase.tsx",
+      "sha256": "54479ebae53a45491649257b41eef1d9c13b8a933f3a2ef18a4eccea72cc1c5e",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/agent-website-showcase.css",
+      "sha256": "a9062279151b0353819198a96742be4b016e68633f3dd47e41c1c772e3c5e6c3",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/HomepageMotion.tsx",
+      "sha256": "a4858917d93860f5ab702b4e5a0daa74328d56f33f8d395d8a59efe6f1eec9bf",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/VerifiedProfile.tsx",
+      "sha256": "675f9281c85c45ffbdb6f6261535e6eb3d4f2866b9aa90b0e999c10dc992e839",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/PublicChatAgent.tsx",
+      "sha256": "3ebf3eb853d58b7657e6e0a3e339e833946231a8f564850aaab4b96dbbc6bc08",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/PublicChatAgent.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/CinematicFilm.tsx",
+      "sha256": "dd087d0563c90198202cc699b9c64d861ced05f1bd23e9713c1793f3be850846",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/ImageWall.tsx",
+      "sha256": "4aa267bee72c583541530f4e08cd6d5f02d7c8c27f4524484fcf59db9dafce96",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/CinematicGallery.tsx",
+      "sha256": "7fc7eb17c7b7b0de25b52c0a7229190427716ca1bc63110e83d5517fd14e4ba2",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/CinematicGallery.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/MetroJournal.tsx",
+      "sha256": "dc7f3f33455e92ed07d12b0467721de839d8aa779f5049f4d56068c9e14f88ad",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/MetroJournal.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/PublicShell.tsx",
+      "sha256": "6fd1a27e71895ed08ab1f043e71194e74de701a8d7ccf9c80227b398ce029b4e",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/PublicShell.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/PublicInteractions.tsx",
+      "sha256": "b96ba6d721676645197d109d3663361ee5e48f495e241b03912a3f0da0399060",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/PublicInteractions.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/people.css",
+      "sha256": "3d4e4b81eb1d0f6836488cc27fb199e2a2c2ba88444aad0cce23c21574233823",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/PublicArchitecture.tsx",
+      "sha256": "4eff9a862e7b4f5d7aeac979d6c3210082c1b49bbda675e8841e0033142715ff",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/PublicArchitecture.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/cinematic-gallery.css",
+      "sha256": "2d654288176d29ce692faee074c8ae01690258066d82264af2a35142bcac3894",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/cinematic-gallery.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/homepage-motion.css",
+      "sha256": "de78d3f41470c0d85504bd9c108d6ea82d439cd75d98839d21cf96dae0e49cf3",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/market-explorer.css",
+      "sha256": "fa7f98e9a3feeb573fb6f3c0450e78aac4b94b4c3c146eb6e1db443e6b009343",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/HomeMetroJournal.tsx",
+      "sha256": "4b4d467b509dc817d69e59439fb723e09108d3acbc30aa49bde7904a55f7f270",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/HomeMetroJournal.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/MarketExplorer.tsx",
+      "sha256": "e1e862328157625f63ddf7a02c8077e63f86d6c32af583adcde024a7d626db6e",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/BlogPhotography.tsx",
+      "sha256": "76d33585d594f25fdcce31d781f9a9c9e6f199f4089d580b5ccf2d7507f46cab",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/BlogPhotography.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/PublicContentStudio.tsx",
+      "sha256": "d8eabc04392aa54e4bb521c220b3f502fe1da1a2b8fd000687bf697d4032690a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/PublicContentStudio.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/public-chat.css",
+      "sha256": "d93a26c89655df0fff07677381cbf01c76e95d7d189936acf34cdfe532933df0",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/public-chat.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/PeopleDirectory.tsx",
+      "sha256": "667046356f15cd991cad022b5ec8b3e8e3f41e52ec18049a5495b025efb40489",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/image-wall.css",
+      "sha256": "e41d54207c81c02c25b2bc94e5c505ced694eb2186ed0b497db00388d7ef4295",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/PropertySearch.tsx",
+      "sha256": "3ce425f62c8b8fa5f1b482566e5b84d0f434ffe3b5e375018f07b33dab00aa0d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/PropertySearch.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/metro-journal.css",
+      "sha256": "8f112ecdfeb857603af762a7600885c60537dff608773cd20f4e06706ec7b3d5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/metro-journal.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/public/blog-photography.css",
+      "sha256": "f2d3a422b4e1b16c271c789f73522a1077c3cd0c7de4e2567fcd54e9d6c97c90",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/public/blog-photography.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/agent-website/theme-context.tsx",
+      "sha256": "6ed4095e23aa29ac243c181fd1bef3af7904e1797fe0e3d1d107807ea6105ab1",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/agent-website/theme-context.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/agent-website/LeadForm.tsx",
+      "sha256": "b7e0c2e408ef7ca00514dfeedc3f118c768296eee74da700c58b8e0c5b909c83",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/agent-website/AgentWebsiteLayout.tsx",
+      "sha256": "6e00a934682839ae9bec56ecfc6d1286689939ccd5ad0222d284c3d5b0660c94",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/agent-website/AgentWebsiteLayout.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/agent-website/SiteSections.tsx",
+      "sha256": "8fb6301be005982e9e83c3ed30bbaef051e79f0dd382cf87581c8a031d5d4ebf",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/agent-website/SEOMetadata.tsx",
+      "sha256": "435f754848fc41c8ee9949562ab3641f34fff29c697eaa13dcd620ed9b2ba79e",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/agent-website/SEOMetadata.tsx"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/agent-website/AgentTemplatePreview.tsx",
+      "sha256": "9dac1690b83b548c376ecd83022cc6fb58fa08e0a7a6be6bf93476be566eb6b6",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/agent-website/agent-website.css",
+      "sha256": "78485c5fe1e409b58671b88661fe020e914ef1fc3fe96e0eacbcf3d6e932089e",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/components/agent-website/agent-website.css"
+    },
+    {
+      "path": "apps/rcre-demo/src/components/agent-website/agent-template-preview.css",
+      "sha256": "02ae02cc871faaea9691c819a97571f15fd72c1201b710a13169121194c023c9",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/agent-website/management/management.css",
+      "sha256": "0a19a1bc9c9d3d21862da6af2edfe680cb0fa7006038531f77f751c1315d9376",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/components/agent-website/management/WebsiteManager.tsx",
+      "sha256": "4b73c5e75e7ef91befbb6243fd1e898f28d20d9b0ed2057aead8e6c825b450ef",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/academy-uploads.ts",
+      "sha256": "9ec890c7a0ee3718a3370bcadea2ecf6197bae598028f2b5973f7d994a5705b6",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/academy-uploads.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/academy-attachments.ts",
+      "sha256": "5e9a11612561237c4199f89dc36f69c8a3de30307d65692b7cec25206414786a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/academy-attachments.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/academy-community.ts",
+      "sha256": "1b772fc85bd70c0f7892677ce8b6fe995c251c434e00734e7a779323ec84796d",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/academy-service.ts",
+      "sha256": "68cc2a53707dc186d356920c662dc00c49ce39a6ba04988793101c04205bf69f",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/academy-service.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/session.ts",
+      "sha256": "d20408f72683a8287c74a3558339d1e15108db064ea4e83d9d99b13e503e20dc",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/agent-inspector.ts",
+      "sha256": "8c90e2043a53369178f3681e260c58fa4849266d64e04986a0ae781089c4dba0",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/agent-inspector.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/greeting.ts",
+      "sha256": "1352259326a5978bc071a28930c84795c12d97e6c81676e5cc8127a6420aebbb",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/greeting.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/academy.ts",
+      "sha256": "f44783be6c1bfd1b50e615c5b905cb5e95df84abfeb853c0f7fede6093c44c67",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/academy.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/academy-media.ts",
+      "sha256": "0b17fc181fedeab4a769bc7c9b2b3074980e5b695527f6a90827d0aa15aa2172",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/academy-media.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/domain-types.ts",
+      "sha256": "96dde3ff268bee298f8b38633f2ffbe570066a847d09f4fd638beb8fe8fbd47c",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/domain-types.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/insights/engine.ts",
+      "sha256": "4ac509279a2a27afa67d777332869c323d230b039dc2ab9f560a9e7e81b15e85",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/insights/engine.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/reporting/policy.ts",
+      "sha256": "1b42a518d2135ffed4aa52803340ad3a88cbb08fe57da32340d5f29188e58726",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/reporting/policy.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/reporting/metrics.ts",
+      "sha256": "018a8976feb108823d4b4389504597cea794bae4049db901f651ce5e68812ce0",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/reporting/metrics.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/config/env.ts",
+      "sha256": "5706a41eb2445b2a84d8f86c4879cfa60d702568aca9c5442ce89e104a608727",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/config/env.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/auth/session.ts",
+      "sha256": "c37a20831e7c33ff4a36fdb44b7584c10b1d475587faca7e3e8573a9d9585e49",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/auth/session.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/platform/postgres-worker.cjs",
+      "sha256": "dff0d519b369d212d2e9ab40a45ca96aaf312a3871769f4481afe0e336fd85d5",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/platform/settings.ts",
+      "sha256": "95521a0d75571721b6e5f7af1f6944377d238c4d91524f8101474ffedef88092",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/platform/settings.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/platform/recruiting.ts",
+      "sha256": "0b29821ad9200644368114e1559a142fb6284294144b250a8acde76b52e3ba18",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/platform/recruiting.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/platform/access.ts",
+      "sha256": "c3ea740bd74c706443257381d7c571c43d84f8662781a436c8da2b44fd22de6b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/platform/access.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/platform/day-plan.ts",
+      "sha256": "2f8304f015a26146e5ad29f96423f9cc3d5f200a73beec50a4b5def80310ee35",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/platform/day-plan.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/platform/library.ts",
+      "sha256": "afcbeac84f7fa5729a964eb1e39b25738dbedf18c3112182c02530ce1cfa4804",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/platform/library.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/platform/postgres-store.ts",
+      "sha256": "c3e0926983bd75f77fa05d85b66ecc794aecb83a26de7d9bf65befe5cb6bb9f1",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/platform/service.ts",
+      "sha256": "cb0bbf9cdd896b74d303619a7e808feca193b982d73831b291e401e52a7dcb79",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/platform/auth.ts",
+      "sha256": "74d61e52c452c07a19a69371875c5b5d6f1b0422a2dd957d882c2003d21d58b7",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/platform/store.ts",
+      "sha256": "2ee0af8242182067531bd1d5b36ecbf365ac493316d6b88c02b003cddb2e0eb8",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/integrations/google/security.ts",
+      "sha256": "b33a5e4650f9f450dc33db39adcae71b621b4e7cc6aa18c52c47b3e3e31cb5d3",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/integrations/google/service.ts",
+      "sha256": "b68173ff1b8693ca6620b2eb5f563a263d98a4515adae137c662f25a65bf71a6",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/public/legacy-properties.json",
+      "sha256": "1ee957938335caa043f13b083944e8b3c380a0c875530fc922f38a2f0b158a1a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/public/legacy-properties.json"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/public/calculator.ts",
+      "sha256": "6ded852977a5439e964071cdd0ad9c922a37071c43ecf58b67472e9568b3d591",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/public/calculator.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/public/cinematic-media.ts",
+      "sha256": "fc74759798a14fe5b4ddbee6bcebe42d3b4e8e0821e762078974bcdc8865019b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/public/cinematic-media.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/public/redirects.ts",
+      "sha256": "946fffb2196091ff6da09c5295492e0e1c0936dbae44739e1f3289977aa488e4",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/public/redirects.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/public/agents.json",
+      "sha256": "d78bc9861b5d183e3f1ab2b641aeba89b89a3034d74a130030057abb09823eae",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/public/agents.json"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/public/content.ts",
+      "sha256": "94a8352d17f873e6032eb2c9d5f6ff42da6899f9cc57df959806759452c8026c",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/public/properties.ts",
+      "sha256": "19a606642bcfaf03b78cd94100ca3b833bee5f60c7260766b0e6057b17d86bd1",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/public/properties.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/public/server.ts",
+      "sha256": "18e748dbe25b789e36baa6ec4c720a0d2a27e600f2826d6744912f4209b50bd7",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/public/metro-journal.ts",
+      "sha256": "fff2e5792a04a942a20107083ec2be75e80b093366f1699a532357ff5cab976c",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/public/metro-journal.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/people/types.ts",
+      "sha256": "33eeb23ca4a34475b64726cc861212dbe242bcb7ebf9c7b148f7328b0e5f655f",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/people/verified-roster.json",
+      "sha256": "5c6075c0c0b1dce6d9ce5620ce6b8fbcd3cae20f999d9672ef5f1bcea216a955",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/people/service.ts",
+      "sha256": "718426f0e065b7d2626f6747b5459d3f3e2c350861d7ba461d6b799985aec5a4",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/people/catalog.ts",
+      "sha256": "0d4385f8cceb13e046b7b99edca2a6904354d62123d85a6604e0330fee4437ce",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/db/repository.ts",
+      "sha256": "e6ddd3d10039938dfe8b0e4125b537bd5d21b0af077872ae6863f110c63a7dbe",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/db/repository.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/db/rls.ts",
+      "sha256": "09ac0fca23667dea42576079b8e391e9968a65378b223f083705389ee396c453",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/db/rls.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/db/index.ts",
+      "sha256": "d6c9fee5309b1228769933f9b6ed11421c0a05f04f92b7c0fed5409d33b179f5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/db/index.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/db/pg.ts",
+      "sha256": "b0d93636247cef4f6616619aeae517a342aebc9153702b44189bc1f448d764e9",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/db/pg.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/sync/backfill.ts",
+      "sha256": "fd60de4010efebf61f88cd391eaa13e567774aa2989cb7b7212be60d3cd72e34",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/sync/backfill.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/agent-website/site-service.ts",
+      "sha256": "830c94fccb4e93a215f56a181585a34fc96e47bcb66eb6491bde215d83d825d5",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/agent-website/preview-catalog.ts",
+      "sha256": "a93db9bc8c48b753771053b549b2c87634a9fea754bc21cfbf2a3a446943c558",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/agent-website/site-seo.ts",
+      "sha256": "79da5c0bc9173eb3c78bae89aafb95cc7b03c98bb5a2b7aae12656753597f0a6",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/agent-website/types.ts",
+      "sha256": "c665d85f714c9c0fdbfc5866543338366ec3eae213fc5d0ddd67b9b20362812f",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/agent-website/types.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/agent-website/agent-service.ts",
+      "sha256": "f922539c92d388c7c1f5f0a13fc30604c0318c777aa2780e9c2658d609c224b6",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/agent-website/site-model.ts",
+      "sha256": "efdc9bca055662cc9b2482d5432c991915555ca4706d7ff9e195a17670c6feb0",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/agent-website/seo.ts",
+      "sha256": "1c353d00681c56c7c8ef7bcdbea818220f776809732c1f9e9dbff12b4cbd572e",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/agent-website/capture-lead.ts",
+      "sha256": "15ddcc480605e71e042f3a4e96a7ce61a6443e5ae8d642565a11a6e8c8ce0734",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/stirling-adapter.ts",
+      "sha256": "f7fcd591c0a5c58543d498e74a8cfa9911f378ea5f667d2c86520c04179b0ec9",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/stirling-adapter.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/document-services.ts",
+      "sha256": "7da7273ece113a6ff3050af18cf385a2c6623e6e95cab7ac331dd909b8ee76dc",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/document-services.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/ai-free-context.ts",
+      "sha256": "7da23978f0e16bb02a6f5fd7c1e53959dd971862cd5280658c650992e23e2d3e",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/mcp.ts",
+      "sha256": "80bb481b77d7a1102942f52b1d212c2a2037ab6f2eb478383f92648bb2815254",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/mcp.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/ai.ts",
+      "sha256": "c15081447f668a08c475859075713f7c383de48955199f9ad780e95c6570a3bc",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/transactions.ts",
+      "sha256": "40d6adb84ad986c33d6c1d621bbcbb58acce928399ae87aace52287c1f24c201",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/fub-local.ts",
+      "sha256": "05475a1c34845c909941b39dfde752fdf64038b9e27f34cefbf35f8e257bfc21",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/fub-local.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/public-chat.ts",
+      "sha256": "153ca8494fe78c22ac8d575d9f8fc8694d62df78478400acd0ad337053b42126",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/documenso-adapter.ts",
+      "sha256": "a78b96d9eaf4ed59ca214b3420048e2680fb0a9f228eb9d5994b5af7eca92b0a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/documenso-adapter.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/deadlines.ts",
+      "sha256": "044ec476e7c391694383ff8b5fc945c6c8af8a40ce29a3afa726006fa6a8d03e",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/deadlines.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/hermes-runtime.ts",
+      "sha256": "f46482892bd0ce2b0895aed8086f1e93026a91b8907609ffa285da24ddfb0d52",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/hermes-runtime.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/openrouter-free/index.ts",
+      "sha256": "2766b4652e40a08080f252a958691f14b970e070ed4017e78bdc019c4cde5dd4",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/openrouter-free/sanitizer.ts",
+      "sha256": "970c00e1bc7a9f079b55ac06335d261b02e927535d1ae0db9bf72fca2fe04728",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/cloud-ai/settings-server.ts",
+      "sha256": "32aa145ea5701195b4c51bbe5464de585ecc1dcf0856702a4dc88faff977e3b1",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/cloud-ai/shared-types.ts",
+      "sha256": "2bd8ab6542c9a975193bafc8c0a0ce074d66bc7bcebe905535a4d70b2065b8ae",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/cloud-ai/shared-types.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/cloud-ai/settings.ts",
+      "sha256": "8cde93cc6b1a86b618fed4aacb1c2a40eab1c53d183850524451278c4eeb66c2",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/cloud-ai/cloud-transport.ts",
+      "sha256": "3b6a3fb9b85ee24ad9c9efbb4f03c3573a92631b4c0526f05c734f52f51ab465",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/cloud-ai/providers.ts",
+      "sha256": "361eeb8713ab11099e910c1f7258805cc512101a08304768438c3b4afc0bfae4",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/services/cloud-ai/gateway.ts",
+      "sha256": "e4d182feae1bb75fb85cb053eb49b599afe0991dde1ad4ad36313de8cb454433",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/services/cloud-ai/gateway.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/fub/signature.ts",
+      "sha256": "a810580389caae41da113bf6ae30037312cae1ca354012d8b6da9414782554ef",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/fub/signature.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/fub/assignmentHistory.ts",
+      "sha256": "848ae1c249fdb60f8b29817dd9bc36e47bf2b8527f756be2f718858d5483d629",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/fub/assignmentHistory.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/fub/stageHistory.ts",
+      "sha256": "f4ed0ca73d887d29de3d6a149a35999d35dd0e12fe35c25bb76854380e4879e4",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/fub/stageHistory.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/fub/user-mapping.ts",
+      "sha256": "7e9e92296468730191abec521a5d44243860b6d7ba1fc002e7dc341d2ad166e8",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/fub/types.ts",
+      "sha256": "bd2c922cbe2b23d04c595349c7822994940c55be6f17102eb4fd1106ca0e946b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/fub/types.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/fub/intelligence.ts",
+      "sha256": "4bcf4316617756600a2d2098b14f31a863ac4c8e982bcb60afe59ebe99c8679a",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/fub/durable-sync.ts",
+      "sha256": "e488f8fd3125774b70a516ceb94c338c1e2ef2d5cdefa5b8515a697511393081",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/fub/client.ts",
+      "sha256": "679b4c7c885fd912a208c510699c6e835b846301dc77d91fa6e28fa6d8301b03",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/fub/normalize.ts",
+      "sha256": "8b35c4fd323ad353168444d48952f1448bb1f87b2d642f56ccf6f90e6a3078d2",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/fub/normalize.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/lib/fub/webhook.ts",
+      "sha256": "601a7ef723d796173049d165a15f23b66a884e26df9ce06779d3a9438adf4b5c",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/lib/fub/webhook.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/data/reporting.ts",
+      "sha256": "934f8f05e0bcecba79d42fc0ade605ae7673b62a5cb78f2b98ea05b1fa8937e5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/data/reporting.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/data/conversations.ts",
+      "sha256": "efa714984c54fbfd775b1ea1d80f8b5ad5db8bd839fe6074e072d8482b0dd730",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/data/conversations.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/data/demo.ts",
+      "sha256": "85eec3f15728e4977faa424a85ae84a6eafd618c1e899b0cd8cd47766e22c12d",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/src/data/community.ts",
+      "sha256": "4d4c6b7a2bdc551e6074878c21b63d304263e4eb37089a3c9944024c80261a59",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/data/community.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/data/academy-types.ts",
+      "sha256": "e3b31a893ff1e8bdab8d6ee954549ea2e51bec932c5763e6e3ee02f0228d1bec",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/data/academy-types.ts"
+    },
+    {
+      "path": "apps/rcre-demo/src/data/academy.ts",
+      "sha256": "14138bce54eebb57fe6b12c92087e0221eec075fe907f07eebb0a1f2e0d93110",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/src/data/academy.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/people-api.test.ts",
+      "sha256": "3da0b474d5c2ebc46cb93454dac188d319c3311561f661264bd46ea70f392a48",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/durable-data-boundary.test.ts",
+      "sha256": "a65a41be419fb341fda824ad3724a375a6cdf1d469abb0a7f0065ff530e48b97",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/fub-intelligence-api.test.ts",
+      "sha256": "1dcc9ab5ebfcba56a780b6eec28f69fb3795dd8c5da8965656455b5552e06c6b",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/transactions-ai.test.ts",
+      "sha256": "0a6faa8961bc233934ca12ca0fa83917adda72169ad3f1aa123f03f76dfacab5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/transactions-ai.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/assistant-free-intent.test.ts",
+      "sha256": "a95d3ba7f2b06adf839028831df57bac36206c950af42dbf04784b4d84afa0d4",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/public-redirects.test.ts",
+      "sha256": "389b30a3d39c4c1add3cb834f854533ad0e6ce3ff5999527fba35ab11770aaf0",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/public-redirects.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/agent-site-api.test.ts",
+      "sha256": "eb416b6c7b4f4af75d9b7308a8663d0ef66bd4c97bfea5e6c3b951de7fb75263",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/fub-intelligence.test.ts",
+      "sha256": "e386d166871c8aedbb9a396cd7ea87ec4fcc58755a31a52f49a233f98074d65c",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/metro-journal.test.ts",
+      "sha256": "09b74f125a69124ec49945b29374d8d63c2fe3cd26c875539916c2b722927f08",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/metro-journal.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/agent-website-system.test.ts",
+      "sha256": "43210a4a2e903d8cee909935403bc410a2efeb0357ad18a048f1c4e829d4dbc0",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/fub-discovery.test.ts",
+      "sha256": "6bbbf363bb87b5b8227ac73c7a415f9efb8071f139c2ec4a094b1311c4b4b44f",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/public-calculator.test.ts",
+      "sha256": "7bf8d25982fd6345973040185b7e664f084117c18534bd4d4a55363b00f914df",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/public-calculator.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/site-rendering.test.ts",
+      "sha256": "4f602cb0310bf4c07443dac8ac19b9cc40f77864e20d403fe79c510cd113101e",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/academy-functional.test.ts",
+      "sha256": "d8d829a070e390ee15e39ceb41c758367c104ce268ea002f06091ad30d7ea28d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/academy-functional.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/people-lifecycle.test.ts",
+      "sha256": "fd424f966e04c39c557f7b0292e247d7dfb2719ae7c66e736ba2707d1656731b",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/agent-website-people.test.ts",
+      "sha256": "0f1f24825d838e82fbccb34e77327a8f900ed91db02067c41fe34d0fe61d4773",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/fub-local.test.ts",
+      "sha256": "3906205eafb64ff505e91000a0882e98013954b55daccbaeab7e8ff5fc1ecf09",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/public-chat.test.ts",
+      "sha256": "a3c1aedb021eff8a678b9c7b01636fd9177ea5c2ccef13f44ca646e434a2c547",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/public-chat.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/database-isolation.ts",
+      "sha256": "11a5fcfd9df3d70228e315fc8c0da6b77b1fa5bc5fb3cc95efa55fb975a24eb1",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/database-isolation.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/assistant-free-boundary.test.ts",
+      "sha256": "74b3cb72220555ecb4b02a1400b2768cbcdfd4ce9b2b701adc5912035538ea19",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/openrouter-free.test.ts",
+      "sha256": "9bb57ceda0652b96a5b09c70883528f34326085fc1e88589316e53351cf0c9c1",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/verified-people-public-access.test.ts",
+      "sha256": "248366d0179201d90d74eb59fbb0e487ab37af84e4ac70f62cc7190f3e564b28",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/fub-proposals-api.test.ts",
+      "sha256": "d2366a6a41c7bd41cf8fd3467a29f57df69ba19f4c785e943a69fb1957bd9f9b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/fub-proposals-api.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/fub-user-mapping.test.ts",
+      "sha256": "7e39e6e465c8594729a05edb09e92ff13f8fb02ab98030cfc1d1a4dd1560aa15",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/fub-durable-read.test.ts",
+      "sha256": "487a9af41c8485daef74422133207a475ac6f8b28bdc984c705774af714a85f0",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/google-integration.test.ts",
+      "sha256": "39503db78602d7404148196d38ad07af719674976009240429053339e3064fda",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/verified-office-migration.test.ts",
+      "sha256": "377fd2df17be2777b15b5d8ddf0f78e7d755f515a28c99706d45a8460f2642d5",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/verified-people-rendering.test.ts",
+      "sha256": "1c32bdd515c1dd8746a5b86b530b743f86c954da3724933be40458e9b333caf7",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/stubs/server-only.ts",
+      "sha256": "7992a39d6cde5e050eb78461a8bf9ad986175a94826e835c110b3967290bd249",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/stubs/server-only.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/agent-inspector.test.ts",
+      "sha256": "7633bae8ab63fbf96a7f2f2b476a2e7f1d60177c531e0b9f6e8172ee6c577cda",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/agent-inspector.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/backfill.test.ts",
+      "sha256": "3fbfbb837ed0ebdd54b60540f5af240fda3a8544f68e50f2996a90326d978756",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/backfill.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/marketing-scope.test.ts",
+      "sha256": "620f4e2e0430bc89597126392f317d0045abe37a9acb768c2222fa973756784d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/marketing-scope.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/lead-policy.test.ts",
+      "sha256": "e2609ca66a5c31f8d036c3966e911464837c30ea73a974c6f57b1dbf46df1e55",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/lead-policy.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/recruiting-access.test.ts",
+      "sha256": "676e0e6680d03b5bca167c75e81db764a7ee0b6d686ca83637bce0b7576fd1ed",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/recruiting-access.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/derivation.test.ts",
+      "sha256": "dde03d2bc06650705320dbbe9f6fef6a1db07d7118ebd969c12c83b198d5a335",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/derivation.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/library-day-plan.test.ts",
+      "sha256": "48c8feb2bce9be6bad36110abb179fd6a36fa914305e7bb40e1226c03cb7c5b9",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/library-day-plan.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/reviewer-policy.test.ts",
+      "sha256": "d3cee4ebf4fecd390c7d41767d31068674dcc7581b3850e05c0b0d927a3e4eae",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/reviewer-policy.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/runtime-recovery.test.ts",
+      "sha256": "8ceb1bb60ff3d043543a658c367ba4f3070d2cc20fd52e437097e747499c3dc5",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/runtime-recovery.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/reporting.test.ts",
+      "sha256": "61ea9637f2a711a262d61de7f09a961c80eb7dacb73bf3b4fe0ef40ebf399dd0",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/reporting.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/mcp-authorization.test.ts",
+      "sha256": "ffc73223fc57fecc8b11eb479f6067510de22463c6b309632ff5cb6b3f47b2b3",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/mcp-authorization.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/platform-review.test.ts",
+      "sha256": "f8ffee90c26665685a20c3534c6cbcb12f025192ff63312731cb09b5973b2a3d",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/platform-review.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/office-priorities.test.ts",
+      "sha256": "a62cc27931688cb39758986ecbc584cddca3e327ecd1180f82f29932c68c0f11",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/platform.test.ts",
+      "sha256": "8d5baf3a9135e7ede9056c37cbde8d478942ad8e98199bff1549462722dcca01",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/insights.test.ts",
+      "sha256": "426e86a03ad7f4c8530b94c607bce2d421e5ff5bc20f834977d86bb782126f0a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/insights.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/pdf-preparation.test.ts",
+      "sha256": "3fa28175e4d23c90d7390889d96469a19c7f2c3804e879cb9109c2c1115d9778",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/pdf-preparation.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/academy-review-queue.test.ts",
+      "sha256": "9f9116e916a94b4e3c82fa2aa9e20df1106bdf477f5ab98f7c86ad7ea7450f53",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/academy-review-queue.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/academy-review-regressions.test.ts",
+      "sha256": "1156ae1e5d5fae44b48b919703486c1b077de7a22ba033cc875e7d04627c9539",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/academy-review-regressions.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/rls-policy.test.ts",
+      "sha256": "9466ef90e6af46cc7c79554d18fe9544465833a44f1bb0a3bd60118bf6e388f3",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/rls-policy.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/webhook.test.ts",
+      "sha256": "6b28f9c2ee7bc7afecc197e9f0a3ea38ca7225ad9d64feabc4c89db555ea314a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/webhook.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/derivations.test.ts",
+      "sha256": "f3a7adf220b23626d92b0804ee51bf66c3e38aae572f2dbfbafbffaa29674094",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/derivations.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/permissions.test.ts",
+      "sha256": "95e6e07711b48938fb984f58a53a1179d2458224078b268100bb6e1ecdd68e81",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/permissions.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/calendar-reminders.test.ts",
+      "sha256": "09b3251f5705bde7e20a2581fa7be63d4bfa25444c84d820bb6e3d603dabb3a7",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/calendar-reminders.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/unit/schema-invariants.test.ts",
+      "sha256": "0a574de2af2045a874b032f7119202c38f29b2cf036d832305bce558c1e57694",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/unit/schema-invariants.test.ts"
+    },
+    {
+      "path": "apps/rcre-demo/tests/integration/fub-client.test.ts",
+      "sha256": "a8abbff17b98a15fae98d35208501ae140aa1450e88e2eb086adc76eb35057bc",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/tests/fixtures/seed.ts",
+      "sha256": "f52120b5cdef5969c3a87c91c238e0de8fa0cd43cb01aca8ba6707d192cf1a21",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/tests/fixtures/seed.ts"
+    },
+    {
+      "path": "apps/rcre-demo/supabase/migrations/0001_rcre_mvp_core.sql",
+      "sha256": "ab51a5013d40176e9bf67c0df155148846bca8f1c1c44168e4525b223fb81c81",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/supabase/migrations/0001_rcre_mvp_core.sql"
+    },
+    {
+      "path": "apps/rcre-demo/supabase/migrations/0002_reporting_and_routing.sql",
+      "sha256": "fcf8aaef7a9ed5e7e2f4f4fe94553ff1453b08ebd21fdf7ba64383da931b1408",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/supabase/migrations/0002_reporting_and_routing.sql"
+    },
+    {
+      "path": "apps/rcre-demo/supabase/migrations/0009_private_integration_records.sql",
+      "sha256": "b585516b462a4addbdc78633466c095ba69531a8a251d0d4a6bae7bd6ae9d0d4",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/supabase/migrations/0006_append_only_audit.sql",
+      "sha256": "be452238bb78319596e3c45be6197029c22d6f1792cd40a4a1b873e090042d48",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/supabase/migrations/0008_free_ai_audit.sql",
+      "sha256": "3bf5d1f2e8e0afc9e618ec1a5864356ba2d7ebc8882205504f8ff73d6ed81113",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/supabase/migrations/0005_durable_user_bindings.sql",
+      "sha256": "30fe18c64d7ce5d3ba53e2e89083e00009811b5e4e9a6b6c12084f1be106d577",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/supabase/migrations/0007_mapping_audit_protection.sql",
+      "sha256": "81761862cb4452fe275c5d84f1387322611b7dc79daee06a2fbe98d079143bef",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "apps/rcre-demo/supabase/migrations/0003_row_level_security.sql",
+      "sha256": "9801e0b1fbd6a18cb2602bebe937f934c6deddba99e45e69caf3035cbf36b145",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/apps/rcre-demo/supabase/migrations/0003_row_level_security.sql"
+    },
+    {
+      "path": "apps/rcre-demo/supabase/migrations/0004_canonical_platform_records.sql",
+      "sha256": "46538b97f300cfc7d4d4a33aacf0e64e7058050e856296695cae84829a3389e7",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/local-worker.mjs",
+      "sha256": "9bceb802627d9e6efe6177f43f47027418786440c9195d40dbde375c1f39bf1e",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/integration-env.mjs",
+      "sha256": "835f7c5d0b719ed5f681fe40cab3d8604096f38236deec9754962e34116e78ed",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/local.mjs",
+      "sha256": "7b2e63963523e5859e318d757e53669c047e6ce5ce0de459962fb1d57f79d8e0",
+      "baselineState": "modified",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/postgres-local.mjs",
+      "sha256": "bf15eff8b085540ce6a8f789bf5ec3171c25281065cfbc96e96c2f95f68f0835",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/verify-postgres-worker.mjs",
+      "sha256": "917a1b866a0a99a76ce36f7f0d6af743b7dc3c53335a078aa0a3ceed538b5b4c",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/hermes-runtime.mjs",
+      "sha256": "5bc473b402797ce4b2ee9d9325727ad8bca3e98f0d83aa7950cb5faf76dc0d76",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/scripts/hermes-runtime.mjs"
+    },
+    {
+      "path": "scripts/verify-postgres.mjs",
+      "sha256": "f1ef1d41440a0c41e9278c7da2d7020c179054b3e45cc84dc472db31bef2b322",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/reconcile-roster-check.ts",
+      "sha256": "c334db018f7a0286cf699f2d27f499e90cd1a0aeaba3c2a1de41e2af196eab08",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/reconcile-roster-fetch.cjs",
+      "sha256": "6cbe7dbe4ea89aca75d93fb9b744cb8d1f2432f0a2d2230e8cef6b444937ae83",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/postgres-migrate.mjs",
+      "sha256": "d8c5303939ba4ffb61f33b60d0e36d9a87140b7a6e840c57320f92140c05b77c",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/reconcile-roster-photos.cjs",
+      "sha256": "668fbef821df0bd9fb5ec1c68a9d9e76336f86e5cf66fbcdfb82f2852a907ae5",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "scripts/hermes-process.mjs",
+      "sha256": "e18d7be213f38069ac74385475c5e0f8057e9e91fa51afcb5d716566f700b2cd",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/scripts/hermes-process.mjs"
+    },
+    {
+      "path": "scripts/postgres-backup.mjs",
+      "sha256": "c3b56bdcc8e6d99dcd9885913cfba0fa5dc860e964b0918440c691e6dbd51ab2",
+      "baselineState": "absent",
+      "githubExactSourceUrl": null
+    },
+    {
+      "path": "mcp/rcre-mcp-server/package.json",
+      "sha256": "6dced681d34711cfad870a0662291c282afb0a2280e0c3b57718ec15eb33d98f",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/mcp/rcre-mcp-server/package.json"
+    },
+    {
+      "path": "mcp/rcre-mcp-server/tsconfig.json",
+      "sha256": "a47c0d188f5e9556dc5f0f283658fcc43bccbaf7dcc6a81e80065c6d4e7edcc1",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/mcp/rcre-mcp-server/tsconfig.json"
+    },
+    {
+      "path": "mcp/rcre-mcp-server/src/pii-guard.ts",
+      "sha256": "415cd74ad833dabbb94c9d034effb172c448a9f337b712ec09ba897b61af784a",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/mcp/rcre-mcp-server/src/pii-guard.ts"
+    },
+    {
+      "path": "mcp/rcre-mcp-server/src/authorize.ts",
+      "sha256": "e8818d65892d9e7b61f7a1da66a2a5e3edeae0545f0456f65470caaaac51792b",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/mcp/rcre-mcp-server/src/authorize.ts"
+    },
+    {
+      "path": "mcp/rcre-mcp-server/src/tools.ts",
+      "sha256": "f451a9ce5f552cdfc3248b7ef6dec6d53ae8374762bfc2e59fefd86fdddd9c04",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/mcp/rcre-mcp-server/src/tools.ts"
+    },
+    {
+      "path": "hermes/hooks/block-pii-memory.mjs",
+      "sha256": "9d2622a8aba88ab365c1a84e2876c21f07aaa048b6c8e211ab932897a2b2e8ff",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/hermes/hooks/block-pii-memory.mjs"
+    },
+    {
+      "path": "hermes/hooks/rcre-pii-rules.json",
+      "sha256": "32ed82267b0250ea61036526020acd29bd56ec4eb88900c4351508d6026e9f68",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/hermes/hooks/rcre-pii-rules.json"
+    },
+    {
+      "path": "hermes/profiles/rcre-broker/config.yaml",
+      "sha256": "20c8dec1d8e8985bbb21915cb11209a5cf54e766b3de135b662d9257bc570c97",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/hermes/profiles/rcre-broker/config.yaml"
+    },
+    {
+      "path": "hermes/profiles/rcre-agent/config.yaml",
+      "sha256": "1e7372565debfe369300b66a1ce58940eaf01ac8ba7da38a060cfcace25e6162",
+      "baselineState": "identical",
+      "githubExactSourceUrl": "https://github.com/jeremymac904/RCRE-Demo/blob/d4ae90d8f40edcff3a2e5996ab0267e6c56c8966/hermes/profiles/rcre-agent/config.yaml"
+    }
+  ],
+  "excluded": [
+    "secret values and environment files",
+    "private runtime/database/backups",
+    "customer data",
+    "binary training/media content",
+    "external ecosystem mutations"
+  ],
+  "capabilityLabels": [
+    "PROVEN LOCAL",
+    "PROVEN AUTHORIZED SANDBOX",
+    "SIMULATED",
+    "BLOCKED EXTERNAL DEPENDENCY",
+    "PLANNED",
+    "NOT IMPLEMENTED"
+  ]
+}
