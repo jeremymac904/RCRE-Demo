@@ -533,46 +533,62 @@ alter table property_inquiries enable row level security;
 alter table property_inquiries force row level security;
 
 -- The global provider catalog is read-only metadata; readers still need a valid RCRE organization context.
+drop policy if exists mls_provider_catalog_select on mls_provider_catalog;
 create policy mls_provider_catalog_select on mls_provider_catalog for select
   using (exists (select 1 from organizations o where o.id = rcre_current_org()));
 
 -- Tenant members can see provider readiness; configuration remains broker-only.
+drop policy if exists mls_providers_select on mls_providers;
 create policy mls_providers_select on mls_providers for select
   using (organization_id = rcre_current_org() and rcre_is_org_member());
+drop policy if exists mls_providers_insert on mls_providers;
 create policy mls_providers_insert on mls_providers for insert
   with check (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists mls_providers_update on mls_providers;
 create policy mls_providers_update on mls_providers for update
   using (organization_id = rcre_current_org() and rcre_is_broker())
   with check (organization_id = rcre_current_org() and rcre_is_broker());
 
+drop policy if exists mls_capabilities_select on mls_provider_capabilities;
 create policy mls_capabilities_select on mls_provider_capabilities for select
   using (organization_id = rcre_current_org() and rcre_is_org_member());
+drop policy if exists mls_capabilities_insert on mls_provider_capabilities;
 create policy mls_capabilities_insert on mls_provider_capabilities for insert
   with check (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists mls_capabilities_update on mls_provider_capabilities;
 create policy mls_capabilities_update on mls_provider_capabilities for update
   using (organization_id = rcre_current_org() and rcre_is_broker())
   with check (organization_id = rcre_current_org() and rcre_is_broker());
 
+drop policy if exists mls_compliance_select on mls_provider_compliance;
 create policy mls_compliance_select on mls_provider_compliance for select
   using (organization_id = rcre_current_org() and rcre_is_org_member());
+drop policy if exists mls_compliance_insert on mls_provider_compliance;
 create policy mls_compliance_insert on mls_provider_compliance for insert
   with check (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists mls_compliance_update on mls_provider_compliance;
 create policy mls_compliance_update on mls_provider_compliance for update
   using (organization_id = rcre_current_org() and rcre_is_broker())
   with check (organization_id = rcre_current_org() and rcre_is_broker());
 
+drop policy if exists mls_field_mappings_select on mls_provider_field_mappings;
 create policy mls_field_mappings_select on mls_provider_field_mappings for select
   using (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists mls_field_mappings_insert on mls_provider_field_mappings;
 create policy mls_field_mappings_insert on mls_provider_field_mappings for insert
   with check (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists mls_field_mappings_update on mls_provider_field_mappings;
 create policy mls_field_mappings_update on mls_provider_field_mappings for update
   using (organization_id = rcre_current_org() and rcre_is_broker())
   with check (organization_id = rcre_current_org() and rcre_is_broker());
 
+drop policy if exists mls_sync_state_select on mls_sync_state;
 create policy mls_sync_state_select on mls_sync_state for select
   using (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists mls_sync_state_insert on mls_sync_state;
 create policy mls_sync_state_insert on mls_sync_state for insert
   with check (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists mls_sync_state_update on mls_sync_state;
 create policy mls_sync_state_update on mls_sync_state for update
   using (organization_id = rcre_current_org() and rcre_is_broker())
   with check (organization_id = rcre_current_org() and rcre_is_broker());
@@ -580,6 +596,7 @@ create policy mls_sync_state_update on mls_sync_state for update
 -- Listing visibility requires an authenticated member and the provider's
 -- approved compliance record. The public API can use a restricted server-side
 -- service connection only after it enforces the same activation/compliance gate.
+drop policy if exists properties_select on properties;
 create policy properties_select on properties for select
   using (
     organization_id = rcre_current_org()
@@ -596,12 +613,15 @@ create policy properties_select on properties for select
          and p.id = properties.provider_id and p.status = 'connected'
     )
   );
+drop policy if exists properties_ingest_insert on properties;
 create policy properties_ingest_insert on properties for insert
   with check (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists properties_ingest_update on properties;
 create policy properties_ingest_update on properties for update
   using (organization_id = rcre_current_org() and rcre_is_broker())
   with check (organization_id = rcre_current_org() and rcre_is_broker());
 
+drop policy if exists property_sources_select on property_sources;
 create policy property_sources_select on property_sources for select
   using (
     organization_id = rcre_current_org() and rcre_is_org_member()
@@ -616,6 +636,7 @@ create policy property_sources_select on property_sources for select
         and c.approval_state = 'approved' and p.status = 'connected'
     )
   );
+drop policy if exists property_media_select on property_media;
 create policy property_media_select on property_media for select
   using (
     organization_id = rcre_current_org() and rcre_is_org_member()
@@ -630,6 +651,7 @@ create policy property_media_select on property_media for select
         and c.approval_state = 'approved' and p.status = 'connected'
     )
   );
+drop policy if exists property_open_houses_select on property_open_houses;
 create policy property_open_houses_select on property_open_houses for select
   using (
     organization_id = rcre_current_org() and rcre_is_org_member()
@@ -648,12 +670,16 @@ create policy property_open_houses_select on property_open_houses for select
 -- Consumer entities contain opaque, server-issued identities and PII-bearing
 -- inquiries. No interactive RCRE role has direct table access through RLS;
 -- trusted service code must verify the opaque subject and broker/agent scope.
+drop policy if exists property_consumers_broker_select on property_consumers;
 create policy property_consumers_broker_select on property_consumers for select
   using (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists saved_properties_broker_select on saved_properties;
 create policy saved_properties_broker_select on saved_properties for select
   using (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists saved_searches_broker_select on saved_searches;
 create policy saved_searches_broker_select on saved_searches for select
   using (organization_id = rcre_current_org() and rcre_is_broker());
+drop policy if exists property_inquiries_select on property_inquiries;
 create policy property_inquiries_select on property_inquiries for select
   using (
     organization_id = rcre_current_org()

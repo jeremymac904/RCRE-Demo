@@ -17,6 +17,12 @@ describe('MLS migration security and readiness gate',()=>{
   }
   expect(migration).toContain('rcre_current_org()')
  })
+ it('is safe to re-run by replacing each policy deterministically',()=>{
+  const created=[...migration.matchAll(/create policy (\w+) on (\w+)/g)]
+  expect(created.length).toBeGreaterThan(0)
+  for(const [,name,table] of created)expect(migration).toContain(`drop policy if exists ${name} on ${table};`)
+  expect(migration.match(/create policy/g)?.length).toBe(migration.match(/drop policy if exists/g)?.length)
+ })
  it('retains indexes and never embeds credentials or guessed legal language',()=>{
   for(const column of ['state_code','city','postal_code','standard_status','list_price','bedrooms','bathrooms_total','property_type','modified_at','latitude','longitude','provider_id','provider_listing_id'])expect(migration).toContain(column)
   expect(migration).toContain('required_attribution  text')

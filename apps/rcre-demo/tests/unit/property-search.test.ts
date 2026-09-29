@@ -2,6 +2,9 @@ import {afterEach,describe,expect,it,vi} from 'vitest'
 import {mapResoListing,mapProviderRecord} from '@/lib/property/mapping'
 import {filterProperties,searchFixturePage,searchProperties,fixturesEnabled} from '@/lib/property/service'
 import {makeSyntheticPropertyDataset} from '@/lib/property/fixtures'
+import {NextRequest} from 'next/server'
+import {GET as searchRoute} from '@/app/api/properties/route'
+import {GET as detailRoute} from '@/app/api/properties/[id]/route'
 import type {PropertyListing} from '@/lib/property/types'
 
 afterEach(()=>{vi.unstubAllEnvs()})
@@ -53,8 +56,25 @@ describe('RESO normalization and search service',()=>{
   expect(result.items).toEqual([])
   expect(result.coverage).toBe('none')
  })
- it('enables explicitly local fixtures only and keeps each result marked',async()=>{
+ it('property search and detail APIs do not expose fixture records in production',async()=>{
   vi.stubEnv('NODE_ENV','production')
+  vi.stubEnv('RCRE_APP_MODE','local')
+  const search=await searchRoute(new NextRequest('https://rcre.test/api/properties?state=FL'))
+  expect(search.status).toBe(200)
+  expect(await search.json()).toMatchObject({sourceMode:'pending',total:0,items:[]})
+  const detail=await detailRoute(new Request('https://rcre.test/api/properties/fixture-property-0000001'),{params:Promise.resolve({id:'fixture-property-0000001'})})
+  expect(detail.status).toBe(404)
+ })
+ it('never enables fixture inventory in a production runtime, even if a local flag is present',async()=>{
+  vi.stubEnv('NODE_ENV','production')
+  vi.stubEnv('RCRE_APP_MODE','local')
+  expect(fixturesEnabled()).toBe(false)
+  const result=await searchProperties({page:1,pageSize:18})
+  expect(result.sourceMode).toBe('pending')
+  expect(result.items).toEqual([])
+ })
+ it('enables explicitly local fixtures outside production and keeps each result marked',async()=>{
+  vi.stubEnv('NODE_ENV','development')
   vi.stubEnv('RCRE_APP_MODE','local')
   expect(fixturesEnabled()).toBe(true)
   const result=await searchProperties({page:1,pageSize:18})

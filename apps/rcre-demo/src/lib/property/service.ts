@@ -4,7 +4,7 @@ import { providerAdapters, providerCatalog } from './providers'
 import type { PropertyListing, PropertySearchFilters, SearchResult } from './types'
 
 export function fixtures():PropertyListing[]{return makeSyntheticPropertyDataset(64)}
-export function fixturesEnabled(){return process.env.RCRE_APP_MODE==='local'||process.env.NODE_ENV!=='production'}
+export function fixturesEnabled(){return process.env.NODE_ENV!=='production'&&(process.env.RCRE_APP_MODE==='local'||process.env.NODE_ENV==='test'||process.env.NODE_ENV==='development')}
 
 const normalized=(v:string|number|undefined)=>String(v??'').trim().toLocaleLowerCase()
 function includes(haystack:string|undefined,needle:string|undefined){return !needle||normalized(haystack).includes(normalized(needle))}
