@@ -7,7 +7,7 @@ import path from 'node:path'
 // Storage root resolution
 // ---------------------------------------------------------------------------
 // The platform store keeps SQLite under a "runtime/" directory. Locally, this
-// lives next to the RCRE workspace boundary for governance. On serverless
+// stays inside the recognized RCRE application repository boundary. On serverless
 // (Netlify, Vercel functions, etc.) the cwd is not "RCRE" and the project
 // directory is read-only, so we fall back to /tmp. The boundary check is
 // skipped when RCRE_DEPLOY_BYPASS_BOUNDARY=1 (set by netlify.toml).
@@ -25,7 +25,7 @@ function resolveStorageRoot(): string {
   }
   try {
     const root = realpathSync(path.resolve(process.cwd(), '../..'))
-    if (path.basename(root) !== 'RCRE') throw new Error('RCRE workspace boundary required')
+    if (!['RCRE', 'RCRE-Demo'].includes(path.basename(root))) throw new Error('RCRE workspace boundary required')
     const local = path.join(root, 'runtime')
     mkdirSync(path.join(local, 'data'), { recursive: true, mode: 0o700 })
     return local

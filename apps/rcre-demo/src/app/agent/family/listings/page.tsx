@@ -1,1 +1,2 @@
-export { default } from '../../rcre-suburban/listings/page'
+import {redirect} from 'next/navigation'
+export default function AgentListings(){redirect('/homes?agent=family')}
