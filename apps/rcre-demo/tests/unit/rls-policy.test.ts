@@ -18,7 +18,7 @@ import {
  * the table quietly serves every tenant to every caller.
  *
  * So the coverage test does not hold a hand-written list. It reads the tables
- * out of 0001 and 0002 and demands that 0003 accounts for each one. Add a
+ * out of 0001 and 0002 and demands that the migrations account for each one. Add a
  * table, and this suite fails until you have said what may read it.
  *
  * A failure here is a tenant-isolation regression, not a broken query.
@@ -86,14 +86,14 @@ describe('coverage — no table may miss RLS', () => {
     expect(TENANT_TABLES).toContain('integration_state')
   })
 
-  it('every tenant-scoped table has RLS enabled in 0003', () => {
+  it('every declared table has RLS enabled', () => {
     const missing = TENANT_TABLES.filter(
       t => !new RegExp(`alter table\\s+${t}\\s+enable row level security`).test(ALL_SQL),
     )
     expect(missing, 'tables added without enabling RLS').toEqual([])
   })
 
-  it('every tenant-scoped table also FORCES RLS', () => {
+  it('every declared table also FORCES RLS', () => {
     // Without FORCE, connecting as the table owner bypasses every policy in the
     // file and nothing looks wrong. That is a silent total failure, so it is
     // asserted rather than assumed.
@@ -103,7 +103,7 @@ describe('coverage — no table may miss RLS', () => {
     expect(missing, 'tables where the owner would bypass RLS').toEqual([])
   })
 
-  it('every tenant-scoped table has at least one policy', () => {
+  it('every declared table has at least one policy', () => {
     // RLS enabled with no policy denies everything — safe, but it means the
     // table is unreadable and someone will "fix" it in a hurry. Say what may
     // read it, deliberately, at the time the table is added.
