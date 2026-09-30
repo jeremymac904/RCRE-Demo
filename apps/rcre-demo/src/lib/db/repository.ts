@@ -58,6 +58,8 @@ export interface DomainRecordInput<T extends Record<string, unknown> = Record<st
   data: T
   /** Optional optimistic concurrency check; omit only for create-or-replace operations. */
   expectedVersion?: number
+  /** Insert only; used for race-safe idempotency keys. */
+  createOnly?: boolean
 }
 
 export interface DomainRecordListOptions {
@@ -93,7 +95,18 @@ export interface Repository {
   putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
     actor: Actor, input: DomainRecordInput<T>,
   ): Promise<DomainRecord<T>>
+  /** Commit a set of domain records in one database transaction or not at all. */
+  putDomainRecordsAtomic<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, inputs: DomainRecordInput<T>[], auditEvents?: AuditEvent[],
+  ): Promise<DomainRecord<T>[]>
   deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean>
+}
+
+export class DomainRecordConflictError extends Error {
+  constructor(readonly collection: string, readonly recordId: string) {
+    super('Domain record changed or already exists')
+    this.name = 'DomainRecordConflictError'
+  }
 }
 
 /** Thrown when an actor requests something outside their scope. */
@@ -290,6 +303,36 @@ export class MemoryRepository implements Repository {
     }
     this.domainRecords.set(key, record as DomainRecord)
     return structuredClone(record)
+  }
+
+  async putDomainRecordsAtomic<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, inputs: DomainRecordInput<T>[], auditEvents: AuditEvent[] = [],
+  ): Promise<DomainRecord<T>[]> {
+    if (inputs.length < 1 || inputs.length > 100) throw new RangeError('Atomic write must contain 1 to 100 records')
+    const now = new Date().toISOString()
+    const staged = inputs.map(input => {
+      const ownerUserId = input.ownerUserId ?? null
+      const mayWriteShared = ownerUserId === null && canSeeWholeBrokerage(actor.role)
+      const mayWriteOwned = ownerUserId === actor.userId || (['owner', 'broker', 'staff'].includes(actor.role) && ownerUserId !== null)
+      if (!mayWriteShared && !mayWriteOwned) throw new PermissionDeniedError('putDomainRecordsAtomic', 'record owner is outside this actor scope')
+      const key = this.domainKey(actor.organizationId, input.collection, input.recordId)
+      const prior = this.domainRecords.get(key)
+      if (input.createOnly && prior) throw new DomainRecordConflictError(input.collection, input.recordId)
+      if (input.expectedVersion !== undefined && (!prior || input.expectedVersion !== prior.version)) throw new DomainRecordConflictError(input.collection, input.recordId)
+      return { key, prior, input, ownerUserId }
+    })
+    if (new Set(staged.map(item => item.key)).size !== staged.length) throw new TypeError('Atomic write contains duplicate record identities')
+    const records = staged.map(({ prior, input, ownerUserId }) => ({
+      organizationId: actor.organizationId, collection: input.collection, recordId: input.recordId,
+      ownerUserId, data: structuredClone(input.data), version: (prior?.version ?? 0) + 1,
+      createdAt: prior?.createdAt ?? now, updatedAt: now,
+    } as DomainRecord<T>))
+    for (const event of auditEvents) {
+      if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) throw new PermissionDeniedError('putDomainRecordsAtomic', 'audit identity must match the trusted actor')
+    }
+    for (let index = 0; index < staged.length; index++) this.domainRecords.set(staged[index].key, records[index] as DomainRecord)
+    this.audit.push(...auditEvents.map(event => ({ ...event, occurredAt: now })))
+    return records.map(record => structuredClone(record))
   }
 
   async deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean> {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { emptySeed, MemoryRepository } from '@/lib/db/repository'
+import { DomainRecordConflictError, emptySeed, MemoryRepository } from '@/lib/db/repository'
 import type { PlatformActor } from '@/lib/platform/auth'
 import { createContactDurable, listContactsPage } from '@/lib/platform/service'
 import { persistIntakeDurable, IntakeError } from '@/lib/public/intake'
@@ -34,6 +34,23 @@ describe('durable CRM repository contract', () => {
     expect(page.rows.map(row => row.id)).toEqual(['old'])
   })
 
+  it('applies atomic domain writes together and rolls back when an idempotency key already exists', async () => {
+    const repository = new MemoryRepository(seed())
+    const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
+    await repository.putDomainRecord(actor, { collection: 'idempotency', recordId: 'claimed', ownerUserId: agentId, data: { hash: 'same' } })
+    await expect(repository.putDomainRecordsAtomic(actor, [
+      { collection: 'contacts', recordId: 'contact-1', ownerUserId: agentId, data: { name: 'Client' } },
+      { collection: 'idempotency', recordId: 'claimed', ownerUserId: agentId, data: { hash: 'same' }, createOnly: true },
+    ])).rejects.toBeInstanceOf(DomainRecordConflictError)
+    expect(await repository.getDomainRecord(actor, 'contacts', 'contact-1')).toBeNull()
+    const saved = await repository.putDomainRecordsAtomic(actor, [
+      { collection: 'contacts', recordId: 'contact-1', ownerUserId: agentId, data: { name: 'Client' } },
+      { collection: 'idempotency', recordId: 'fresh', ownerUserId: agentId, data: { hash: 'fresh' }, createOnly: true },
+    ])
+    expect(saved).toHaveLength(2)
+    expect(await repository.getDomainRecord(actor, 'contacts', 'contact-1')).toMatchObject({ data: { name: 'Client' } })
+  })
+
   it('persists an assigned CRM lead into the tenant/owner scoped repository', async () => {
     const repository = new MemoryRepository(seed())
     const created = await createContactDurable(agent, { firstName: 'River', lastName: 'Client', email: 'RIVER@example.test', source: 'Instagram', consent: true }, repository)
@@ -49,8 +66,10 @@ describe('durable public inquiry intake', () => {
     const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
     await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: '20000000-0000-4000-8000-000000000003', ownerUserId: '20000000-0000-4000-8000-000000000003', data: { officeId: 'fl', market: 'Florida', role: 'agent', publicVisible: true, websiteStatus: 'published' } })
     const input = { submissionId: 'a0a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'property', name: 'Demo Client', email: 'client@example.test', market: 'Florida', agentSlug: 'molly-plude', consent: true, listingId: 'listing-1', providerId: 'realmls', mlsListingId: '123', landingPage: '/homes/listing-1', utmSource: 'campaign', propertyAddress: '12 Main Street' }
-    const first = await persistIntakeDurable(input, repository, actor)
-    const retry = await persistIntakeDurable(input, repository, actor)
+    const [first, retry] = await Promise.all([
+      persistIntakeDurable(input, repository, actor),
+      persistIntakeDurable(input, repository, actor),
+    ])
     expect(first).toMatchObject({ status: 'saved', persistence: 'postgres', duplicate: false })
     expect(retry).toMatchObject({ id: first.id, duplicate: true })
     const inquiry = await repository.getDomainRecord(actor, 'public_inquiries', first.id)

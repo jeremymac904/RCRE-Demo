@@ -5,7 +5,7 @@ import { directory } from '@/lib/platform/auth'
 import { getRecord, putRecord, readRecords, transaction } from '@/lib/platform/store'
 import * as crm from '@/lib/platform/service'
 import { getRepository } from '@/lib/db'
-import type { Actor, Repository } from '@/lib/db/repository'
+import { DomainRecordConflictError, type Actor, type Repository } from '@/lib/db/repository'
 import { rateLimitRequest, SharedRateLimitUnavailableError } from '@/lib/services/rate-limit'
 
 export class IntakeError extends Error {
@@ -180,7 +180,7 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
   }
   const priorInquiry = await repository.getDomainRecord<Record<string, any>>(actor, 'public_inquiries', inquiryId)
   if (priorInquiry && priorInquiry.data.bodyHash !== bodyHash) throw new IntakeError('This submission ID was already used for different information.', 409)
-  if (!priorInquiry) await repository.putDomainRecord(actor, { collection: 'public_inquiries', recordId: inquiryId, ownerUserId: owner.id, data: { ...inquiry, bodyHash } })
+
 
   const email = inquiry.email
   let existing: Awaited<ReturnType<Repository['listDomainRecords']>>[number] | undefined
@@ -208,13 +208,23 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
     utmSource: input.utmSource, utmMedium: input.utmMedium, utmCampaign: input.utmCampaign,
     utmContent: input.utmContent, utmTerm: input.utmTerm, receivedAt: now,
   } : undefined }
-  await repository.putDomainRecord(actor, { collection: 'crm_contacts', recordId: contactId, ownerUserId: owner.id,
-    data: nextContact, ...(existing ? { expectedVersion: existing.version } : {}) })
-  await repository.putDomainRecord(actor, { collection: 'notification_outbox', recordId: `website-lead:${inquiryId}`, ownerUserId: owner.id,
-    data: { organizationId: actor.organizationId, ownerId: owner.id, kind: 'website_lead', status: 'queued', idempotencyKey: `website-lead:${inquiryId}`, createdAt: now, payload: { contactId, inquiryId, source } } })
-  await repository.recordAudit(actor, { organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'system', action: 'public.lead_received', targetType: 'contact', targetId: contactId, effect: 'write', allowed: true, detail: { source, inquiryId } })
-  await repository.putDomainRecord(actor, { collection: 'public_intake_idempotency', recordId: idempotencyKey, ownerUserId: owner.id,
-    data: { inquiryId, contactId, bodyHash, createdAt: now } })
+  try {
+    await repository.putDomainRecordsAtomic(actor, [
+      { collection: 'public_inquiries', recordId: inquiryId, ownerUserId: owner.id,
+        data: { ...inquiry, bodyHash }, ...(priorInquiry ? { expectedVersion: priorInquiry.version } : { createOnly: true }) },
+      { collection: 'crm_contacts', recordId: contactId, ownerUserId: owner.id,
+        data: nextContact, ...(existing ? { expectedVersion: existing.version } : { createOnly: true }) },
+      { collection: 'notification_outbox', recordId: `website-lead:${inquiryId}`, ownerUserId: owner.id,
+        data: { organizationId: actor.organizationId, ownerId: owner.id, kind: 'website_lead', status: 'queued', idempotencyKey: `website-lead:${inquiryId}`, createdAt: now, payload: { contactId, inquiryId, source } } },
+      { collection: 'public_intake_idempotency', recordId: idempotencyKey, ownerUserId: owner.id,
+        data: { inquiryId, contactId, bodyHash, createdAt: now }, createOnly: true },
+    ], [{ organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'system', action: 'public.lead_received', targetType: 'contact', targetId: contactId, effect: 'write', allowed: true, detail: { source, inquiryId } }])
+  } catch (error) {
+    if (!(error instanceof DomainRecordConflictError)) throw error
+    const winner = await repository.getDomainRecord<Record<string, any>>(actor, 'public_intake_idempotency', idempotencyKey)
+    if (winner?.data.bodyHash !== bodyHash) throw new IntakeError('This submission ID was already used for different information.', 409)
+    return { id: String(winner.data.inquiryId), status: 'saved' as const, persistence: 'postgres' as const, duplicate: true }
+  }
   return { id: inquiryId, contactId, status: 'saved' as const, persistence: 'postgres' as const, duplicate: false }
 }
 

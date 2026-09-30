@@ -2,7 +2,7 @@ import 'server-only'
 import { Pool, type PoolClient } from 'pg'
 import { env } from '@/lib/config/env'
 import {
-  PermissionDeniedError, canSeeRecruiting, canSeeWholeBrokerage,
+  DomainRecordConflictError, PermissionDeniedError, canSeeRecruiting, canSeeWholeBrokerage,
   type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type Repository,
 } from './repository'
 import { withRlsSession } from './rls'
@@ -343,6 +343,85 @@ export class PgRepository implements Repository {
         [actor.organizationId, input.collection, input.recordId, ownerUserId, json, input.expectedVersion])
     if (!rows[0]) throw new Error('Domain record version conflict or record is not visible')
     return rows[0]
+  }
+
+  async putDomainRecordsAtomic<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, inputs: DomainRecordInput<T>[], auditEvents: AuditEvent[] = [],
+  ): Promise<DomainRecord<T>[]> {
+    if (inputs.length < 1 || inputs.length > 100) throw new RangeError('Atomic write must contain 1 to 100 records')
+    const keys = new Set<string>()
+    for (const input of inputs) {
+      validateDomainKey(input.collection, input.recordId)
+      const key = `${input.collection}\u0000${input.recordId}`
+      if (keys.has(key)) throw new TypeError('Atomic write contains duplicate record identities')
+      keys.add(key)
+      const ownerUserId = input.ownerUserId ?? null
+      if (!canWriteDomainOwner(actor, ownerUserId)) throw new PermissionDeniedError('putDomainRecordsAtomic', 'record owner is outside this actor scope')
+      if (!isPlainRecord(input.data)) throw new TypeError('Domain data must be a JSON object')
+      if (Buffer.byteLength(JSON.stringify(input.data), 'utf8') > MAX_DOMAIN_JSON_BYTES) throw new RangeError('Domain record exceeds the 256 KB limit')
+      if (input.createOnly && input.expectedVersion !== undefined) throw new TypeError('Insert-only records cannot specify an expected version')
+    }
+    const client = await getPgPool().connect()
+    try {
+      return await withRlsSession(client, actor, async scoped => {
+        const result: DomainRecord<T>[] = []
+        for (const input of inputs) {
+          const ownerUserId = input.ownerUserId ?? null
+          let rows: DomainRecord<T>[]
+          try {
+            if (input.createOnly) {
+              rows = (await scoped.query(
+                `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
+                 values ($1, $2, $3, $4, $5::jsonb) returning ${this.domainRecordColumns}`,
+                [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data)],
+              ) as { rows?: DomainRecord<T>[] }).rows ?? []
+            } else if (input.expectedVersion !== undefined) {
+              rows = (await scoped.query(
+                `update rcre_domain_records set owner_user_id = $4, data = $5::jsonb,
+                   version = version + 1, updated_at = now()
+                 where organization_id = $1 and collection = $2 and record_id = $3 and version = $6
+                 returning ${this.domainRecordColumns}`,
+                [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data), input.expectedVersion],
+              ) as { rows?: DomainRecord<T>[] }).rows ?? []
+            } else {
+              rows = (await scoped.query(
+                `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
+                 values ($1, $2, $3, $4, $5::jsonb)
+                 on conflict (organization_id, collection, record_id) do update
+                   set owner_user_id = excluded.owner_user_id, data = excluded.data,
+                       version = rcre_domain_records.version + 1, updated_at = now()
+                 returning ${this.domainRecordColumns}`,
+                [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data)],
+              ) as { rows?: DomainRecord<T>[] }).rows ?? []
+            }
+          } catch (error) {
+            if (input.createOnly && typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') {
+              throw new DomainRecordConflictError(input.collection, input.recordId)
+            }
+            throw error
+          }
+          if (!rows[0]) throw new DomainRecordConflictError(input.collection, input.recordId)
+          result.push(rows[0])
+        }
+        for (const event of auditEvents) {
+          if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) {
+            throw new PermissionDeniedError('putDomainRecordsAtomic', 'audit identity must match the trusted actor')
+          }
+          await scoped.query(
+            `insert into audit_events
+              (organization_id, actor_user_id, actor_kind, action, target_type, target_id,
+               effect, allowed, denied_reason, detail)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [event.organizationId, event.actorUserId, event.actorKind, event.action, event.targetType ?? null,
+              event.targetId ?? null, event.effect, event.allowed, event.deniedReason ?? null,
+              JSON.stringify(event.detail ?? {})],
+          )
+        }
+        return result
+      })
+    } finally {
+      client.release()
+    }
   }
 
   async deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean> {
