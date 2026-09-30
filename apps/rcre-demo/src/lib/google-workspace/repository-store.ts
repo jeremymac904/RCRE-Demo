@@ -2,11 +2,11 @@ import 'server-only'
 import { getRepository } from '@/lib/db'
 import type { Actor } from '@/lib/db/repository'
 import type { PlatformActor } from '@/lib/platform/auth'
+import { repositoryRoleForPlatform } from '@/lib/auth/role-mapping'
 import type { StoredGoogleGrant, WorkspaceGrantStore, WorkspaceService } from './types'
 
 function dbActor(actor: PlatformActor): Actor {
-  const role: Actor['role'] = actor.role === 'broker_owner' ? 'owner' : actor.role === 'managing_broker' ? 'broker' : actor.role === 'team_leader' ? 'team_lead' : actor.role === 'transaction_coordinator' || actor.role === 'marketing_admin' ? 'staff' : actor.role === 'trainer' ? 'viewer' : 'agent'
-  return { userId: actor.userId, organizationId: actor.organizationId, role }
+  return { userId: actor.userId, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role) }
 }
 
 export class RepositoryGoogleGrantStore implements WorkspaceGrantStore {

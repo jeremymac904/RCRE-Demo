@@ -7,6 +7,13 @@ import {GET as searchRoute} from '@/app/api/properties/route'
 import {GET as detailRoute} from '@/app/api/properties/[id]/route'
 import type {PropertyListing} from '@/lib/property/types'
 
+// The route-level inventory assertion should exercise the production no-listing
+// result, not fail earlier because this unit test has no shared Postgres limiter.
+vi.mock('@/lib/services/rate-limit', () => ({
+ rateLimitRequest: vi.fn(async () => ({ allowed: true, remaining: 89, retryAfterSeconds: 1 })),
+ SharedRateLimitUnavailableError: class extends Error {},
+}))
+
 afterEach(()=>{vi.unstubAllEnvs()})
 const base={id:'provider:123',providerId:'provider',providerName:'Example MLS',mlsListingId:'123'}
 describe('RESO normalization and search service',()=>{

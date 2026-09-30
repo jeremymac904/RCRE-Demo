@@ -3,19 +3,16 @@ import { randomUUID } from 'node:crypto'
 import type { Repository, Actor as RepositoryActor, DomainRecordInput } from '@/lib/db/repository'
 import type { PlatformActor } from './auth'
 import { AccessError, assertCapability, scopedOwner } from './auth'
+import { repositoryRoleForPlatform } from '@/lib/auth/role-mapping'
 import { getContactDurable } from './service'
 
 type Row = Record<string, unknown> & { id: string; organizationId: string; ownerId: string; officeId: string; version: number }
 
 function repositoryActor(actor: PlatformActor): RepositoryActor {
-  const roles: Record<PlatformActor['role'], RepositoryActor['role']> = {
-    broker_owner: 'owner', managing_broker: 'broker', team_leader: 'team_lead', agent: 'agent',
-    transaction_coordinator: 'staff', marketing_admin: 'staff', trainer: 'viewer',
-  }
   if (!isUuid(actor.id) || !isUuid(actor.organizationId) || actor.userId !== actor.id) {
     throw new AccessError('A verified durable organization membership is required.', 503)
   }
-  return { userId: actor.id, organizationId: actor.organizationId, role: roles[actor.role] }
+  return { userId: actor.id, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role) }
 }
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 const now = () => new Date().toISOString()
@@ -283,9 +280,32 @@ export async function reportCrmDurable(actor: PlatformActor, from: string, to: s
     closings: events.filter(event => event.kind === 'stage' && event.label.endsWith('to Closed')).length,
     firstResponseMedianMinutes: median, responseDenominator: responseMinutes.length,
     stageTimes: Object.entries(stageTimes).map(([stage, aggregate]) => ({ stage, meanDays: aggregate.days / aggregate.count, completedIntervals: aggregate.count })),
-    fallout: null, tasksDue: tasksDue.length, overdueTasks: tasks.filter(task => !task.done && Date.parse(String(task.dueAt)) < Date.now()).length,
+    fallout: null, tasksDue: tasksDue.length, overdueTasks: tasks.filter(task => !Boolean(task.done) && Date.parse(String(task.dueAt)) < Date.now()).length,
     deals: deals.length, openDeals: deals.filter(deal => deal.status !== 'closed' && deal.status !== 'archived').length,
     leadSourceCoverage: cohort.reduce((acc: Record<string, number>, contact) => { const source = String(contact.source || 'Unknown'); acc[source] = (acc[source] ?? 0) + 1; return acc }, {}),
     coverage: { source: 'RCRE durable records', completeness: 'Partial coverage', stageHistory: 'Observed from collection start; earlier transitions are unavailable', firstResponse: 'Recorded RCRE activity only', externalMessages: 'Not available unless explicitly imported' },
   }
+}
+
+/** Action queue from persisted evidence only; absence of a threshold/history is not a breach. */
+export async function listCrmPrioritiesDurable(actor: PlatformActor, repo: Repository) {
+  assertCapability(actor, 'crm')
+  const [contactsPage, tasks] = await Promise.all([
+    import('./service').then(({ listContactsPage }) => listContactsPage(actor, { page: 1, pageSize: 100 }, repo)),
+    listCrmTasksDurable(actor, repo),
+  ])
+  const contacts = [...contactsPage.rows]
+  for (let page = 2; page <= contactsPage.pageCount; page++) {
+    contacts.push(...(await import('./service').then(({ listContactsPage }) => listContactsPage(actor, { page, pageSize: 100 }, repo))).rows)
+  }
+  const nowMs = Date.now(), dayAgo = nowMs - 86_400_000
+  return contacts.map(contact => {
+    const reasons: string[] = []
+    const overdue = tasks.filter(task => task.contactId === contact.id && !Boolean(task.done) && Date.parse(String(task.dueAt)) < nowMs)
+    for (const task of overdue) reasons.push(`Task overdue: ${String(task.title ?? 'Follow up')}`)
+    const received = Date.parse(contact.receivedAt)
+    if (Number.isFinite(received) && received >= dayAgo) reasons.push('New lead received within the last 24 hours')
+    return { contact, reasons, score: reasons.length }
+  }).filter(item => item.reasons.length > 0)
+    .sort((a, b) => b.score - a.score || Date.parse(a.contact.receivedAt) - Date.parse(b.contact.receivedAt))
 }

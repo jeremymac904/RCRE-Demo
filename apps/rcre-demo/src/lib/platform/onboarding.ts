@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Actor, Repository } from '@/lib/db/repository'
 import { getRepository } from '@/lib/db'
 import { AccessError, type PlatformActor } from './auth'
+import { repositoryRoleForPlatform } from '@/lib/auth/role-mapping'
 
 const safeSocialUrl = z.string().url().max(300).refine(value => value.startsWith('https://'), 'Social links must use HTTPS').or(z.literal(''))
 export const onboardingInput = z.object({
@@ -23,8 +24,7 @@ export type OnboardingProfile = z.infer<typeof onboardingInput> & { verifiedPers
 export type OnboardingRecord = OnboardingProfile & { id: string; organizationId: string; memberId: string; savedAt: string; headshotAssetId?: string; publicVisible?: boolean }
 
 export function repositoryActor(actor: PlatformActor): Actor {
-  const role: Actor['role'] = actor.role === 'broker_owner' ? 'owner' : actor.role === 'managing_broker' ? 'broker' : actor.role === 'team_leader' ? 'team_lead' : actor.role === 'agent' ? 'agent' : actor.role === 'transaction_coordinator' || actor.role === 'marketing_admin' ? 'staff' : 'viewer'
-  return { userId: actor.id, organizationId: actor.organizationId, role }
+  return { userId: actor.id, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role) }
 }
 
 function emptyProfile(): OnboardingProfile {

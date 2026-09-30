@@ -61,6 +61,19 @@ describe('public lead notification outbox', () => {
     expect(duplicate.outbox.id).toBe(outbox[0].id)
   })
 
+  it('honors the existing personal Settings toggle when no separate preference row exists', async () => {
+    const repo = repository()
+    await seedPublishedAgentSite(repo)
+    await repo.putDomainRecord(brokerActor, { collection: 'platform_settings', recordId: `personal:${agentId}`, ownerUserId: agentId,
+      data: { inAppNotifications: false } })
+
+    await persistIntakeDurable({ ...input, submissionId: '27b4f9a0-4c18-4304-a3f3-306d9bb9854c' }, repo, brokerActor)
+    const inbox = await repo.listDomainRecords<Record<string, any>>(agentActor, 'notification_inbox')
+    const outbox = await durableNotifications(repo).listOutbox(agentActor)
+    expect(inbox[0].data.deliveryState).toBe('suppressed')
+    expect(outbox[0].state).toBe('suppressed')
+  })
+
   it('suppresses both inbox and outbox consistently with recipient preferences', async () => {
     const repo = repository()
     await seedPublishedAgentSite(repo)

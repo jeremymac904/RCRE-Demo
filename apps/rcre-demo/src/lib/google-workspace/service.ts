@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { getRepository } from '@/lib/db'
 import type { Repository } from '@/lib/db/repository'
 import type { PlatformActor } from '@/lib/platform/auth'
+import { repositoryRoleForPlatform } from '@/lib/auth/role-mapping'
 import { decryptRefreshToken, encryptRefreshToken } from './crypto'
 import { GoogleWorkspaceHttpApi, encodeMimeAddress, extractPlainBody, parseHeaders } from './http-api'
 import { GoogleOAuthHttp, SERVICE_SCOPES, workspaceOAuthConfig } from './oauth'
@@ -27,8 +28,7 @@ export class RepositoryWorkspaceStore extends RepositoryGoogleGrantStore impleme
 }
 
 function repositoryActor(actor: PlatformActor) {
-  const role = actor.role === 'broker_owner' ? 'owner' : actor.role === 'managing_broker' ? 'broker' : actor.role === 'team_leader' ? 'team_lead' : actor.role === 'transaction_coordinator' || actor.role === 'marketing_admin' ? 'staff' : actor.role === 'trainer' ? 'viewer' : 'agent'
-  return { userId: actor.userId, organizationId: actor.organizationId, role } as const
+  return { userId: actor.userId, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role) }
 }
 
 function validateEmail(email: string) { const value = email.trim(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || value.length > 320) throw new Error('Enter a valid email address'); return value }

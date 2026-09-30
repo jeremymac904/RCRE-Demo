@@ -83,8 +83,18 @@ export class DurableNotificationService {
   }
 
   async preferences(actor: Actor): Promise<NotificationPreferences> {
-    const record = await (await this.db()).getDomainRecord<NotificationPreferences>(actor, PREFERENCES, actor.userId)
-    return record ? preferenceSchema.parse(record.data) : defaultPreferences()
+    const repo = await this.db()
+    const record = await repo.getDomainRecord<NotificationPreferences>(actor, PREFERENCES, actor.userId)
+    if (record) return preferenceSchema.parse(record.data)
+    // Keep the existing account Settings control authoritative when a separate
+    // notification-preferences record has not been created yet.
+    const settings = await repo.getDomainRecord<Record<string, unknown>>(actor, 'platform_settings', `personal:${actor.userId}`)
+    if (!settings) return defaultPreferences()
+    return preferenceSchema.parse({
+      inAppEnabled: settings.data.inAppNotifications !== false,
+      emailEnabled: false,
+      eventTypes: {},
+    })
   }
 
   async updatePreferences(actor: Actor, raw: unknown, expectedVersion?: number): Promise<NotificationPreferences> {
@@ -111,8 +121,7 @@ export class DurableNotificationService {
     const priorOutbox = await repo.getDomainRecord<NotificationOutbox>(recipientActor, OUTBOX, outboxId)
     if (priorNotification && priorOutbox) return { notification: priorNotification.data, outbox: priorOutbox.data, duplicate: true }
 
-    const preferenceRecord = await repo.getDomainRecord<NotificationPreferences>(actor, PREFERENCES, recipientUserId)
-    const preferences = preferenceRecord ? preferenceSchema.parse(preferenceRecord.data) : defaultPreferences()
+    const preferences = await this.preferences({ ...actor, userId: recipientUserId })
     const enabled = preferences.eventTypes[input.eventType] !== false
       && (input.channel === 'in_app' ? preferences.inAppEnabled : preferences.emailEnabled)
     const now = this.now().toISOString()

@@ -169,7 +169,13 @@ async function durableOwner(input: IntakeFields, repository: Repository, actor: 
     if (!candidate) throw new IntakeError('We cannot assign this request to a verified RCRE representative right now. Please contact the office directly.', 503)
   }
   const marketOffice = input.market?.toLowerCase().includes('alabama') ? 'al' : input.market?.toLowerCase().includes('florida') ? 'fl' : ''
-  const policy = await repository.getDomainRecord<Record<string, any>>(actor, 'settings', 'leads')
+  // Durable settings use an explicit organization/office key. Resolve office
+  // routing first and only use the organization policy for an unknown market.
+  // Never consult the legacy SQLite `settings/leads` record in production.
+  const policy = marketOffice
+    ? await repository.getDomainRecord<Record<string, any>>(actor, 'platform_settings', `leads:${marketOffice}`)
+      ?? await repository.getDomainRecord<Record<string, any>>(actor, 'platform_settings', 'leads:organization')
+    : await repository.getDomainRecord<Record<string, any>>(actor, 'platform_settings', 'leads:organization')
   const routeId = input.agentSlug ? candidate?.id : (marketOffice ? policy?.data.routing?.[marketOffice] : undefined)
     ?? policy?.data.routing?.[input.kind] ?? policy?.data.defaultOwnerId
   if (!routeId) throw new IntakeError('We cannot assign this request to a verified RCRE representative right now. Please contact the office directly.', 503)
@@ -247,9 +253,13 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
   const notificationId = digest(`inbox\0${actor.organizationId}\0${owner.id}\0${notificationKey}`)
   const outboxId = digest(`outbox\0${actor.organizationId}\0${owner.id}\0${notificationKey}`)
   const idempotencyKeyHash = digest(`idempotency\0${actor.organizationId}\0${owner.id}\0${notificationKey}`)
-  const preferences = await repository.getDomainRecord<Record<string, any>>(actor, 'notification_preferences', owner.id)
+  const [preferences, personalSettings] = await Promise.all([
+    repository.getDomainRecord<Record<string, any>>(actor, 'notification_preferences', owner.id),
+    repository.getDomainRecord<Record<string, any>>(actor, 'platform_settings', `personal:${owner.id}`),
+  ])
   const preferenceData = preferences?.data
-  const notificationEnabled = preferenceData?.eventTypes?.website_lead !== false && preferenceData?.inAppEnabled !== false
+  const notificationEnabled = preferenceData?.eventTypes?.website_lead !== false
+    && preferenceData?.inAppEnabled !== false && personalSettings?.data.inAppNotifications !== false
   const notificationState = notificationEnabled ? 'queued' : 'suppressed'
   const notification = {
     id: notificationId, organizationId: actor.organizationId, ownerUserId: owner.id,

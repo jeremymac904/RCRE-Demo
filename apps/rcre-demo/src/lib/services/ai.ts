@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { PlatformActor } from '@/lib/platform/auth'
+import { repositoryRoleForPlatform } from '@/lib/auth/role-mapping'
 import { can } from '@/lib/platform/auth'
 import { getRecord,putRecord,readRecords,deleteRecord,transaction } from '@/lib/platform/store'
 import { listContacts,listTasks,listAppointments,priorities,createTask,getSetting } from '@/lib/platform/service'
@@ -16,7 +17,7 @@ export interface Conversation {id:string;ownerId:string;organizationId:string;ti
 const controls=new Map<string,AbortController>()
 
 function toKnowledgeActor(actor: PlatformActor): KnowledgeActor {
- const role = actor.role === 'broker_owner' ? 'owner' : actor.role === 'managing_broker' ? 'broker' : actor.role === 'team_leader' ? 'team_lead' : actor.role === 'transaction_coordinator' || actor.role === 'marketing_admin' || actor.role === 'trainer' ? 'staff' : 'agent'
+ const role = repositoryRoleForPlatform(actor.role)
  const market = actor.market.toLowerCase()
  const states = actor.officeId === 'al' || market.includes('alabama') ? ['AL'] : actor.officeId === 'fl' || market.includes('florida') ? ['FL'] : ['AL', 'FL']
  return { userId: actor.userId, organizationId: actor.organizationId, role, states, canViewAllStates: actor.role === 'broker_owner' }

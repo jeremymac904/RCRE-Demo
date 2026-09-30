@@ -51,6 +51,16 @@ describe('durable notifications', () => {
     expect(email.outbox.state).not.toBe('accepted_by_provider')
   })
 
+  it('honors the existing durable personal notification setting', async () => {
+    await repository.putDomainRecord(agent, {
+      collection: 'platform_settings', recordId: `personal:${agent.userId}`, ownerUserId: agent.userId,
+      data: { inAppNotifications: false },
+    })
+    const queued = await service.enqueue(agent, { ...event, idempotencyKey: 'settings-disabled:v1' })
+    expect(queued.notification.deliveryState).toBe('suppressed')
+    expect(queued.outbox.state).toBe('suppressed')
+  })
+
   it('applies a recipient preference when brokerage leadership queues for them', async () => {
     await service.updatePreferences(other, { inAppEnabled: false, emailEnabled: false, eventTypes: {} })
     const queued = await service.enqueue(owner, { ...event, idempotencyKey: 'admin:other:v1' }, { recipientUserId: other.userId })
