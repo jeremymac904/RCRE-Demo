@@ -35,12 +35,13 @@ export async function consumeRateLimit(
 
   if (process.env.NODE_ENV === 'production') {
     const secret = process.env.RCRE_SESSION_SECRET
-    if (!secret || secret.length < 32 || !process.env.RCRE_TRUSTED_CLIENT_IP_HEADER) throw new SharedRateLimitUnavailableError()
+    const organizationId = process.env.RCRE_ORGANIZATION_ID
+    if (!secret || secret.length < 32 || !process.env.RCRE_TRUSTED_CLIENT_IP_HEADER || !isUuid(organizationId)) throw new SharedRateLimitUnavailableError()
     const clientHash = createHmac('sha256', secret).update(`${scope}\0${clientKey}`).digest('hex')
     try {
       const result = await getPgPool().query(
-        'select allowed, remaining, retry_after_seconds from rcre_consume_public_rate_limit($1, $2, $3, $4)',
-        [scope, clientHash, limit, windowSeconds],
+        'select allowed, remaining, retry_after_seconds from rcre_consume_public_rate_limit($1, $2, $3, $4, $5)',
+        [organizationId, scope, clientHash, limit, windowSeconds],
       )
       const row = result.rows[0] as { allowed?: unknown; remaining?: unknown; retry_after_seconds?: unknown } | undefined
       if (!row || typeof row.allowed !== 'boolean') throw new SharedRateLimitUnavailableError()
@@ -88,4 +89,8 @@ export async function rateLimitRequest(
   const key = trustedClientKey(headers)
   if (!key) throw new SharedRateLimitUnavailableError()
   return consumeRateLimit(scope, key, limit, windowSeconds)
+}
+
+function isUuid(value: string | undefined): value is string {
+  return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))
 }

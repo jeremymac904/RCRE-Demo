@@ -31,6 +31,15 @@ describe('shared public rate limit boundary', () => {
     expect(trustedClientKey(forged, true)).toBeNull()
   })
 
+  it('fails closed when the production organization scope is missing or malformed', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('RCRE_SESSION_SECRET', 'x'.repeat(48))
+    vi.stubEnv('RCRE_TRUSTED_CLIENT_IP_HEADER', 'x-nf-client-connection-ip')
+    vi.stubEnv('RCRE_ORGANIZATION_ID', 'not-a-uuid')
+    await expect(rateLimitRequest('property_search', new Headers({ 'x-nf-client-connection-ip': '203.0.113.12' }), 90))
+      .rejects.toBeInstanceOf(SharedRateLimitUnavailableError)
+  })
+
   it('fails closed in production when durable shared limiting is not configured', async () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('RCRE_SESSION_SECRET', '')
