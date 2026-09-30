@@ -168,11 +168,11 @@ export default async function AgentResourcesPage({
                         {r.audience}
                       </p>
                       <a
-                        href="#"
+                        href={r.category.toLowerCase().includes('seller') ? '/selling' : r.category.toLowerCase().includes('market') ? '/markets' : '/buying'}
                         style={{ display: 'inline-block', marginTop: '0.75rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-accent, #c9a84c)', textDecoration: 'none' }}
-                        aria-label={`Download ${r.title} (PDF)`}
+                        aria-label={`Explore ${r.title}`}
                       >
-                        Download PDF →
+                        Explore guide →
                       </a>
                     </div>
                   </article>
@@ -214,11 +214,11 @@ export default async function AgentResourcesPage({
                         {r.audience}
                       </p>
                       <a
-                        href="#"
+                        href={r.category.toLowerCase().includes('seller') ? '/selling' : r.category.toLowerCase().includes('market') ? '/markets' : '/buying'}
                         style={{ display: 'inline-block', marginTop: '0.75rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-accent, #c9a84c)', textDecoration: 'none' }}
-                        aria-label={`Download ${r.title} (PDF)`}
+                        aria-label={`Explore ${r.title}`}
                       >
-                        Download PDF →
+                        Explore guide →
                       </a>
                     </div>
                   </article>
@@ -261,11 +261,11 @@ export default async function AgentResourcesPage({
                         {r.audience}
                       </p>
                       <a
-                        href="#"
+                        href={r.category.toLowerCase().includes('seller') ? '/selling' : r.category.toLowerCase().includes('market') ? '/markets' : '/buying'}
                         style={{ display: 'inline-block', marginTop: '0.75rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-accent, #c9a84c)', textDecoration: 'none' }}
-                        aria-label={`Download ${r.title} (PDF)`}
+                        aria-label={`Explore ${r.title}`}
                       >
-                        Download PDF →
+                        Explore guide →
                       </a>
                     </div>
                   </article>

@@ -42,6 +42,7 @@ export default async function ThemePreviewPage({
   params: Promise<{ theme: string }>
 }) {
   const { theme } = await params
+  if (process.env.NODE_ENV === 'production') notFound()
 
   const validTheme = THEME_CATALOG[theme as AgentWebsiteTheme]
   if (!validTheme) notFound()

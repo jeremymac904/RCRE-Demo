@@ -37,14 +37,14 @@ export function InvestorContactForm({ agent }: Props) {
   const [error, setError] = useState('')
   const [referenceId, setReferenceId] = useState('')
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setBusy(true)
     setError('')
     const form = e.currentTarget
     const f = new FormData(form)
 
-    const result = captureLead({
+    const result = await captureLead({
       agentSlug: agent.slug,
       type: 'investor',
       name: f.get('name') as string || undefined,
@@ -62,7 +62,7 @@ export function InvestorContactForm({ agent }: Props) {
       setDone(true)
       form.reset()
     } else {
-      setError('Your inquiry could not be recorded. Please try again.')
+      setError(result.error || 'Your request could not be saved. Please try again.')
     }
     setBusy(false)
   }
@@ -71,13 +71,13 @@ export function InvestorContactForm({ agent }: Props) {
     return (
       <div className="inv-success" role="status">
         <h3 style={{ fontWeight: 600, marginBottom: '0.75rem', color: 'var(--inv-primary)' }}>
-          Inquiry recorded.
+          Request saved locally for review.
         </h3>
         <p style={{ fontSize: '0.85rem', color: 'var(--inv-muted)', marginBottom: '0.5rem' }}>
           Reference: <span style={{ fontFamily: 'var(--inv-font-mono)' }}>{referenceId}</span>
         </p>
         <p style={{ fontSize: '0.78rem', color: 'var(--inv-muted)' }}>
-          This is a local review environment. No investment consultation is confirmed.
+          No investment consultation is confirmed.
         </p>
         <button
           onClick={() => { setDone(false); setReferenceId('') }}
