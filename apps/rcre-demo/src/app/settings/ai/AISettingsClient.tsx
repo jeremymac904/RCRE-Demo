@@ -12,7 +12,7 @@ const label = 'block text-sm text-chalk-muted mb-1'
 const button = 'border border-hair rounded-control px-4 py-2 hover:border-brass-fill text-sm text-chalk'
 const buttonPrimary = 'bg-brass-fill text-brass-ink border border-brass-fill rounded-control px-4 py-2 hover:opacity-90 text-sm font-medium'
 
-type ProviderId = 'deterministic' | 'ollama' | 'hermes' | 'cloud'
+type ProviderId = 'deterministic' | 'cloud'
 
 interface Props {
   actor: PlatformActor
@@ -100,7 +100,7 @@ export function AISettingsClient({ actor }: Props) {
         action: 'config',
         config: {
           provider: config.provider,
-          endpoint: config.provider === 'cloud' ? 'https://openrouter.ai/api/v1' : 'http://127.0.0.1:11434',
+          endpoint: config.provider === 'cloud' ? 'https://openrouter.ai/api/v1' : '',
           model: config.provider === 'cloud' ? OPENROUTER_FREE_MODEL : config.model ?? '',
           sharing: config.sharing,
           paused: config.paused,
@@ -138,7 +138,7 @@ export function AISettingsClient({ actor }: Props) {
       </div>
 
       <p className="text-chalk-muted mb-8 max-w-2xl">
-        Configure your AI provider. RCRE does not pay for inference by default — local and free options are first-class.
+        Configure your AI provider. RCRE uses deterministic analysis by default; optional remote inference is limited to the free OpenRouter router.
         Remote inference is fixed to OpenRouter&apos;s free-model router. The server key is never exposed to agents, and no paid fallback is allowed.
       </p>
 
@@ -160,8 +160,6 @@ export function AISettingsClient({ actor }: Props) {
         <div className="grid gap-3 sm:grid-cols-2">
           {([
             { id: 'deterministic', label: 'Deterministic (No AI)', desc: 'Rule-based analysis. Zero cost. No model.', badge: 'Free', badgeColor: 'bg-signal-calm' },
-            { id: 'ollama', label: 'Local Ollama', desc: 'Ollama on this machine. Fully offline.', badge: 'Free', badgeColor: 'bg-signal-calm' },
-            { id: 'hermes', label: 'RCRE Hermes Runtime', desc: 'OS-isolated agent worker. Reasoning, drafting, coaching.', badge: 'Free', badgeColor: 'bg-signal-calm' },
             { id: 'cloud', label: 'OpenRouter Free', desc: 'Fixed openrouter/free model. No paid model or fallback.', badge: 'Free only', badgeColor: 'bg-signal-calm' },
           ] as const).map(p => (
             <button
@@ -198,31 +196,10 @@ export function AISettingsClient({ actor }: Props) {
         </section>
       )}
 
-      {/* Non-cloud provider config */}
-      {config.provider !== 'cloud' && (
+      {config.provider === 'deterministic' && (
         <section className="mb-10 rounded-panel border border-hair bg-ink-raised p-6">
-          <h2 className="font-display text-xl mb-4">Local Provider Settings</h2>
-          {config.provider === 'ollama' && (
-            <div className="mb-4">
-              <label className={label}>Local Ollama endpoint</label>
-              <input className={field} type="url" placeholder="http://127.0.0.1:11434" defaultValue="http://127.0.0.1:11434" />
-              <p className="mt-1 text-xs text-chalk-muted">
-                Configure the endpoint in the Assistant panel and test the connection.
-              </p>
-            </div>
-          )}
-          {config.provider === 'hermes' && (
-            <div className="text-sm text-chalk-muted">
-              <p>Hermes uses an OS-isolated worker started from the Assistant panel.</p>
-              <p className="mt-1">Start and verify the worker there before using it here.</p>
-            </div>
-          )}
-          {config.provider === 'deterministic' && (
-            <div className="text-sm text-chalk-muted">
-              <p>Deterministic mode uses rule-based analysis over your authorized records.</p>
-              <p className="mt-1">No model inference — zero cost, fully offline.</p>
-            </div>
-          )}
+          <h2 className="font-display text-xl mb-3">Deterministic mode</h2>
+          <p className="text-sm text-chalk-muted">Rule-based analysis over authorized records. No model inference or provider request is made.</p>
         </section>
       )}
 
@@ -301,12 +278,12 @@ export function AISettingsClient({ actor }: Props) {
       <section className="mt-10 rounded-panel border border-hair p-5">
         <h2 className="font-display text-lg mb-3">How RCRE handles AI</h2>
         <ul className="text-sm text-chalk-muted space-y-2">
-          <li>• RCRE never pays for AI inference by default — local and free options are first-class</li>
+          <li>• Portal inference is either deterministic or fixed to the OpenRouter free model router</li>
           <li>• Cloud API keys are encrypted with Web Crypto AES-256-GCM before storage</li>
           <li>• No AI request content is logged — only provider, model, role, timestamp, latency, and token count</li>
           <li>• AI may extract, summarize, draft, coach, and recommend — never decide compliance or execute contracts</li>
           <li>• Deterministic, identity, permissions, records, compliance, approvals, and money remain with the backend</li>
-          <li>• Provider routing is configurable without code changes — add new providers to the catalog</li>
+          <li>• Paid models, paid fallbacks, online routing, and other portal providers are rejected</li>
         </ul>
       </section>
     </div>

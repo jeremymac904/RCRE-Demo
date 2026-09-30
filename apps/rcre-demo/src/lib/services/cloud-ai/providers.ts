@@ -2,6 +2,7 @@
 import type { PlatformRole } from '@/lib/platform/auth'
 
 export type CloudProvider = 'openrouter'
+export type PortalAIProvider = 'deterministic' | 'cloud'
 export const OPENROUTER_FREE_MODEL = 'openrouter/free' as const
 export const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1' as const
 
@@ -52,16 +53,7 @@ export const BUILTIN_PROVIDERS: RCREProviderMeta[] = [
     requiresCredentials: false, requiresLocalRuntime: false,
     capabilities: { streaming: false, functionCalling: false, vision: false, maxContextTokens: 0, costRank: 'free', recommendedFor: allRoles },
   },
-  {
-    id: 'ollama', label: 'Local Ollama', description: 'Local inference on this machine.',
-    requiresCredentials: false, requiresLocalRuntime: true,
-    capabilities: { streaming: true, functionCalling: false, vision: false, maxContextTokens: 0, costRank: 'free', recommendedFor: ['agent', 'team_leader'] },
-  },
-  {
-    id: 'hermes', label: 'RCRE Hermes Runtime', description: 'Isolated RCRE runtime.',
-    requiresCredentials: false, requiresLocalRuntime: true,
-    capabilities: { streaming: true, functionCalling: true, vision: false, maxContextTokens: 128000, costRank: 'free', recommendedFor: allRoles },
-  },
+
 ]
 
 export function listCloudProviders(): RCREProviderMeta[] {
