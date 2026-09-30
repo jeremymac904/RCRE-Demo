@@ -23,6 +23,8 @@ export interface Actor {
   userId: string
   organizationId: string
   role: UserRole
+  /** Test/local repositories may receive verified team scope; Postgres resolves it from RLS membership. */
+  teamIds?: string[]
 }
 
 /** Roles that may see the whole brokerage book. */
@@ -62,6 +64,13 @@ export interface DomainRecordInput<T extends Record<string, unknown> = Record<st
   createOnly?: boolean
 }
 
+export interface TransactionDomainRecordInput<T extends Record<string, unknown> = Record<string, unknown>> extends DomainRecordInput<T> {
+  collection: 'transactions' | `transaction_${string}`
+}
+
+const TRANSACTION_COLLECTION = /^(transactions|transaction_[A-Za-z0-9_.-]{1,72})$/
+function isTransactionCollection(value: string): boolean { return TRANSACTION_COLLECTION.test(value) }
+
 export interface DomainRecordListOptions {
   limit?: number
   offset?: number
@@ -100,6 +109,10 @@ export interface Repository {
     actor: Actor, inputs: DomainRecordInput[], auditEvents?: AuditEvent[],
   ): Promise<DomainRecord[]>
   deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean>
+  /** Transaction-only write path enforces participant scope and immutable assignment fields. */
+  putTransactionDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: TransactionDomainRecordInput<T>, auditEvents?: AuditEvent[],
+  ): Promise<DomainRecord<T>>
 }
 
 export class DomainRecordConflictError extends Error {
@@ -255,6 +268,11 @@ export class MemoryRepository implements Repository {
     if (canSeeWholeBrokerage(actor.role) || actor.role === 'staff') return true
     if (record.ownerUserId === null) return true
     if (record.ownerUserId === actor.userId) return true
+    if (isTransactionCollection(record.collection)) {
+      if (record.data.ownerId === actor.userId) return true
+      if (actor.role === 'transaction_coordinator' && record.data.tcId === actor.userId) return true
+      if (actor.role === 'team_lead' && actor.teamIds?.includes(String(record.data.teamId))) return true
+    }
     // Team lead scope is intentionally not widened in this generic bridge. A
     // future caller may supply an explicit allowed-owner list after team policy.
     return false
@@ -283,6 +301,7 @@ export class MemoryRepository implements Repository {
   async putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
     actor: Actor, input: DomainRecordInput<T>,
   ): Promise<DomainRecord<T>> {
+    if (isTransactionCollection(input.collection)) throw new PermissionDeniedError('putDomainRecord', 'transaction records require the participant-checked transaction write API')
     const ownerUserId = input.ownerUserId ?? null
     const mayWriteShared = ownerUserId === null && canSeeWholeBrokerage(actor.role)
     const mayWriteOwned = ownerUserId === actor.userId
@@ -309,6 +328,7 @@ export class MemoryRepository implements Repository {
   async putDomainRecordsAtomic(
     actor: Actor, inputs: DomainRecordInput[], auditEvents: AuditEvent[] = [],
   ): Promise<DomainRecord[]> {
+    if (inputs.some(input => isTransactionCollection(input.collection))) throw new PermissionDeniedError('putDomainRecordsAtomic', 'transaction records require the participant-checked transaction write API')
     if (inputs.length < 1 || inputs.length > 100) throw new RangeError('Atomic write must contain 1 to 100 records')
     const now = new Date().toISOString()
     const staged = inputs.map(input => {
@@ -336,7 +356,50 @@ export class MemoryRepository implements Repository {
     return records.map(record => structuredClone(record))
   }
 
+  async putTransactionDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: TransactionDomainRecordInput<T>, auditEvents: AuditEvent[] = [],
+  ): Promise<DomainRecord<T>> {
+    if (!isTransactionCollection(input.collection) || input.data.organizationId !== actor.organizationId) throw new PermissionDeniedError('putTransactionDomainRecord', 'invalid transaction record scope')
+    const ownerUserId = input.ownerUserId ?? null
+    if (input.collection === 'transactions' && input.data.ownerId !== ownerUserId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction owner and repository owner must match')
+    const key = this.domainKey(actor.organizationId, input.collection, input.recordId)
+    const prior = this.domainRecords.get(key)
+    if (input.createOnly && prior) throw new DomainRecordConflictError(input.collection, input.recordId)
+    if (input.expectedVersion !== undefined && (!prior || prior.version !== input.expectedVersion)) throw new DomainRecordConflictError(input.collection, input.recordId)
+    const broker = actor.role === 'owner' || actor.role === 'broker'
+    if (prior) {
+      const existing = prior.data
+      const isOwner = existing.ownerId === actor.userId
+      const isAssignedTc = existing.tcId === actor.userId && actor.role === 'transaction_coordinator'
+      const isTeamLead = actor.role === 'team_lead' && actor.teamIds?.includes(String(existing.teamId))
+      if (!broker && !isOwner && !isAssignedTc && !isTeamLead) throw new PermissionDeniedError('putTransactionDomainRecord', 'actor is not a transaction participant')
+      if (!broker && (input.data.ownerId !== existing.ownerId || input.data.tcId !== existing.tcId || input.data.teamId !== existing.teamId || ownerUserId !== prior.ownerUserId)) {
+        throw new PermissionDeniedError('putTransactionDomainRecord', 'only brokerage administrators may reassign transaction ownership or participants')
+      }
+    } else {
+      if (ownerUserId !== actor.userId && !broker) throw new PermissionDeniedError('putTransactionDomainRecord', 'new transaction records must be owned by the actor')
+      const transactionId = input.collection === 'transactions' ? input.recordId : String(input.data.transactionId ?? '')
+      if (input.collection !== 'transactions') {
+        const parent = this.domainRecords.get(this.domainKey(actor.organizationId, 'transactions', transactionId))
+        if (!parent) throw new PermissionDeniedError('putTransactionDomainRecord', 'parent transaction is unavailable')
+        const data = parent.data
+        const participant = data.ownerId === actor.userId || (actor.role === 'transaction_coordinator' && data.tcId === actor.userId) || (actor.role === 'team_lead' && actor.teamIds?.includes(String(data.teamId)))
+        if (!broker && !participant) throw new PermissionDeniedError('putTransactionDomainRecord', 'actor is not a transaction participant')
+        for (const field of ['ownerId', 'tcId', 'teamId'] as const) if (input.data[field] !== data[field]) throw new PermissionDeniedError('putTransactionDomainRecord', 'child record participant fields must match the parent transaction')
+      } else if (!broker && (input.data.ownerId !== actor.userId || input.data.tcId)) {
+        throw new PermissionDeniedError('putTransactionDomainRecord', 'agents may create only transactions they own; only brokerage administrators may assign a coordinator')
+      }
+    }
+    const now = new Date().toISOString()
+    const record: DomainRecord<T> = { organizationId: actor.organizationId, collection: input.collection, recordId: input.recordId, ownerUserId, data: structuredClone(input.data), version: (prior?.version ?? 0) + 1, createdAt: prior?.createdAt ?? now, updatedAt: now }
+    for (const event of auditEvents) if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) throw new PermissionDeniedError('putTransactionDomainRecord', 'audit identity must match the trusted actor')
+    this.domainRecords.set(key, record as DomainRecord)
+    this.audit.push(...auditEvents.map(event => ({ ...event, occurredAt: now })))
+    return structuredClone(record)
+  }
+
   async deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean> {
+    if (isTransactionCollection(collection)) throw new PermissionDeniedError('deleteDomainRecord', 'transaction history is retained; archive the transaction instead')
     const key = this.domainKey(actor.organizationId, collection, recordId)
     const prior = this.domainRecords.get(key)
     if (!prior || !this.canSeeDomainRecord(actor, prior)) return false

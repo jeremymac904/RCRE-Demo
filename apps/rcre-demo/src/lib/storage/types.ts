@@ -29,6 +29,8 @@ export interface StorageUpload {
   filename: string
   contentType: string
   bytes: Buffer
+  /** Server-side metadata commit; storage deletes the just-written blob if it fails. */
+  persistMetadata?: (asset: StorageAsset) => Promise<void>
 }
 
 export interface StorageAuthorization {

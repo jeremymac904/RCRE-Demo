@@ -3,7 +3,7 @@ import { Pool, type PoolClient } from 'pg'
 import { env } from '@/lib/config/env'
 import {
   DomainRecordConflictError, PermissionDeniedError, canSeeRecruiting, canSeeWholeBrokerage,
-  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type Repository,
+  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type Repository, type TransactionDomainRecordInput,
 } from './repository'
 import { withRlsSession } from './rls'
 import type {
@@ -74,6 +74,8 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
 }
+
+function transactionCollection(value: string): boolean { return /^(transactions|transaction_[A-Za-z0-9_.-]{1,72})$/.test(value) }
 
 function canWriteDomainOwner(actor: Actor, ownerUserId: string | null): boolean {
   const admin = ['owner', 'broker', 'staff'].includes(actor.role)
@@ -316,6 +318,7 @@ export class PgRepository implements Repository {
   async putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
     actor: Actor, input: DomainRecordInput<T>,
   ): Promise<DomainRecord<T>> {
+    if (transactionCollection(input.collection)) throw new PermissionDeniedError('putDomainRecord', 'transaction records require the participant-checked transaction write API')
     validateDomainKey(input.collection, input.recordId)
     const ownerUserId = input.ownerUserId ?? null
     if (!canWriteDomainOwner(actor, ownerUserId)) {
@@ -431,7 +434,87 @@ export class PgRepository implements Repository {
     }
   }
 
+  async putTransactionDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: TransactionDomainRecordInput<T>, auditEvents: AuditEvent[] = [],
+  ): Promise<DomainRecord<T>> {
+    if (!transactionCollection(input.collection) || input.data.organizationId !== actor.organizationId) {
+      throw new PermissionDeniedError('putTransactionDomainRecord', 'invalid transaction record scope')
+    }
+    validateDomainKey(input.collection, input.recordId)
+    if (!isPlainRecord(input.data) || Buffer.byteLength(JSON.stringify(input.data), 'utf8') > MAX_DOMAIN_JSON_BYTES) throw new TypeError('Transaction domain data is invalid or too large')
+    const broker = actor.role === 'owner' || actor.role === 'broker'
+    const client = await getPgPool().connect()
+    try {
+      return await withRlsSession(client, actor, async scoped => {
+        const parentId = input.collection === 'transactions' ? input.recordId : String(input.data.transactionId ?? '')
+        let parent: Record<string, unknown> | null = null
+        if (input.collection !== 'transactions') {
+          if (!parentId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction child record requires a parent')
+          const parentRows = (await scoped.query(
+            `select data from rcre_domain_records where organization_id = $1 and collection = 'transactions' and record_id = $2 for share`,
+            [actor.organizationId, parentId],
+          ) as { rows?: { data: Record<string, unknown> }[] }).rows ?? []
+          parent = parentRows[0]?.data ?? null
+          if (!parent) throw new PermissionDeniedError('putTransactionDomainRecord', 'parent transaction is not visible')
+          for (const field of ['ownerId', 'tcId', 'teamId'] as const) {
+            if (input.data[field] !== parent[field]) throw new PermissionDeniedError('putTransactionDomainRecord', 'child participant fields must match the parent transaction')
+          }
+          const participant = parent.ownerId === actor.userId || (actor.role === 'transaction_coordinator' && parent.tcId === actor.userId)
+          if (!broker && !participant && actor.role !== 'team_lead') throw new PermissionDeniedError('putTransactionDomainRecord', 'actor is not an authorized transaction participant')
+        }
+        const existingRows = (await scoped.query(
+          `select ${this.domainRecordColumns} from rcre_domain_records where organization_id = $1 and collection = $2 and record_id = $3 for update`,
+          [actor.organizationId, input.collection, input.recordId],
+        ) as { rows?: DomainRecord<T>[] }).rows ?? []
+        const existing = existingRows[0]
+        if (input.createOnly && existing) throw new DomainRecordConflictError(input.collection, input.recordId)
+        if (input.expectedVersion !== undefined && (!existing || input.expectedVersion !== existing.version)) throw new DomainRecordConflictError(input.collection, input.recordId)
+        const ownerUserId = input.ownerUserId ?? null
+        if (input.collection === 'transactions' && input.data.ownerId !== ownerUserId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction owner and repository owner must match')
+        if (existing) {
+          const old = existing.data as Record<string, unknown>
+          const isOwner = old.ownerId === actor.userId
+          const isTc = actor.role === 'transaction_coordinator' && old.tcId === actor.userId
+          const isTeamScoped = actor.role === 'team_lead'
+          if (!broker && !isOwner && !isTc && !isTeamScoped) throw new PermissionDeniedError('putTransactionDomainRecord', 'actor is not a transaction participant')
+          if (!broker && (input.data.ownerId !== old.ownerId || input.data.tcId !== old.tcId || input.data.teamId !== old.teamId || ownerUserId !== existing.ownerUserId)) {
+            throw new PermissionDeniedError('putTransactionDomainRecord', 'only brokerage administrators may change transaction ownership or participant assignment')
+          }
+        } else if (input.collection === 'transactions' && !broker && (input.data.ownerId !== actor.userId || input.data.tcId)) {
+          throw new PermissionDeniedError('putTransactionDomainRecord', 'agents may create only transactions they own; coordinator assignment is a broker action')
+        } else if (ownerUserId !== actor.userId && !broker) {
+          throw new PermissionDeniedError('putTransactionDomainRecord', 'new transaction records must be owned by the actor')
+        }
+        let rows: DomainRecord<T>[]
+        if (existing) {
+          rows = (await scoped.query(
+            `update rcre_domain_records set owner_user_id = $4, data = $5::jsonb, version = version + 1, updated_at = now()
+             where organization_id = $1 and collection = $2 and record_id = $3 and version = $6 returning ${this.domainRecordColumns}`,
+            [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data), existing.version],
+          ) as { rows?: DomainRecord<T>[] }).rows ?? []
+        } else {
+          rows = (await scoped.query(
+            `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
+             values ($1,$2,$3,$4,$5::jsonb) returning ${this.domainRecordColumns}`,
+            [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data)],
+          ) as { rows?: DomainRecord<T>[] }).rows ?? []
+        }
+        if (!rows[0]) throw new DomainRecordConflictError(input.collection, input.recordId)
+        for (const event of auditEvents) {
+          if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) throw new PermissionDeniedError('putTransactionDomainRecord', 'audit identity must match the trusted actor')
+          await scoped.query(
+            `insert into audit_events (organization_id, actor_user_id, actor_kind, action, target_type, target_id, effect, allowed, denied_reason, detail)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [event.organizationId, event.actorUserId, event.actorKind, event.action, event.targetType ?? null, event.targetId ?? null, event.effect, event.allowed, event.deniedReason ?? null, JSON.stringify(event.detail ?? {})],
+          )
+        }
+        return rows[0]
+      })
+    } finally { client.release() }
+  }
+
   async deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean> {
+    if (transactionCollection(collection)) throw new PermissionDeniedError('deleteDomainRecord', 'transaction history is retained; archive the transaction instead')
     validateDomainKey(collection, recordId)
     const rows = await this.q<{ recordId: string }>(actor,
       `delete from rcre_domain_records

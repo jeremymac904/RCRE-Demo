@@ -76,6 +76,12 @@ export class StorageService {
       if (!result.clean) throw new StorageError('File was rejected by the malware scanner', 422, 'MALWARE_DETECTED')
     }
     await this.driver.put(asset, input.bytes)
+    try {
+      await input.persistMetadata?.(asset)
+    } catch (error) {
+      await this.driver.delete(asset).catch(() => undefined)
+      throw error
+    }
     return asset
   }
 
