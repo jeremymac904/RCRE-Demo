@@ -1,37 +1,33 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { requireActor } from '@/lib/platform/auth'
-import { randomUUID } from 'node:crypto'
+import { resolveTransactionException } from '@/lib/services/transaction-exceptions'
+
+const bodySchema = z.object({ note: z.string().trim().min(1).max(2000) }).strict()
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const actor = await requireActor()
-    if (!['broker_owner', 'managing_broker'].includes(actor.role)) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    const origin = request.headers.get('origin')
+    const host = request.headers.get('host')
+    if (origin && (!host || new URL(origin).host !== host)) {
+      return NextResponse.json({ error: 'Origin access denied' }, { status: 403 })
     }
+    if (!origin && process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Origin verification required' }, { status: 403 })
+    }
+    const size = Number(request.headers.get('content-length') || 0)
+    if (!size || size > 8192) return NextResponse.json({ error: 'Resolution request must be between 1 byte and 8 KB' }, { status: 400 })
+    const body = bodySchema.parse(await request.json())
     const { id } = await params
-    // In production this would update a durable exception store.
-    // For now, return a synthetic resolved exception.
-    const resolved = {
-      id,
-      transactionId: id.replace(/^exc-/, '').split('-')[0],
-      type: 'deadline_breach',
-      description: 'Resolved via broker action',
-      severity: 'medium' as const,
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      ageDays: 1,
-      transaction: { id: id.split('-')[0], address: '', client: '', status: 'active', updatedAt: new Date().toISOString() },
-      assignedTc: '—',
-      assignedAgent: '—',
-      resolved: true,
-      resolvedAt: new Date().toISOString(),
-      resolvedBy: actor.name,
-      resolution: 'Broker reviewed and resolved',
-    }
-    return NextResponse.json(resolved)
+    const result = resolveTransactionException(actor, id, body.note)
+    return NextResponse.json(result)
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 401 })
+    const error = e as Error & { status?: number }
+    const status = typeof error.status === 'number' ? error.status : /denied/i.test(error.message) ? 403 : /not found/i.test(error.message) ? 404 : 400
+    return NextResponse.json({ error: error.message || 'Request failed' }, { status })
   }
 }

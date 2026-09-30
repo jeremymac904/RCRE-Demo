@@ -68,7 +68,7 @@ function ExceptionCard({
   onResolve,
 }: {
   exc: TransactionException
-  onResolve: (id: string) => void
+  onResolve: (id: string, note: string) => void
 }) {
   const [showResolve, setShowResolve] = useState(false)
   const [note, setNote] = useState('')
@@ -113,7 +113,7 @@ function ExceptionCard({
               <button
                 className="btn-primary text-xs"
                 disabled={!note.trim()}
-                onClick={() => { onResolve(exc.id); setShowResolve(false); setNote('') }}
+                onClick={() => { onResolve(exc.id, note); setShowResolve(false); setNote('') }}
               >
                 Confirm resolution
               </button>
@@ -164,16 +164,17 @@ export default function BrokerExceptionsPage() {
       .catch((e) => setError(e.message))
   }, [])
 
-  async function handleResolve(id: string) {
+  async function handleResolve(id: string, note: string) {
     setBusy(true)
     try {
       const r = await fetch(`/api/transactions/broker-exceptions/${id}/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ note }),
       })
-      if (!r.ok) throw new Error('Resolution failed')
-      const updated: TransactionException = await r.json()
+      if (!r.ok) throw new Error((await r.json()).error || 'Resolution failed')
+      const stored = await r.json()
+      const updated = { ...exceptions.find((exception) => exception.id === stored.id)!, ...stored, resolved: true } as TransactionException
       setExceptions((prev) => prev.filter((e) => e.id !== updated.id))
       setResolved((prev) => [updated, ...prev])
     } catch (e) {
