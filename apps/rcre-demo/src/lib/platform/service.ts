@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { CONTACTS,TASKS,APPOINTMENTS,LISTINGS,RECRUITS,STAGE_THRESHOLD_DAYS,type DemoContact,type DemoTask,type DemoAppointment } from '@/data/demo'
 import { getRecord,putRecord,readRecords,transaction } from './store'
 import { type PlatformActor,PERSONAS,directory,can,scopedOwner,assertCapability,AccessError } from './auth'
+import type { Actor as RepositoryActor, Repository } from '@/lib/db/repository'
+import { getRepository } from '@/lib/db'
 export interface Contact extends DemoContact {organizationId:string;officeId:string;version:number;consent?:boolean;sourceSystem?:string;fubId?:number;sourceDeleted?:boolean}
 export interface Task extends DemoTask {organizationId:string;officeId:string;version:number;sourceDeleted?:boolean}
 export interface Appointment extends DemoAppointment {organizationId:string;officeId:string;endsAt:string;version:number;kind?:string;sourceDeleted?:boolean;createdAt?:string;status?:'planned'|'held'|'missed'|'canceled'|'completed';taskId?:string|null}
@@ -42,3 +44,121 @@ export function processCalendarReminders(a:PlatformActor,now=Date.now()){const p
 export interface ProposedFubChange {id:string;organizationId:string;ownerId:string;officeId:string;contactId:string;sourceVersion:number;patch:Record<string,unknown>;state:'awaiting_connector'|'discarded';submittedBy:string;createdAt:string;discardedAt?:string}
 export function listProposedFubChanges(a:PlatformActor,contactId?:string){assertCapability(a,'crm');return readRecords<ProposedFubChange>('fub_proposed_changes').filter(p=>p.organizationId===a.organizationId&&(!contactId||p.contactId===contactId)&&scopedOwner(a,p.ownerId,p.officeId))}
 export function discardProposedFubChange(a:PlatformActor,id:string){return transaction(()=>{const proposal=listProposedFubChanges(a).find(p=>p.id===id);if(!proposal||proposal.state!=='awaiting_connector')throw new AccessError('Pending proposal not found',404);const next={...proposal,state:'discarded' as const,discardedAt:new Date().toISOString()};putRecord('fub_proposed_changes',next);audit(a,'fub.proposal_discarded',id);return next})}
+
+
+// Production CRM records live in the shared tenant-scoped PostgreSQL repository.
+// The legacy platform store remains the fixture adapter used by local review.
+function repositoryActor(a: PlatformActor): RepositoryActor {
+  const roles: Record<PlatformActor['role'], RepositoryActor['role']> = {
+    broker_owner: 'owner', managing_broker: 'broker', team_leader: 'team_lead',
+    agent: 'agent', transaction_coordinator: 'staff', marketing_admin: 'staff', trainer: 'viewer',
+  }
+  return { userId: a.id, organizationId: a.organizationId, role: roles[a.role] }
+}
+
+function contactDomainActor(a: PlatformActor): RepositoryActor {
+  if (!a || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(a.id)
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(a.organizationId)) {
+    throw new AccessError('A verified durable organization membership is required.', 503)
+  }
+  return repositoryActor(a)
+}
+
+export interface ContactQuery {
+  query?: string
+  stage?: string
+  source?: string
+  ownerId?: string
+  sort?: 'name' | 'oldest' | 'newest' | 'stage' | 'source'
+  page?: number
+  pageSize?: number
+}
+
+function filterContactRows(a: PlatformActor, rows: Contact[], input: ContactQuery) {
+  let result = rows.filter(c => c.organizationId === a.organizationId && !c.sourceDeleted && scopedOwner(a, c.ownerId, c.officeId))
+  if (input.stage) result = result.filter(c => c.stage === input.stage)
+  if (input.source) result = result.filter(c => c.source === input.source)
+  if (input.ownerId) result = result.filter(c => c.ownerId === input.ownerId)
+  const q = input.query?.trim().toLocaleLowerCase()
+  if (q) result = result.filter(c => [c.firstName, c.lastName, c.email, c.phone, c.source, c.location, c.stage, ...(c.tags ?? [])]
+    .some(value => String(value ?? '').toLocaleLowerCase().includes(q)))
+  const sort = input.sort ?? 'newest'
+  result.sort((left, right) => {
+    if (sort === 'name') return `${left.firstName} ${left.lastName}`.localeCompare(`${right.firstName} ${right.lastName}`) || left.id.localeCompare(right.id)
+    if (sort === 'stage') return left.stage.localeCompare(right.stage) || left.id.localeCompare(right.id)
+    if (sort === 'source') return left.source.localeCompare(right.source) || left.id.localeCompare(right.id)
+    const time = Date.parse(left.receivedAt) - Date.parse(right.receivedAt)
+    return (sort === 'oldest' ? time : -time) || left.id.localeCompare(right.id)
+  })
+  return result
+}
+
+/** Server-side bounded People query; PostgreSQL results are never sent unpaged. */
+export async function listContactsPage(a: PlatformActor, input: ContactQuery = {}, repository?: Repository) {
+  assertCapability(a, 'crm')
+  const pageValue = Number(input.page ?? 1)
+  const sizeValue = Number(input.pageSize ?? 50)
+  const page = Number.isFinite(pageValue) ? Math.max(1, Math.trunc(pageValue)) : 1
+  const pageSize = Number.isFinite(sizeValue) ? Math.max(1, Math.min(100, Math.trunc(sizeValue))) : 50
+  let rows: Contact[]
+  if (repository) {
+    const actor = contactDomainActor(a)
+    const visible = await repository.listDomainRecords<Record<string, unknown>>(actor, 'crm_contacts', { limit: 200, offset: 0 })
+    rows = visible.map(record => record.data as unknown as Contact)
+    for (let offset = visible.length; visible.length === 200; offset += 200) {
+      const next = await repository.listDomainRecords<Record<string, unknown>>(actor, 'crm_contacts', { limit: 200, offset })
+      rows.push(...next.map(record => record.data as unknown as Contact))
+      if (next.length < 200) break
+    }
+  } else {
+    rows = listContacts(a)
+  }
+  const filtered = filterContactRows(a, rows, input)
+  const total = filtered.length
+  return { rows: filtered.slice((page - 1) * pageSize, page * pageSize), total, page, pageSize, pageCount: Math.ceil(total / pageSize) }
+}
+
+export async function getContactDurable(a: PlatformActor, id: string, repository?: Repository) {
+  repository ??= await getRepository()
+  assertCapability(a, 'crm')
+  const actor = contactDomainActor(a)
+  const record = await repository.getDomainRecord<Record<string, unknown>>(actor, 'crm_contacts', id)
+  if (!record) throw new AccessError('Record not found', 404)
+  const contact = record.data as unknown as Contact
+  if (contact.organizationId !== a.organizationId || !scopedOwner(a, contact.ownerId, contact.officeId)) throw new AccessError('Record not found', 404)
+  return { ...contact, version: record.version }
+}
+
+export async function createContactDurable(a: PlatformActor, input: Record<string, any>, repository?: Repository) {
+  repository ??= await getRepository()
+  assertCapability(a, 'crm')
+  const actor = contactDomainActor(a)
+  const user = await repository.getUser(actor, a.id)
+  if (!user?.isActive || user.organizationId !== a.organizationId) throw new AccessError('Active organization membership is required.', 403)
+  const requestedOwner = String(input.ownerId ?? a.id)
+  if (requestedOwner !== a.id && !['broker_owner', 'managing_broker', 'team_leader'].includes(a.role)) throw new AccessError('Assignment is outside your scope', 403)
+  const owner = requestedOwner === a.id ? user : await repository.getUser(actor, requestedOwner)
+  if (!owner?.isActive || owner.organizationId !== a.organizationId || (requestedOwner !== a.id && !['agent', 'team_lead'].includes(owner.role))) {
+    throw new AccessError('Assigned agent is not active in this organization.', 400)
+  }
+  const profile = await repository.getDomainRecord<Record<string, unknown>>(actor, 'member_profiles', requestedOwner)
+  const officeId = String(profile?.data.officeId ?? (requestedOwner === a.id ? a.officeId : ''))
+  if (!officeId || (requestedOwner !== a.id && a.role !== 'broker_owner' && officeId !== a.officeId)) throw new AccessError('Assignment is outside your office scope.', 403)
+  const now = new Date().toISOString()
+  const source = String(input.source ?? 'Manual Entry').trim().slice(0, 200) || 'Manual Entry'
+  const contact: Contact = {
+    id: randomUUID(), organizationId: a.organizationId, officeId, ownerId: requestedOwner, version: 1,
+    firstName: String(input.firstName).trim(), lastName: String(input.lastName ?? '').trim(),
+    initials: `${String(input.firstName).trim()[0] ?? ''}${String(input.lastName ?? '').trim()[0] ?? ''}`,
+    stage: 'New Lead', source: source as Contact['source'], email: String(input.email ?? '').trim().toLowerCase(), phone: String(input.phone ?? '').trim(),
+    location: String(input.market ?? profile?.data.market ?? '').slice(0, 150), receivedAt: now, stageEnteredAt: now,
+    firstTouchAt: null, lastTouchAt: null, lastInboundAt: null, lastOutboundAt: null, timeline: [],
+    priority: null, reasons: [], tags: [], consent: input.consent === true,
+  }
+  const written = await repository.putDomainRecord(actor, { collection: 'crm_contacts', recordId: contact.id, ownerUserId: requestedOwner, data: contact as unknown as Record<string, unknown> })
+  await repository.putDomainRecord(actor, {
+    collection: 'crm_assignment_history', recordId: `${contact.id}:initial`, ownerUserId: requestedOwner,
+    data: { contactId: contact.id, organizationId: a.organizationId, originalRecipient: requestedOwner, to: requestedOwner, at: now, actorId: a.id, kind: 'initial delivery' },
+  })
+  return { ...contact, version: written.version }
+}

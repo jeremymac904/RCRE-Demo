@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getProperty, fixturesEnabled } from '@/lib/property/service'
-import { assertIntakeAllowed, IntakeError, persistLocalIntake } from '@/lib/public/intake'
+import { assertIntakeAllowed, IntakeError, persistIntake } from '@/lib/public/intake'
 
 export const runtime = 'nodejs'
 
@@ -36,14 +36,14 @@ export async function POST(req: NextRequest) {
     const length = Number(req.headers.get('content-length') ?? 0)
     if (length > 20_000) return fail('Request is too large.', 413)
     const input = schema.parse(await req.json())
-    assertIntakeAllowed(req, input.submissionId, input.website)
+    await assertIntakeAllowed(req, input.submissionId, input.website)
     const listing = await getProperty(input.listingId)
     if (!listing || listing.providerId !== input.providerId || listing.mlsListingId !== input.mlsListingId) {
       return fail('Property details changed. Reload the property and try again.', 409)
     }
     if (!fixturesEnabled() && listing.fixture) return fail('This property is not available.', 404)
     const propertyAddress = [listing.streetNumber, listing.streetName, listing.unitNumber, listing.city, listing.stateOrProvince, listing.postalCode].filter(Boolean).join(' ')
-    const saved = persistLocalIntake({
+    const saved = await persistIntake({
       ...input,
       kind: 'property',
       agentSlug: input.agentWebsiteSlug,
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({
       ...saved,
-      message: 'Your request has been saved locally. No message was sent and no appointment is confirmed.',
+      message: saved.persistence === 'postgres' ? 'Your request has been recorded. No message was sent and no appointment is confirmed.' : 'Your request has been saved locally. No message was sent and no appointment is confirmed.',
     }, { status: saved.duplicate ? 200 : 201, headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     if (error instanceof IntakeError) return fail(error.message, error.status)
