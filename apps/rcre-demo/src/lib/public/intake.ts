@@ -240,17 +240,45 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
     utmSource: input.utmSource, utmMedium: input.utmMedium, utmCampaign: input.utmCampaign,
     utmContent: input.utmContent, utmTerm: input.utmTerm, receivedAt: now,
   } : undefined }
+  // Keep public lead alerts on the same durable notification contract used by
+  // the portal. These IDs deliberately match DurableNotificationService's
+  // stable IDs so retries and later service reads resolve to the same records.
+  const notificationKey = `website-lead:${inquiryId}`
+  const notificationId = digest(`inbox\0${actor.organizationId}\0${owner.id}\0${notificationKey}`)
+  const outboxId = digest(`outbox\0${actor.organizationId}\0${owner.id}\0${notificationKey}`)
+  const idempotencyKeyHash = digest(`idempotency\0${actor.organizationId}\0${owner.id}\0${notificationKey}`)
+  const preferences = await repository.getDomainRecord<Record<string, any>>(actor, 'notification_preferences', owner.id)
+  const preferenceData = preferences?.data
+  const notificationEnabled = preferenceData?.eventTypes?.website_lead !== false && preferenceData?.inAppEnabled !== false
+  const notificationState = notificationEnabled ? 'queued' : 'suppressed'
+  const notification = {
+    id: notificationId, organizationId: actor.organizationId, ownerUserId: owner.id,
+    eventType: 'website_lead', channel: 'in_app', title: 'New website lead received',
+    href: `/crm/${contactId}`, source: 'RCRE', createdAt: now, readAt: null,
+    deliveryState: notificationState, idempotencyKeyHash,
+  }
+  const notificationOutbox = {
+    id: outboxId, organizationId: actor.organizationId, ownerUserId: owner.id,
+    notificationId, eventType: 'website_lead', channel: 'in_app', state: notificationState,
+    attempts: 0, maxAttempts: 5, nextAttemptAt: now, lastFailureCode: null,
+    providerReceipt: null, createdAt: now, updatedAt: now,
+  }
   try {
     await repository.putDomainRecordsAtomic(actor, [
       { collection: 'public_inquiries', recordId: inquiryId, ownerUserId: owner.id,
         data: { ...inquiry, bodyHash }, ...(priorInquiry ? { expectedVersion: priorInquiry.version } : { createOnly: true }) },
       { collection: 'crm_contacts', recordId: contactId, ownerUserId: owner.id,
         data: nextContact, ...(existing ? { expectedVersion: existing.version } : { createOnly: true }) },
-      { collection: 'notification_outbox', recordId: `website-lead:${inquiryId}`, ownerUserId: owner.id,
-        data: { organizationId: actor.organizationId, ownerId: owner.id, kind: 'website_lead', status: 'queued', idempotencyKey: `website-lead:${inquiryId}`, createdAt: now, payload: { contactId, inquiryId, source } } },
+      { collection: 'notification_inbox', recordId: notificationId, ownerUserId: owner.id,
+        data: notification, createOnly: true },
+      { collection: 'notification_outbox', recordId: outboxId, ownerUserId: owner.id,
+        data: notificationOutbox, createOnly: true },
       { collection: 'public_intake_idempotency', recordId: idempotencyKey, ownerUserId: owner.id,
         data: { inquiryId, contactId, bodyHash, createdAt: now }, createOnly: true },
-    ], [{ organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'system', action: 'public.lead_received', targetType: 'contact', targetId: contactId, effect: 'write', allowed: true, detail: { source, inquiryId } }])
+    ], [
+      { organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'system', action: 'public.lead_received', targetType: 'contact', targetId: contactId, effect: 'write', allowed: true, detail: { source, inquiryId } },
+      { organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'system', action: notificationEnabled ? 'notification.queued' : 'notification.suppressed', targetType: 'notification', targetId: notificationId, effect: 'write', allowed: true, detail: { channel: 'in_app', eventType: 'website_lead' } },
+    ])
   } catch (error) {
     if (!(error instanceof DomainRecordConflictError)) throw error
     const winner = await repository.getDomainRecord<Record<string, any>>(actor, 'public_intake_idempotency', idempotencyKey)
