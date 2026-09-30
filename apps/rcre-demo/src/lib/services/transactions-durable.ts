@@ -90,7 +90,7 @@ export class DurableTransactionService {
     return record.data
   }
 
-  async create(actor: TransactionFileActor, input: { address: string; client: string; representation?: 'buyer' | 'seller'; closingDate?: string; officeId?: string; teamId?: string }): Promise<DurableTransaction> {
+  async create(actor: TransactionFileActor & { officeId?: string }, input: { address: string; client: string; representation?: 'buyer' | 'seller'; closingDate?: string }): Promise<DurableTransaction> {
     const repo = await this.db(), scoped = transactionRepositoryActor(actor)
     if (!['owner', 'broker_owner', 'broker', 'managing_broker', 'team_lead', 'team_leader', 'agent', 'transaction_coordinator'].includes(actor.role)) throw new StorageAuthorizationError()
     const address = input.address.trim(), client = input.client.trim()
@@ -99,7 +99,9 @@ export class DurableTransactionService {
     if (closingDate && !validDateOnly(closingDate)) throw new Error('Closing date must be a valid calendar date')
     const id = randomUUID(), now = new Date().toISOString()
     const tx: DurableTransaction = {
-      id, organizationId: actor.organizationId, ownerId: actor.userId, officeId: input.officeId ?? '', teamId: input.teamId ?? actor.teamId ?? '', tcId: '',
+      // Scope comes only from the authenticated actor; request bodies cannot
+      // place a transaction into another office or team.
+      id, organizationId: actor.organizationId, ownerId: actor.userId, officeId: actor.officeId ?? '', teamId: actor.teamId ?? '', tcId: '',
       address, client, representation: input.representation ?? 'buyer', status: 'active', closingDate, version: 1,
       updatedAt: now, deadlines: [], checklist: [], comments: [],
     }

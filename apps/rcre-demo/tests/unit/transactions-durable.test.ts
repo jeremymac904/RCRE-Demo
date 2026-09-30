@@ -54,7 +54,7 @@ it('lets an assigned transaction coordinator update coordination fields but neve
 })
 
 it('offers canonical active assignment options and records a broker-authorized owner and TC change', async () => {
-  const created = await service.create(actor, { address: '500 Example Way', client: 'Demo Client', officeId: 'fl', teamId: 'fl' })
+  const created = await service.create({ ...actor, officeId: 'fl', teamId: 'fl' }, { address: '500 Example Way', client: 'Demo Client' })
   const managingBroker: PlatformActor = { id: '55555555-5555-4555-8555-555555555555', userId: '55555555-5555-4555-8555-555555555555', organizationId: org, role: 'managing_broker', name: 'Managing Broker', market: 'Florida', officeId: 'fl', teamId: 'fl' }
   const members: MemberSummary[] = [
     { userId: ownerId, organizationId: org, canonicalPersonId: null, email: 'agent@example.test', name: 'Active Agent', platformRole: 'agent', active: true, accountStatus: 'active', officeId: 'fl', teamId: 'fl', market: 'Florida', lastLoginAt: null },
@@ -79,4 +79,19 @@ it('does not expose assignment controls to team leaders, agents, or transaction 
   expect(await service.assignmentOptions(agentPlatform)).toMatchObject({ canAssign: false, assignmentOptions: [] })
   expect(await service.assignmentOptions(tcPlatform)).toMatchObject({ canAssign: false, assignmentOptions: [] })
   expect(await service.assignmentOptions(teamLead)).toMatchObject({ canAssign: false, assignmentOptions: [] })
+})
+
+it('keeps a live-route managing-broker create in the authenticated office so it can be assigned immediately', async () => {
+  const managingBroker: PlatformActor = { id: '55555555-5555-4555-8555-555555555555', userId: '55555555-5555-4555-8555-555555555555', organizationId: org, role: 'managing_broker', name: 'Managing Broker', market: 'Florida', officeId: 'fl', teamId: 'fl' }
+  const members: MemberSummary[] = [
+    { userId: ownerId, organizationId: org, canonicalPersonId: null, email: 'agent@example.test', name: 'Active Agent', platformRole: 'agent', active: true, accountStatus: 'active', officeId: 'fl', teamId: 'fl', market: 'Florida', lastLoginAt: null },
+  ]
+  const durable = new DurableTransactionService({ repository: repo, listMembers: async () => members })
+
+  // Mirrors the live API's allowlisted create payload. Office/team come from
+  // the authenticated actor, never from user-submitted transaction fields.
+  const created = await durable.create(managingBroker, { address: '900 Example Way', client: 'Route Demo Client', representation: 'buyer' })
+  expect(created).toMatchObject({ officeId: 'fl', teamId: 'fl', ownerId: managingBroker.userId })
+  const assigned = await durable.assign(managingBroker, created.id, created.version, ownerId)
+  expect(assigned).toMatchObject({ officeId: 'fl', teamId: 'fl', ownerId, version: 2 })
 })
