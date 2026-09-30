@@ -15,6 +15,8 @@ export interface AuthActorRow {
   expiresAt?: string
 }
 
+export interface AuthSessionSummary { id: string; createdAt: string; expiresAt: number; revoked: boolean; lastUsedAt: string | null; deviceLabel: string | null }
+
 export interface MemberSummary { userId: string; organizationId: string; canonicalPersonId: string | null; email: string; name: string; platformRole: PlatformRole; active: boolean; accountStatus: string; officeId: string; teamId: string; market: string; lastLoginAt: string | null }
 
 export interface AuthPersistence {
@@ -22,6 +24,8 @@ export interface AuthPersistence {
   issueSession(input: { userId: string; tokenHash: string; expiresAt: Date; deviceLabel: string; userAgentHash: string; ipHash: string }): Promise<{ sessionId: string } | null>
   validateSession(tokenHash: string): Promise<AuthActorRow | null>
   revokeSession(tokenHash: string): Promise<boolean>
+  listSessions(actor: PlatformActor): Promise<AuthSessionSummary[]>
+  revokeSessionById(actor: PlatformActor, sessionId: string): Promise<boolean>
   rotateSession(input: { oldTokenHash: string; newTokenHash: string; expiresAt: Date; deviceLabel: string; userAgentHash: string; ipHash: string }): Promise<{ sessionId: string } | null>
   invitationStatus(tokenHash: string): Promise<{ valid: boolean; email: string; expiresAt: string; name: string } | null>
   listInvitations(actor: PlatformActor): Promise<Array<{ id: string; email: string; name: string; role: PlatformRole; status: string; createdAt: string; expiresAt: string; acceptedAt: string | null; mailStatus: string | null }>>

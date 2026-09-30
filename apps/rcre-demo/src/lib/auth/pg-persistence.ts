@@ -2,7 +2,7 @@ import 'server-only'
 import type { Pool, PoolClient, QueryResultRow } from 'pg'
 import { withRlsSession } from '@/lib/db/rls'
 import type { Actor } from '@/lib/db/repository'
-import type { AuthActorRow, AuthPersistence, EncryptedMailPayload, MemberSummary } from './persistence'
+import type { AuthActorRow, AuthPersistence, AuthSessionSummary, EncryptedMailPayload, MemberSummary } from './persistence'
 import type { PlatformActor, PlatformRole } from '@/lib/platform/auth'
 import { repositoryRoleForPlatform } from './role-mapping'
 
@@ -65,6 +65,31 @@ export class PgAuthPersistence implements AuthPersistence {
       'select rcre_auth_revoke_session($1::char(64))', [tokenHash],
     )
     return Boolean(result.rows[0]?.rcre_auth_revoke_session)
+  }
+
+  async listSessions(actor: PlatformActor): Promise<AuthSessionSummary[]> {
+    const dbActor: Actor = { userId: actor.id, organizationId: actor.organizationId, role: dbRole(actor.role) }
+    const client: PoolClient = await this.pool.connect()
+    try {
+      const result = await withRlsSession(client, dbActor, async scoped => await scoped.query(
+        'select * from rcre_auth_list_my_sessions()', [],
+      ) as { rows: Array<Record<string, unknown>> })
+      return result.rows.map(row => ({ id: String(row.id), createdAt: new Date(String(row.issued_at)).toISOString(),
+        expiresAt: new Date(String(row.expires_at)).getTime(), revoked: Boolean(row.revoked_at),
+        lastUsedAt: row.last_used_at ? new Date(String(row.last_used_at)).toISOString() : null,
+        deviceLabel: row.device_label ? String(row.device_label) : null }))
+    } finally { client.release() }
+  }
+
+  async revokeSessionById(actor: PlatformActor, sessionId: string): Promise<boolean> {
+    const dbActor: Actor = { userId: actor.id, organizationId: actor.organizationId, role: dbRole(actor.role) }
+    const client: PoolClient = await this.pool.connect()
+    try {
+      const result = await withRlsSession(client, dbActor, async scoped => await scoped.query(
+        'select rcre_auth_revoke_session_by_id($1::uuid) as revoked', [sessionId],
+      ) as { rows: Array<{ revoked: boolean }> })
+      return Boolean(result.rows[0]?.revoked)
+    } finally { client.release() }
   }
 
   async rotateSession(input: { oldTokenHash: string; newTokenHash: string; expiresAt: Date; deviceLabel: string; userAgentHash: string; ipHash: string }) {

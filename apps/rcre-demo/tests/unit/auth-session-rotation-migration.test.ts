@@ -8,7 +8,8 @@ const fix = readFileSync(join(migrations, '0011_fix_session_rotation.sql'), 'utf
 describe('forward-only session rotation repair', () => {
   it('ships after the existing auth migration without rewriting applied history', () => {
     const names = readdirSync(migrations).filter(name => /^\d{4}_[a-z0-9_]+\.sql$/.test(name)).sort()
-    expect(names.at(-1)).toBe('0011_fix_session_rotation.sql')
+    expect(names).toContain('0011_fix_session_rotation.sql')
+    expect(names.at(-1)).toBe('0012_auth_session_management.sql')
     expect(fix).toMatch(/create or replace function rcre_auth_rotate_session\(p_old_hash char\(64\)/)
     expect(fix).toMatch(/language plpgsql security definer set search_path=public,pg_temp/)
   })
