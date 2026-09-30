@@ -3,7 +3,7 @@ import { Pool, type PoolClient } from 'pg'
 import { env } from '@/lib/config/env'
 import {
   PermissionDeniedError, canSeeRecruiting, canSeeWholeBrokerage,
-  type Actor, type Repository,
+  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type Repository,
 } from './repository'
 import { withRlsSession } from './rls'
 import type {
@@ -40,7 +40,7 @@ import type {
  * SQL are written; the MemoryRepository is what the MVP currently runs on.
  */
 let pool: Pool | null = null
-function getPool(): Pool {
+export function getPgPool(): Pool {
   if (!pool) {
     if (!env.databaseUrl) throw new Error('DATABASE_URL is not configured')
     pool = new Pool({ connectionString: env.databaseUrl, max: 10 })
@@ -59,6 +59,28 @@ function personScope(actor: Actor, alias = 'p'): { sql: string; params: unknown[
   }
 }
 
+const MAX_DOMAIN_JSON_BYTES = 256 * 1024
+
+function validateDomainKey(collection: string, recordId: string): void {
+  if (!/^[a-z][a-z0-9_.-]{0,79}$/i.test(collection)) {
+    throw new TypeError('Domain collection must be 1-80 safe characters')
+  }
+  if (typeof recordId !== 'string' || recordId.length < 1 || recordId.length > 200) {
+    throw new TypeError('Domain record id must be 1-200 characters')
+  }
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
+}
+
+function canWriteDomainOwner(actor: Actor, ownerUserId: string | null): boolean {
+  const admin = ['owner', 'broker', 'staff'].includes(actor.role)
+  return ownerUserId === null ? ['owner', 'broker'].includes(actor.role)
+    : ownerUserId === actor.userId || admin
+}
+
 export class PgRepository implements Repository {
   /**
    * Run one query as `actor`.
@@ -73,7 +95,7 @@ export class PgRepository implements Repository {
     text: string,
     params: unknown[] = [],
   ): Promise<T[]> {
-    const client: PoolClient = await getPool().connect()
+    const client: PoolClient = await getPgPool().connect()
     try {
       return await withRlsSession<T[]>(client, actor, async c => {
         const res = (await c.query(text, params)) as { rows?: unknown[] }
@@ -260,6 +282,75 @@ export class PgRepository implements Repository {
               target_id as "targetId", effect, allowed, denied_reason as "deniedReason",
               detail, occurred_at as "occurredAt"
          from audit_events where organization_id = $1
-        order by occurred_at desc limit $2`, [actor.organizationId, limit])
+        order by occurred_at desc limit $2`, [actor.organizationId, Math.max(1, Math.min(limit, 500))])
+  }
+
+  private domainRecordColumns = `organization_id as "organizationId", collection,
+    record_id as "recordId", owner_user_id as "ownerUserId", data, version,
+    created_at as "createdAt", updated_at as "updatedAt"`
+
+  async getDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, recordId: string,
+  ): Promise<DomainRecord<T> | null> {
+    validateDomainKey(collection, recordId)
+    const rows = await this.q<DomainRecord<T>>(actor,
+      `select ${this.domainRecordColumns} from rcre_domain_records
+        where organization_id = $1 and collection = $2 and record_id = $3`,
+      [actor.organizationId, collection, recordId])
+    return rows[0] ?? null
+  }
+
+  async listDomainRecords<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, options: DomainRecordListOptions = {},
+  ): Promise<DomainRecord<T>[]> {
+    validateDomainKey(collection, 'list')
+    const limit = Math.max(1, Math.min(Math.trunc(options.limit ?? 50), 200))
+    const offset = Math.max(0, Math.trunc(options.offset ?? 0))
+    return this.q<DomainRecord<T>>(actor,
+      `select ${this.domainRecordColumns} from rcre_domain_records
+        where organization_id = $1 and collection = $2
+        order by updated_at desc, record_id asc limit $3 offset $4`,
+      [actor.organizationId, collection, limit, offset])
+  }
+
+  async putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: DomainRecordInput<T>,
+  ): Promise<DomainRecord<T>> {
+    validateDomainKey(input.collection, input.recordId)
+    const ownerUserId = input.ownerUserId ?? null
+    if (!canWriteDomainOwner(actor, ownerUserId)) {
+      throw new PermissionDeniedError('putDomainRecord', 'record owner is outside this actor scope')
+    }
+    if (!isPlainRecord(input.data)) throw new TypeError('Domain data must be a JSON object')
+    const json = JSON.stringify(input.data)
+    if (Buffer.byteLength(json, 'utf8') > MAX_DOMAIN_JSON_BYTES) {
+      throw new RangeError('Domain record exceeds the 256 KB limit')
+    }
+    const rows = input.expectedVersion === undefined
+      ? await this.q<DomainRecord<T>>(actor,
+        `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
+         values ($1, $2, $3, $4, $5::jsonb)
+         on conflict (organization_id, collection, record_id) do update
+           set owner_user_id = excluded.owner_user_id, data = excluded.data,
+               version = rcre_domain_records.version + 1, updated_at = now()
+         returning ${this.domainRecordColumns}`,
+        [actor.organizationId, input.collection, input.recordId, ownerUserId, json])
+      : await this.q<DomainRecord<T>>(actor,
+        `update rcre_domain_records set owner_user_id = $4, data = $5::jsonb,
+             version = version + 1, updated_at = now()
+         where organization_id = $1 and collection = $2 and record_id = $3 and version = $6
+         returning ${this.domainRecordColumns}`,
+        [actor.organizationId, input.collection, input.recordId, ownerUserId, json, input.expectedVersion])
+    if (!rows[0]) throw new Error('Domain record version conflict or record is not visible')
+    return rows[0]
+  }
+
+  async deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean> {
+    validateDomainKey(collection, recordId)
+    const rows = await this.q<{ recordId: string }>(actor,
+      `delete from rcre_domain_records
+        where organization_id = $1 and collection = $2 and record_id = $3
+        returning record_id as "recordId"`, [actor.organizationId, collection, recordId])
+    return rows.length > 0
   }
 }

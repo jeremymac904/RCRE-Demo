@@ -39,6 +39,32 @@ export function canSeeRecruiting(role: UserRole): boolean {
   return RECRUITING_ROLES.has(role)
 }
 
+export interface DomainRecord<T extends Record<string, unknown> = Record<string, unknown>> {
+  organizationId: string
+  collection: string
+  recordId: string
+  /** Null means organization-visible data, writable only by brokerage administrators. */
+  ownerUserId: string | null
+  data: T
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DomainRecordInput<T extends Record<string, unknown> = Record<string, unknown>> {
+  collection: string
+  recordId: string
+  ownerUserId?: string | null
+  data: T
+  /** Optional optimistic concurrency check; omit only for create-or-replace operations. */
+  expectedVersion?: number
+}
+
+export interface DomainRecordListOptions {
+  limit?: number
+  offset?: number
+}
+
 export interface Repository {
   getOrganization(actor: Actor, id: string): Promise<Organization | null>
   getUser(actor: Actor, id: string): Promise<User | null>
@@ -56,6 +82,18 @@ export interface Repository {
 
   recordAudit(actor: Actor, event: AuditEvent): Promise<void>
   listAudit(actor: Actor, limit?: number): Promise<(AuditEvent & { occurredAt: string })[]>
+
+  /** Durable JSONB bridge for domain services migrating from the legacy platform store. */
+  getDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, recordId: string,
+  ): Promise<DomainRecord<T> | null>
+  listDomainRecords<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, options?: DomainRecordListOptions,
+  ): Promise<DomainRecord<T>[]>
+  putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: DomainRecordInput<T>,
+  ): Promise<DomainRecord<T>>
+  deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean>
 }
 
 /** Thrown when an actor requests something outside their scope. */
@@ -90,6 +128,7 @@ export function emptySeed(): MemorySeed {
 
 export class MemoryRepository implements Repository {
   private audit: (AuditEvent & { occurredAt: string })[] = []
+  private domainRecords = new Map<string, DomainRecord>()
 
   constructor(private seed: MemorySeed) {}
 
@@ -191,6 +230,76 @@ export class MemoryRepository implements Repository {
       .filter(a => a.organizationId === actor.organizationId)
       .slice(-limit)
       .reverse()
+  }
+
+
+  private domainKey(organizationId: string, collection: string, recordId: string): string {
+    return `${organizationId}\u0000${collection}\u0000${recordId}`
+  }
+
+  private canSeeDomainRecord(actor: Actor, record: DomainRecord): boolean {
+    if (actor.organizationId !== record.organizationId) return false
+    if (canSeeWholeBrokerage(actor.role) || actor.role === 'staff') return true
+    if (record.ownerUserId === null) return true
+    if (record.ownerUserId === actor.userId) return true
+    // Team lead scope is intentionally not widened in this generic bridge. A
+    // future caller may supply an explicit allowed-owner list after team policy.
+    return false
+  }
+
+  async getDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, recordId: string,
+  ): Promise<DomainRecord<T> | null> {
+    const record = this.domainRecords.get(this.domainKey(actor.organizationId, collection, recordId))
+    if (!record || !this.canSeeDomainRecord(actor, record)) return null
+    return structuredClone(record) as DomainRecord<T>
+  }
+
+  async listDomainRecords<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, options: DomainRecordListOptions = {},
+  ): Promise<DomainRecord<T>[]> {
+    const limit = Math.max(1, Math.min(options.limit ?? 50, 200))
+    const offset = Math.max(0, options.offset ?? 0)
+    return [...this.domainRecords.values()]
+      .filter(record => record.collection === collection && this.canSeeDomainRecord(actor, record))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.recordId.localeCompare(b.recordId))
+      .slice(offset, offset + limit)
+      .map(record => structuredClone(record) as DomainRecord<T>)
+  }
+
+  async putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: DomainRecordInput<T>,
+  ): Promise<DomainRecord<T>> {
+    const ownerUserId = input.ownerUserId ?? null
+    const mayWriteShared = ownerUserId === null && canSeeWholeBrokerage(actor.role)
+    const mayWriteOwned = ownerUserId === actor.userId
+      || (['owner', 'broker', 'staff'].includes(actor.role) && ownerUserId !== null)
+    if (!mayWriteShared && !mayWriteOwned) {
+      throw new PermissionDeniedError('putDomainRecord', 'record owner is outside this actor scope')
+    }
+    const key = this.domainKey(actor.organizationId, input.collection, input.recordId)
+    const prior = this.domainRecords.get(key)
+    if (prior && input.expectedVersion !== undefined && input.expectedVersion !== prior.version) {
+      throw new Error('Domain record version conflict')
+    }
+    const now = new Date().toISOString()
+    const record: DomainRecord<T> = {
+      organizationId: actor.organizationId, collection: input.collection,
+      recordId: input.recordId, ownerUserId, data: structuredClone(input.data),
+      version: (prior?.version ?? 0) + 1, createdAt: prior?.createdAt ?? now, updatedAt: now,
+    }
+    this.domainRecords.set(key, record as DomainRecord)
+    return structuredClone(record)
+  }
+
+  async deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean> {
+    const key = this.domainKey(actor.organizationId, collection, recordId)
+    const prior = this.domainRecords.get(key)
+    if (!prior || !this.canSeeDomainRecord(actor, prior)) return false
+    if (prior.ownerUserId !== actor.userId && !canSeeWholeBrokerage(actor.role)) {
+      throw new PermissionDeniedError('deleteDomainRecord', 'record owner is outside this actor scope')
+    }
+    return this.domainRecords.delete(key)
   }
 
   /** Test helper — direct access to the seed for assertions. */
