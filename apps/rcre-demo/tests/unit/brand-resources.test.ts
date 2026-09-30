@@ -27,6 +27,9 @@ describe('Brand Resources role and data guards', () => {
     expect(licenseForState(profile('Alabama'), 'Alabama')).toBe('public-license-value')
     expect(licenseForState(profile('Alabama & Florida', 'license-a, license-b'), 'Florida')).toBeNull()
     expect(licenseForState(profile('Alabama & Florida', 'license-a, license-b'), 'Alabama')).toBeNull()
+    expect(licenseForState({ license: '', market: 'Jacksonville, Birmingham', licenses: [{ state: 'Florida', number: 'FL-verified' }, { state: 'Alabama', number: 'AL-verified' }] }, 'Florida')).toBe('FL-verified')
+    expect(licenseForState({ license: '', market: 'Jacksonville, Birmingham', licenses: [{ state: 'Florida', number: 'FL-verified' }, { state: 'Alabama', number: 'AL-verified' }] }, 'Alabama')).toBe('AL-verified')
+    expect(licenseForState({ license: '', market: 'Jacksonville', licenses: [{ state: 'Florida', number: 'FL-verified' }, { state: 'Florida', number: 'FL-other' }] }, 'Florida')).toBeNull()
     expect(licenseForState(profile('Florida', ''), 'Florida')).toBeNull()
   })
 

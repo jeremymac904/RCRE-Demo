@@ -10,10 +10,13 @@ type PageMode = 'catalog' | 'cards' | 'signatures'
 const panel = 'border border-hair bg-ink-raised rounded-panel'
 const button = 'inline-flex min-h-11 items-center justify-center rounded-control border border-hair px-4 py-2 text-sm font-medium text-chalk hover:border-brass-fill hover:text-brass-ink focus:outline-none focus:ring-2 focus:ring-brass-fill'
 const input = 'min-h-11 w-full rounded-control border border-hair bg-ink px-3 py-2 text-chalk focus:outline-none focus:ring-2 focus:ring-brass-fill'
-const stateOptions = (market: string): BrandState[] => {
-  if (market === 'Alabama & Florida') return ['Alabama', 'Florida']
-  if (market === 'Alabama' || market === 'Florida') return [market]
-  return []
+const stateOptions = (agent: BrandAgent): BrandState[] => {
+  const available = new Set<BrandState>()
+  for (const license of agent.licenses ?? []) available.add(license.state)
+  const markets = agent.markets ?? [agent.market]
+  if (markets.some(market => /\bAlabama\b/i.test(market))) available.add('Alabama')
+  if (markets.some(market => /\bFlorida\b/i.test(market))) available.add('Florida')
+  return [...available]
 }
 const html = (value: string) => value.replace(/[<>&'"]/g, (char) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&#39;', '"': '&quot;' })[char] ?? char)
 function signatureHtml(agent: BrandAgent, state: BrandState, origin: string) {
@@ -72,7 +75,7 @@ export function BrandResources({ mode, agents, admin }: { mode: PageMode; agents
   const [copyError, setCopyError] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   if (!agent) return <main className="mx-auto max-w-5xl p-6 lg:p-10"><h1 className="font-display text-3xl">Brand resources</h1><p className="mt-4 text-chalk-muted">No active, visible canonical agent profiles are available to populate these tools.</p></main>
-  const options = stateOptions(agent.market)
+  const options = stateOptions(agent)
   const activeState = options.includes(state) ? state : (options[0] ?? 'Florida')
   const readiness = brandComplianceReadiness(activeState)
   const currentSide = cardSide
@@ -119,9 +122,9 @@ export function BrandResources({ mode, agents, admin }: { mode: PageMode; agents
     {mode === 'cards' && <div className="grid items-start gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
       <section className={panel + ' space-y-5 p-5'}>
         <h2 className="font-display text-xl">Build a concept</h2>
-        <label className="block text-sm">Canonical RCRE agent<select className={input + ' mt-2'} value={agent.slug} onChange={(event) => { setSelected(event.target.value); const next = agents.find((item) => item.slug === event.target.value); if (next) setState(stateOptions(next.market)[0] ?? 'Florida') }}>{agents.map((person) => <option key={person.slug} value={person.slug}>{person.name}</option>)}</select></label>
+        <label className="block text-sm">Canonical RCRE agent<select className={input + ' mt-2'} value={agent.slug} onChange={(event) => { setSelected(event.target.value); const next = agents.find((item) => item.slug === event.target.value); if (next) setState(stateOptions(next)[0] ?? 'Florida') }}>{agents.map((person) => <option key={person.slug} value={person.slug}>{person.name}</option>)}</select></label>
         <label className="block text-sm">Market and card jurisdiction<select className={input + ' mt-2'} value={activeState} onChange={(event) => setState(event.target.value as BrandState)}>{options.map((option) => <option key={option}>{option}</option>)}</select></label>
-        <div className="rounded-control border border-hair p-4 text-sm"><p className="font-medium">{agent.name}</p><p className="mt-1 text-chalk-muted">{agent.title} · {activeState}</p><p className="mt-3 text-chalk-muted">{licenseForState(agent, activeState) ? 'Public license value is available for this single-state profile.' : 'State-specific license value is not mapped; no license number will be shown.'}</p></div>
+        <div className="rounded-control border border-hair p-4 text-sm"><p className="font-medium">{agent.name}</p><p className="mt-1 text-chalk-muted">{agent.title} · {activeState}</p><p className="mt-3 text-chalk-muted">{licenseForState(agent, activeState) ? 'A public license value is mapped to this state.' : 'State-specific license value is not mapped; no license number will be shown.'}</p></div>
         <div role="status" className="rounded-control border border-amber-400/50 bg-amber-950/20 p-4 text-sm"><p className="font-medium text-amber-200">Concept only · not print-ready</p><p className="mt-2 text-chalk-muted">Approved {activeState} brokerage identity and required compliance wording are pending. Print-ready output is blocked.</p></div>
         {admin && <div className="rounded-control border border-amber-400/40 p-4 text-sm"><p className="font-semibold">Admin review required</p><p className="mt-1 text-chalk-muted">{readiness.reason} Supply approved identity, brokerage marks, and compliance wording before enabling print production.</p></div>}
       </section>
@@ -136,7 +139,7 @@ export function BrandResources({ mode, agents, admin }: { mode: PageMode; agents
     {mode === 'signatures' && <div className="grid items-start gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
       <section className={panel + ' space-y-5 p-5'}>
         <h2 className="font-display text-xl">Signature details</h2>
-        <label className="block text-sm">Canonical RCRE agent<select className={input + ' mt-2'} value={agent.slug} onChange={(event) => { setSelected(event.target.value); const next = agents.find((item) => item.slug === event.target.value); if (next) setState(stateOptions(next.market)[0] ?? 'Florida') }}>{agents.map((person) => <option key={person.slug} value={person.slug}>{person.name}</option>)}</select></label>
+        <label className="block text-sm">Canonical RCRE agent<select className={input + ' mt-2'} value={agent.slug} onChange={(event) => { setSelected(event.target.value); const next = agents.find((item) => item.slug === event.target.value); if (next) setState(stateOptions(next)[0] ?? 'Florida') }}>{agents.map((person) => <option key={person.slug} value={person.slug}>{person.name}</option>)}</select></label>
         <label className="block text-sm">Market<select className={input + ' mt-2'} value={activeState} onChange={(event) => setState(event.target.value as BrandState)}>{options.map((option) => <option key={option}>{option}</option>)}</select></label>
         <div className="border-t border-hair pt-4"><h3 className="font-medium">Install in Gmail</h3><ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-chalk-muted"><li>Copy the formatted signature below.</li><li>In Gmail, open Settings, then See all settings.</li><li>Under General, find Signature and create a new signature.</li><li>Paste the signature, choose its default behavior, then save changes.</li></ol></div>
         <p className="text-sm text-chalk-muted">This tool only copies content in your browser. It does not connect to Gmail or send email.</p>

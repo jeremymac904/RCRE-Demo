@@ -1,12 +1,15 @@
 export type BrandState = 'Alabama' | 'Florida'
 export type BrandAgent = {
   slug: string
+  canonicalSlug?: string
   name: string
   title: string
   phone: string
   email: string
   license: string
+  licenses?: Array<{ state: BrandState; number: string }>
   market: string
+  markets?: string[]
   website: string
   socialLinks: { instagram: string; facebook: string; linkedin: string }
 }
@@ -15,7 +18,10 @@ const ALLOWED_ROLES: readonly BrandRole[] = ['agent', 'team_leader', 'managing_b
 export function canAccessBrandResources(role: string): role is BrandRole { return ALLOWED_ROLES.includes(role as BrandRole) }
 export function isBrandAdmin(role: string): boolean { return role === 'managing_broker' || role === 'broker_owner' }
 /** A combined license string does not establish which license belongs to which state. */
-export function licenseForState(agent: Pick<BrandAgent, 'license' | 'market'>, state: BrandState): string | null {
+export function licenseForState(agent: Pick<BrandAgent, 'license' | 'market' | 'licenses'>, state: BrandState): string | null {
+  const explicit = agent.licenses?.filter(license => license.state === state) ?? []
+  if (explicit.length === 1) return explicit[0].number.trim() || null
+  if (explicit.length > 1) return null
   if (agent.market !== state) return null
   return agent.license.trim() || null
 }
