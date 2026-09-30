@@ -80,6 +80,31 @@ describe('transaction private file boundary', () => {
     expect(objects.assetCount()).toBe(0)
   })
 
+  it('preserves verified team scope when authorizing team-leader document downloads', async () => {
+    const teamId = 'team-north'
+    const teamLeader: Actor = { userId: otherId, organizationId: org, role: 'team_lead', teamIds: [teamId] }
+    const teamTransactionId = 'team-transaction'
+    await repository.putTransactionDomainRecord(agent, {
+      collection: 'transactions', recordId: teamTransactionId, ownerUserId: agentId,
+      data: { id: teamTransactionId, organizationId: org, ownerId: agentId, tcId: '', teamId },
+    })
+    const file = await service.upload({ ...teamLeader, role: 'team_leader', teamId }, teamTransactionId, 'team-contract.pdf', 'application/pdf', pdf)
+    const downloaded = await service.download({ ...teamLeader, role: 'team_leader', teamId }, teamTransactionId, file.id)
+    expect(downloaded.bytes.equals(pdf)).toBe(true)
+  })
+
+  it('removes access with a durable tombstone while retaining transaction evidence', async () => {
+    const file = await service.upload({ ...agent, role: 'agent' }, txId, 'contract.pdf', 'application/pdf', pdf)
+    const before = await repository.getDomainRecord(agent, 'transaction_files', file.id)
+    await service.remove({ ...agent, role: 'agent' }, txId, file.id)
+    expect(await service.list({ ...agent, role: 'agent' }, txId)).toEqual([])
+    await expect(service.download({ ...agent, role: 'agent' }, txId, file.id)).rejects.toThrow(StorageAuthorizationError)
+    const after = await repository.getDomainRecord<any>(agent, 'transaction_files', file.id)
+    expect(after?.data.removedAt).toBeTruthy()
+    expect(after?.version).toBe((before?.version ?? 0) + 1)
+    expect(objects.assetCount()).toBe(1)
+  })
+
   it('never claims signing completion without a provider receipt', async () => {
     const { assertSigningProviderAvailable } = await import('@/lib/services/transaction-files')
     expect(() => assertSigningProviderAvailable()).toThrow(/unavailable/)

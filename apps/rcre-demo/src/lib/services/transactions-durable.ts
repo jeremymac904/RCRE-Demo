@@ -4,6 +4,8 @@ import { getRepository } from '@/lib/db'
 import type { Actor, Repository } from '@/lib/db/repository'
 import type { AuditEvent } from '@/lib/domain-types'
 import { StorageAuthorizationError } from '@/lib/storage'
+import { getAuthPersistence, type MemberSummary } from '@/lib/auth/persistence'
+import type { PlatformActor } from '@/lib/platform/auth'
 import { transactionRepositoryActor, type TransactionFileActor } from './transaction-files'
 
 export interface DurableTransaction extends Record<string, unknown> {
@@ -26,7 +28,10 @@ export interface DurableTransaction extends Record<string, unknown> {
   history?: Record<string, unknown>[]
 }
 
-export interface DurableTransactionDependencies { repository?: Repository }
+export interface DurableTransactionDependencies {
+  repository?: Repository
+  listMembers?: (actor: PlatformActor) => Promise<MemberSummary[]>
+}
 
 export function durableTransactionActor(actor: { userId: string; organizationId: string; role: string; teamId?: string }): TransactionFileActor {
   return { userId: actor.userId, organizationId: actor.organizationId, role: actor.role, teamId: actor.teamId }
@@ -53,6 +58,20 @@ function validDateOnly(value: string): boolean {
 export class DurableTransactionService {
   constructor(private readonly deps: DurableTransactionDependencies = {}) {}
   private async db() { return this.deps.repository ?? await getRepository() }
+  private async members(actor: PlatformActor) {
+    return this.deps.listMembers ? this.deps.listMembers(actor) : (await getAuthPersistence()).listMembers(actor)
+  }
+
+  async assignmentOptions(actor: PlatformActor) {
+    const canAssign = actor.role === 'broker_owner' || actor.role === 'managing_broker'
+    if (!canAssign) return { canAssign: false, assignmentOptions: [] as { id: string; name: string; role: 'agent' | 'transaction_coordinator'; officeId: string; teamId: string }[] }
+    const members = await this.members(actor)
+    const assignmentOptions = members
+      .filter(member => member.active && ['agent', 'transaction_coordinator'].includes(member.platformRole)
+        && (actor.role === 'broker_owner' || member.officeId === actor.officeId))
+      .map(member => ({ id: member.userId, name: member.name, role: member.platformRole as 'agent' | 'transaction_coordinator', officeId: member.officeId, teamId: member.teamId }))
+    return { canAssign: true, assignmentOptions }
+  }
 
   async list(actor: TransactionFileActor): Promise<DurableTransaction[]> {
     const repo = await this.db(), scoped = transactionRepositoryActor(actor)
@@ -88,6 +107,24 @@ export class DurableTransactionService {
       { collection: 'transactions', recordId: id, ownerUserId: actor.userId, data: tx, createOnly: true },
       [makeAudit(actor, 'transaction.created', id)],
     )
+    return saved.data as DurableTransaction
+  }
+
+  async assign(actor: PlatformActor, id: string, version: number, ownerId: string, tcId = ''): Promise<DurableTransaction> {
+    if (!['broker_owner', 'managing_broker'].includes(actor.role)) throw new StorageAuthorizationError()
+    const who = durableTransactionActor(actor), repository = await this.db(), scoped = transactionRepositoryActor(who)
+    const current = await this.get(who, id)
+    if (current.version !== version) throw new Error('Conflict: refresh to review the latest version')
+    if (actor.role === 'managing_broker' && current.officeId !== actor.officeId) throw new StorageAuthorizationError()
+    const members = await this.members(actor)
+    const owner = members.find(member => member.userId === ownerId && member.organizationId === actor.organizationId && member.active && member.platformRole === 'agent')
+    if (!owner || (actor.role === 'managing_broker' && owner.officeId !== actor.officeId)) throw new Error('Choose an active agent within your authorized office')
+    const coordinator = tcId ? members.find(member => member.userId === tcId && member.organizationId === actor.organizationId && member.active && member.platformRole === 'transaction_coordinator') : undefined
+    if (tcId && (!coordinator || coordinator.officeId !== owner.officeId)) throw new Error('Choose an active transaction coordinator in the assigned agent office')
+    const now = new Date().toISOString()
+    const history = [...(current.history ?? []), { event: 'assignment', actorId: actor.id, previousVersion: current.version, snapshot: current, fromOwnerId: current.ownerId, toOwnerId: owner.userId, fromTcId: current.tcId, toTcId: coordinator?.userId ?? '', createdAt: now }].slice(-100)
+    const updated: DurableTransaction = { ...current, ownerId: owner.userId, officeId: owner.officeId, teamId: owner.teamId, tcId: coordinator?.userId ?? '', history, version: current.version + 1, updatedAt: now }
+    const saved = await repository.putTransactionDomainRecord(scoped, { collection: 'transactions', recordId: id, ownerUserId: owner.userId, data: updated, expectedVersion: current.version }, [makeAudit(who, 'transaction.assignment-changed', id)])
     return saved.data as DurableTransaction
   }
 
