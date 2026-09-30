@@ -68,6 +68,7 @@ export class MissingRlsContextError extends Error {
 
 const VALID_ROLES: ReadonlySet<string> = new Set<UserRole>([
   'owner', 'broker', 'team_lead', 'agent', 'staff', 'recruiter', 'viewer',
+  'transaction_coordinator', 'marketing_admin', 'trainer',
 ])
 
 // Shape check only. It exists so a malformed id fails here with a clear message

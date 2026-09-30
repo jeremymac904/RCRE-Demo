@@ -96,9 +96,9 @@ export interface Repository {
     actor: Actor, input: DomainRecordInput<T>,
   ): Promise<DomainRecord<T>>
   /** Commit a set of domain records in one database transaction or not at all. */
-  putDomainRecordsAtomic<T extends Record<string, unknown> = Record<string, unknown>>(
-    actor: Actor, inputs: DomainRecordInput<T>[], auditEvents?: AuditEvent[],
-  ): Promise<DomainRecord<T>[]>
+  putDomainRecordsAtomic(
+    actor: Actor, inputs: DomainRecordInput[], auditEvents?: AuditEvent[],
+  ): Promise<DomainRecord[]>
   deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean>
 }
 
@@ -292,8 +292,9 @@ export class MemoryRepository implements Repository {
     }
     const key = this.domainKey(actor.organizationId, input.collection, input.recordId)
     const prior = this.domainRecords.get(key)
-    if (prior && input.expectedVersion !== undefined && input.expectedVersion !== prior.version) {
-      throw new Error('Domain record version conflict')
+    if (input.createOnly && prior) throw new DomainRecordConflictError(input.collection, input.recordId)
+    if (input.expectedVersion !== undefined && (!prior || input.expectedVersion !== prior.version)) {
+      throw new DomainRecordConflictError(input.collection, input.recordId)
     }
     const now = new Date().toISOString()
     const record: DomainRecord<T> = {
@@ -305,9 +306,9 @@ export class MemoryRepository implements Repository {
     return structuredClone(record)
   }
 
-  async putDomainRecordsAtomic<T extends Record<string, unknown> = Record<string, unknown>>(
-    actor: Actor, inputs: DomainRecordInput<T>[], auditEvents: AuditEvent[] = [],
-  ): Promise<DomainRecord<T>[]> {
+  async putDomainRecordsAtomic(
+    actor: Actor, inputs: DomainRecordInput[], auditEvents: AuditEvent[] = [],
+  ): Promise<DomainRecord[]> {
     if (inputs.length < 1 || inputs.length > 100) throw new RangeError('Atomic write must contain 1 to 100 records')
     const now = new Date().toISOString()
     const staged = inputs.map(input => {
@@ -322,15 +323,15 @@ export class MemoryRepository implements Repository {
       return { key, prior, input, ownerUserId }
     })
     if (new Set(staged.map(item => item.key)).size !== staged.length) throw new TypeError('Atomic write contains duplicate record identities')
-    const records = staged.map(({ prior, input, ownerUserId }) => ({
+    const records: DomainRecord[] = staged.map(({ prior, input, ownerUserId }) => ({
       organizationId: actor.organizationId, collection: input.collection, recordId: input.recordId,
       ownerUserId, data: structuredClone(input.data), version: (prior?.version ?? 0) + 1,
       createdAt: prior?.createdAt ?? now, updatedAt: now,
-    } as DomainRecord<T>))
+    } as DomainRecord))
     for (const event of auditEvents) {
       if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) throw new PermissionDeniedError('putDomainRecordsAtomic', 'audit identity must match the trusted actor')
     }
-    for (let index = 0; index < staged.length; index++) this.domainRecords.set(staged[index].key, records[index] as DomainRecord)
+    for (let index = 0; index < staged.length; index++) this.domainRecords.set(staged[index].key, records[index])
     this.audit.push(...auditEvents.map(event => ({ ...event, occurredAt: now })))
     return records.map(record => structuredClone(record))
   }

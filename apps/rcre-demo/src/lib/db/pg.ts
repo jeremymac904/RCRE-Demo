@@ -326,28 +326,35 @@ export class PgRepository implements Repository {
     if (Buffer.byteLength(json, 'utf8') > MAX_DOMAIN_JSON_BYTES) {
       throw new RangeError('Domain record exceeds the 256 KB limit')
     }
-    const rows = input.expectedVersion === undefined
+    const rows = input.createOnly
       ? await this.q<DomainRecord<T>>(actor,
         `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
          values ($1, $2, $3, $4, $5::jsonb)
-         on conflict (organization_id, collection, record_id) do update
-           set owner_user_id = excluded.owner_user_id, data = excluded.data,
-               version = rcre_domain_records.version + 1, updated_at = now()
+         on conflict (organization_id, collection, record_id) do nothing
          returning ${this.domainRecordColumns}`,
         [actor.organizationId, input.collection, input.recordId, ownerUserId, json])
-      : await this.q<DomainRecord<T>>(actor,
+      : input.expectedVersion === undefined
+        ? await this.q<DomainRecord<T>>(actor,
+          `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
+           values ($1, $2, $3, $4, $5::jsonb)
+           on conflict (organization_id, collection, record_id) do update
+             set owner_user_id = excluded.owner_user_id, data = excluded.data,
+                 version = rcre_domain_records.version + 1, updated_at = now()
+           returning ${this.domainRecordColumns}`,
+          [actor.organizationId, input.collection, input.recordId, ownerUserId, json])
+        : await this.q<DomainRecord<T>>(actor,
         `update rcre_domain_records set owner_user_id = $4, data = $5::jsonb,
              version = version + 1, updated_at = now()
          where organization_id = $1 and collection = $2 and record_id = $3 and version = $6
          returning ${this.domainRecordColumns}`,
         [actor.organizationId, input.collection, input.recordId, ownerUserId, json, input.expectedVersion])
-    if (!rows[0]) throw new Error('Domain record version conflict or record is not visible')
+    if (!rows[0]) throw new DomainRecordConflictError(input.collection, input.recordId)
     return rows[0]
   }
 
-  async putDomainRecordsAtomic<T extends Record<string, unknown> = Record<string, unknown>>(
-    actor: Actor, inputs: DomainRecordInput<T>[], auditEvents: AuditEvent[] = [],
-  ): Promise<DomainRecord<T>[]> {
+  async putDomainRecordsAtomic(
+    actor: Actor, inputs: DomainRecordInput[], auditEvents: AuditEvent[] = [],
+  ): Promise<DomainRecord[]> {
     if (inputs.length < 1 || inputs.length > 100) throw new RangeError('Atomic write must contain 1 to 100 records')
     const keys = new Set<string>()
     for (const input of inputs) {
@@ -364,17 +371,17 @@ export class PgRepository implements Repository {
     const client = await getPgPool().connect()
     try {
       return await withRlsSession(client, actor, async scoped => {
-        const result: DomainRecord<T>[] = []
+        const result: DomainRecord[] = []
         for (const input of inputs) {
           const ownerUserId = input.ownerUserId ?? null
-          let rows: DomainRecord<T>[]
+          let rows: DomainRecord[]
           try {
             if (input.createOnly) {
               rows = (await scoped.query(
                 `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
                  values ($1, $2, $3, $4, $5::jsonb) returning ${this.domainRecordColumns}`,
                 [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data)],
-              ) as { rows?: DomainRecord<T>[] }).rows ?? []
+              ) as { rows?: DomainRecord[] }).rows ?? []
             } else if (input.expectedVersion !== undefined) {
               rows = (await scoped.query(
                 `update rcre_domain_records set owner_user_id = $4, data = $5::jsonb,
@@ -382,7 +389,7 @@ export class PgRepository implements Repository {
                  where organization_id = $1 and collection = $2 and record_id = $3 and version = $6
                  returning ${this.domainRecordColumns}`,
                 [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data), input.expectedVersion],
-              ) as { rows?: DomainRecord<T>[] }).rows ?? []
+              ) as { rows?: DomainRecord[] }).rows ?? []
             } else {
               rows = (await scoped.query(
                 `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
@@ -392,7 +399,7 @@ export class PgRepository implements Repository {
                        version = rcre_domain_records.version + 1, updated_at = now()
                  returning ${this.domainRecordColumns}`,
                 [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data)],
-              ) as { rows?: DomainRecord<T>[] }).rows ?? []
+              ) as { rows?: DomainRecord[] }).rows ?? []
             }
           } catch (error) {
             if (input.createOnly && typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') {

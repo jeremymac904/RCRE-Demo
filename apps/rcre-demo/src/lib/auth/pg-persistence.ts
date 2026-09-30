@@ -4,6 +4,7 @@ import { withRlsSession } from '@/lib/db/rls'
 import type { Actor } from '@/lib/db/repository'
 import type { AuthActorRow, AuthPersistence, EncryptedMailPayload, MemberSummary } from './persistence'
 import type { PlatformActor, PlatformRole } from '@/lib/platform/auth'
+import { repositoryRoleForPlatform } from './role-mapping'
 
 type PgLike = Pick<Pool, 'query' | 'connect'>
 type AuthRow = QueryResultRow & {
@@ -11,14 +12,7 @@ type AuthRow = QueryResultRow & {
   office_id?: string | null; team_id?: string | null; market?: string | null; session_id?: string; expires_at?: Date | string
 }
 
-function dbRole(role: PlatformRole): Actor['role'] {
-  if (role === 'broker_owner') return 'owner'
-  if (role === 'managing_broker') return 'broker'
-  if (role === 'team_leader') return 'team_lead'
-  if (role === 'transaction_coordinator' || role === 'marketing_admin') return 'staff'
-  if (role === 'trainer') return 'viewer'
-  return 'agent'
-}
+function dbRole(role: PlatformRole): Actor['role'] { return repositoryRoleForPlatform(role) }
 
 function actorFrom(row?: AuthRow): AuthActorRow | null {
   if (!row) return null

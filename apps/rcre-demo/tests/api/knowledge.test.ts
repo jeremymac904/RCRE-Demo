@@ -35,6 +35,24 @@ describe('authenticated knowledge management API', () => {
     expect(await repository.getDomainRecord({ userId: 'taquilla', organizationId: 'rcre-test', role: 'broker' }, 'rcre_ai_knowledge', input.id)).not.toBeNull()
   })
 
+  it('rejects duplicate knowledge keys instead of replacing the current source', async () => {
+    expect((await POST(request('POST', input))).status).toBe(201)
+    const duplicate = await POST(request('POST', { ...input, content: 'Attempted overwrite.' }))
+    expect(duplicate.status).toBe(409)
+    expect(await repository.getDomainRecord({ userId: 'taquilla', organizationId: 'rcre-test', role: 'broker' }, 'rcre_ai_knowledge', input.id)).toMatchObject({ data: { content: 'Verified reference text only.' } })
+  })
+
+  it('allows an authorized agent to open a cited state-visible source and hides other-state sources', async () => {
+    expect((await POST(request('POST', input))).status).toBe(201)
+    auth.requireActor.mockResolvedValue({ ...agent, officeId: 'al', market: 'Alabama' })
+    const visible = await GET(new Request(`http://localhost/api/knowledge?id=${input.id}`))
+    expect(visible.status).toBe(200)
+    expect((await visible.json()).document).toMatchObject({ id: input.id, content: input.content })
+    auth.requireActor.mockResolvedValue({ ...agent, officeId: 'fl', market: 'Florida' })
+    const hidden = await GET(new Request(`http://localhost/api/knowledge?id=${input.id}`))
+    expect(hidden.status).toBe(404)
+  })
+
   it('derives write authority from the authenticated session and refuses an agent even if body claims broker role', async () => {
     auth.requireActor.mockResolvedValue(agent)
     const response = await POST(request('POST', { ...input, role: 'broker_owner', userId: 'taquilla', organizationId: 'other-org' }))

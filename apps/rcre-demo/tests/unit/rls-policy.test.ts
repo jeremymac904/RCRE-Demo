@@ -253,6 +253,15 @@ describe('role visibility rules referenced by the policies', () => {
     )
   })
 
+  it('platform specialist roles are not collapsed into legacy brokerage-wide staff access', () => {
+    const roles = sql('0008_least_privilege_platform_roles.sql')
+    expect(roles).toMatch(/rcre_current_role\(\) in[\s\S]*?'transaction_coordinator'[\s\S]*?'marketing_admin'[\s\S]*?'trainer'/)
+    const reader = roles.match(/function rcre_is_org_wide_reader\(\)[\s\S]*?as \$fn\$([\s\S]*?)\$fn\$/)?.[1] ?? ''
+    expect(reader).toContain("('owner', 'broker', 'staff')")
+    expect(reader).not.toContain('transaction_coordinator')
+    expect(reader).not.toContain('marketing_admin')
+  })
+
   it('staff read the client book but never deals, recruiting or the audit log', () => {
     expect(RLS).toMatch(
       /function rcre_is_org_wide_reader\(\)[\s\S]*?in \('owner', 'broker', 'staff'\)/,

@@ -175,7 +175,7 @@ export function domainKnowledgeRepository(repository: Repository): KnowledgeRepo
         recordId: document.id,
         ownerUserId: null,
         data,
-        ...(expectedVersion === undefined ? {} : { expectedVersion }),
+        ...(expectedVersion === undefined ? { createOnly: true } : { expectedVersion }),
       })
       const parsed = parseDocument(record)
       if (!parsed) throw new Error('Saved knowledge document could not be read')
@@ -217,6 +217,12 @@ function canRead(actor: KnowledgeActor, document: KnowledgeDocument): boolean {
 
 function termsFor(value: string): string[] {
   return [...new Set(value.toLocaleLowerCase().match(/[a-z0-9]{3,}/g)?.filter(word => !STOP_WORDS.has(word)) ?? [])]
+}
+
+
+export async function getKnowledgeDocument(repository: KnowledgeRepository, actor: KnowledgeActor, id: string): Promise<KnowledgeDocument | null> {
+  const document = await repository.get(actor, id)
+  return document && canRead(actor, document) ? document : null
 }
 
 export interface KnowledgeSourceReference {

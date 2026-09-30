@@ -1,7 +1,7 @@
 // RCRE MVP domain types. Mirrors supabase/migrations/0001_rcre_mvp_core.sql.
 
 export type UserRole =
-  | 'owner' | 'broker' | 'team_lead' | 'agent' | 'staff' | 'recruiter' | 'viewer'
+  | 'owner' | 'broker' | 'team_lead' | 'agent' | 'staff' | 'recruiter' | 'viewer' | 'transaction_coordinator' | 'marketing_admin' | 'trainer'
 
 export type ActivityDirection = 'inbound' | 'outbound' | 'system'
 

@@ -40,7 +40,7 @@ export async function retrieveAssistantKnowledge(
 function knowledgeEvidence(results: KnowledgeResult[]): AIJob['evidence'] {
  return results.map(result => ({
   label: `Knowledge: ${result.reference.title}`,
-  href: '/settings/ai/knowledge',
+  href: `/ai/knowledge/${encodeURIComponent(result.reference.id)}`,
   detail: `Source: ${result.reference.source}; ${result.reference.state ?? 'brokerage-wide'}; version ${result.reference.version}; updated ${result.reference.updatedAt}`,
  }))
 }

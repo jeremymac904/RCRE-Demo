@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireActor, AccessError, type PlatformActor } from '@/lib/platform/auth'
 import { getRepository } from '@/lib/db'
-import { domainKnowledgeRepository, createKnowledgeDocument, updateKnowledgeDocument, archiveKnowledgeDocument, listKnowledgeDocuments, searchKnowledge, type KnowledgeActor } from '@/lib/services/ai-knowledge'
+import { DomainRecordConflictError } from '@/lib/db/repository'
+import { domainKnowledgeRepository, createKnowledgeDocument, updateKnowledgeDocument, archiveKnowledgeDocument, listKnowledgeDocuments, searchKnowledge, getKnowledgeDocument, type KnowledgeActor } from '@/lib/services/ai-knowledge'
 
 export const dynamic = 'force-dynamic'
 const audienceRoles = z.array(z.enum(['owner', 'broker', 'team_lead', 'agent', 'staff', 'recruiter', 'viewer'])).min(1).max(7)
@@ -21,7 +22,7 @@ function trustedKnowledgeActor(actor: PlatformActor): KnowledgeActor {
 }
 function canManage(actor: PlatformActor) { return ['broker_owner', 'managing_broker'].includes(actor.role) }
 function fail(error: unknown) {
-  const status = error instanceof AccessError ? error.status : error instanceof z.ZodError ? 400 : error instanceof Error && /not found/.test(error.message) ? 404 : 400
+  const status = error instanceof AccessError ? error.status : error instanceof DomainRecordConflictError ? 409 : error instanceof z.ZodError ? 400 : error instanceof Error && /not found/.test(error.message) ? 404 : 400
   return NextResponse.json({ error: error instanceof Error ? error.message : 'Knowledge request failed' }, { status, headers: { 'Cache-Control': 'private, no-store' } })
 }
 async function repo() { return domainKnowledgeRepository(await getRepository()) }
@@ -32,6 +33,12 @@ export async function GET(request: Request) {
     const actor = trustedKnowledgeActor(platformActor)
     const url = new URL(request.url)
     const query = url.searchParams.get('q')?.trim()
+    const documentId = url.searchParams.get('id')?.trim()
+    if (documentId) {
+      const document = await getKnowledgeDocument(await repo(), actor, documentId)
+      if (!document) throw new AccessError('Knowledge document not found', 404)
+      return NextResponse.json({ document }, { headers: { 'Cache-Control': 'private, no-store' } })
+    }
     if (query) {
       return NextResponse.json({ results: await searchKnowledge(await repo(), actor, query, { limit: 8 }), management: canManage(platformActor) }, { headers: { 'Cache-Control': 'private, no-store' } })
     }
