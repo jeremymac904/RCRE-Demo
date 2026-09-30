@@ -14,12 +14,23 @@ const agent = PERSONAS.find(person => person.id === 'u-sarah')!
 const params = (...path: string[]) => ({ params: Promise.resolve({ path }) })
 const request = (path: string, body?: unknown) => new Request('http://localhost:3200/api/platform/' + path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined)
 const cleanup: string[] = []
-afterAll(() => { for (const id of cleanup) { deleteRecord('notifications', id); deleteRecord('audit', id) } })
+let originalInAppNotifications: unknown
+afterAll(() => {
+  if (originalInAppNotifications !== undefined) {
+    const current = getSetting(agent, 'personal')
+    saveSetting(agent, 'personal', { ...current.value, inAppNotifications: originalInAppNotifications }, current.version)
+    for (const row of readRecords<any>('audit')) {
+      if (row.organizationId === agent.organizationId && row.actorId === agent.id && row.action === 'settings.updated' && row.resource === `personal:${agent.id}`) deleteRecord('audit', row.id)
+    }
+  }
+  for (const id of cleanup) { deleteRecord('notifications', id); deleteRecord('audit', id) }
+})
 
 describe('notification API scope and delivery claims', () => {
   it('writes an in-app preview under the authenticated actor and reports email as unavailable', async () => {
     session.id = agent.id
     const prefs = getSetting(agent, 'personal')
+    originalInAppNotifications = prefs.value.inAppNotifications
     saveSetting(agent, 'personal', { ...prefs.value, inAppNotifications: false }, prefs.version)
     const response = await POST(request('notifications', { action: 'test' }), params('notifications'))
     expect(response.status).toBe(200)
