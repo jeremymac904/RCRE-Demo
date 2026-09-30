@@ -58,7 +58,7 @@ export interface AcademyCourse {
   slug: string
   /** The course goal as written in the curriculum. */
   description: string
-  level: 'Foundation' | 'Practitioner' | 'Advanced'
+  level: 'Foundation' | 'Practitioner' | 'Advanced' | 'Brokerage'
   cover?: string
   lessonCount: number
   /** Total prompts across the course's lessons. */

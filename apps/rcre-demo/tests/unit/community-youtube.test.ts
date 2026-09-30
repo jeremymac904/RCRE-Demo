@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import * as auth from '@/lib/platform/auth'
 import { deleteRecord, getRecord, readRecords } from '@/lib/platform/store'
+import { resetRepositoryCache } from '@/lib/db'
 import { communityYoutubeConfig, runCommunityYoutubeDemo, saveCommunityYoutubeConfig } from '@/lib/community-youtube'
 import { GET as communityRouteGet } from '@/app/api/community/youtube/route'
 import { GET as academyManageGet } from '@/app/api/academy/manage/route'
@@ -13,7 +14,7 @@ import { academyManager, manageAcademy } from '@/lib/academy-service'
 
 const org = `community-youtube-${randomUUID()}`
 const actor: auth.PlatformActor = { id: 'broker', userId: 'broker', organizationId: org, role: 'broker_owner', name: 'Demo Broker', market: 'Florida', officeId: 'fl', teamId: 'fl' }
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs() })
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); resetRepositoryCache() })
 
 function clear() {
   for (const kind of ['community_post', 'community_youtube_run', 'community_youtube_config'])
@@ -24,29 +25,36 @@ function clear() {
 describe('Community video automation safety', () => {
   afterEach(clear)
 
-  it('reports production Community storage unavailable before calling session or store access', async () => {
+  it('uses the authenticated durable Repository boundary for production Community reads', async () => {
     vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('VITEST', 'false')
+    vi.stubEnv('RCRE_DATA_MODE', 'live')
     vi.stubEnv('NEXT_PHASE', '')
-    const authSpy = vi.spyOn(auth, 'actorOrNull')
+    resetRepositoryCache()
+    const authSpy = vi.spyOn(auth, 'actorOrNull').mockResolvedValue(actor)
     const response = await communityRouteGet()
     expect(response.status).toBe(503)
-    expect(await response.json()).toMatchObject({ code: 'DURABLE_STORE_UNAVAILABLE' })
-    expect(authSpy).not.toHaveBeenCalled()
+    expect(await response.json()).toMatchObject({ error: 'Community video workflow is temporarily unavailable.' })
+    expect(authSpy).toHaveBeenCalledOnce()
   })
 
-  it('fails closed across Training and Community data APIs in production before session or SQLite access', async () => {
+  it('fails closed when production Repository or private object storage is unavailable', async () => {
     vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('VITEST', 'false')
+    vi.stubEnv('RCRE_DATA_MODE', 'live')
     vi.stubEnv('NEXT_PHASE', '')
-    const authSpy = vi.spyOn(auth, 'actorOrNull')
+    resetRepositoryCache()
+    const authSpy = vi.spyOn(auth, 'actorOrNull').mockResolvedValue(actor)
+    const makeUpload = (url: string) => { const data = new FormData(); data.set('file', new Blob(['%PDF-1.7\nfixture'], { type: 'application/pdf' }), 'fixture.pdf'); return new Request(url, { method: 'POST', body: data }) }
     const results = await Promise.all([
       academyManageGet(),
       academyProgressPost(new Request('https://rcre.test/api/academy/progress', { method: 'POST', body: '{}' })),
       communityGet(),
-      academyUploadPost(new Request('https://rcre.test/api/academy/uploads', { method: 'POST' })),
-      communityAttachmentPost(new Request('https://rcre.test/api/community/attachments', { method: 'POST' })),
+      academyUploadPost(makeUpload('https://rcre.test/api/academy/uploads')),
+      communityAttachmentPost(makeUpload('https://rcre.test/api/community/attachments')),
     ])
     expect(results.map(result => result.status)).toEqual([503, 503, 503, 503, 503])
-    expect(authSpy).not.toHaveBeenCalled()
+    expect(authSpy).toHaveBeenCalled()
   })
 
   it('grants course management to brokerage leadership while keeping transaction coordinators out', () => {

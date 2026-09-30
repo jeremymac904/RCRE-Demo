@@ -1,7 +1,22 @@
-import { academyPersistenceAvailable } from '@/lib/academy-service'
-import { academy } from '@/data/academy'
 import { actorOrNull } from '@/lib/platform/auth'
-import { academyManager, assignmentsFor, manageAcademy, progressFor, visibleAcademyCourses, academyConfig, type AcademyDraft, type Progress } from '@/lib/academy-service'
-import { readRecords } from '@/lib/platform/store'
-export async function GET(){if(!academyPersistenceAvailable())return Response.json({error:'This Training or Community action is unavailable until durable production storage is connected. No changes were saved.'},{status:503});const a=await actorOrNull();if(!a)return Response.json({error:'Sign in required'},{status:401});const progress=progressFor(a);return Response.json({bookmarks:progress.bookmarks.map(id=>academy.lessons.find(l=>l.id===id)).filter(Boolean).map(l=>({id:l!.id,title:l!.title,courseId:l!.courseId})),config:academyConfig(a.organizationId),policies:readRecords<{organizationId:string}>('academy_policy').filter(p=>p.organizationId===a.organizationId),ownProgress:progress,manager:academyManager(a),assignments:assignmentsFor(a),courses:visibleAcademyCourses(a),progress:academyManager(a)?readRecords<Progress>('academy_progress').filter(p=>p.organizationId===a.organizationId):[]})}
-export async function POST(req:Request){if(!academyPersistenceAvailable())return Response.json({error:'This Training or Community action is unavailable until durable production storage is connected. No changes were saved.'},{status:503});const a=await actorOrNull();if(!a)return Response.json({error:'Sign in required'},{status:401});try{return Response.json(manageAcademy(a,await req.json()))}catch(e){return Response.json({error:(e as Error).message},{status:academyManager(a)?400:403})}}
+import { academyManageData, manageAcademyDurable } from '@/lib/academy-durable'
+import { academyManager } from '@/lib/academy-service'
+import { AccessError } from '@/lib/platform/auth'
+
+export async function GET() {
+  const actor = await actorOrNull()
+  if (!actor) return Response.json({ error: 'Sign in required' }, { status: 401 })
+  try { return Response.json(await academyManageData(actor)) }
+  catch { return Response.json({ error: 'Training data is temporarily unavailable. No changes were saved.' }, { status: 503 }) }
+}
+
+export async function POST(request: Request) {
+  const actor = await actorOrNull()
+  if (!actor) return Response.json({ error: 'Sign in required' }, { status: 401 })
+  try { return Response.json(await manageAcademyDurable(actor, await request.json())) }
+  catch (error) {
+    const message = error instanceof Error ? error.message : 'Training change failed'
+    const status = error instanceof AccessError ? error.status : 503
+    return Response.json({ error: error instanceof AccessError ? message : 'Training changes are temporarily unavailable.' }, { status })
+  }
+}

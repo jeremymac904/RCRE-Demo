@@ -1,12 +1,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { currentUser } from '@/lib/session'
+import { actorOrNull } from '@/lib/platform/auth'
 import { AppShell } from '@/components/AppShell'
 import { PageHeader } from '@/components/PageHeader'
 import { AcademyCourseCard } from '@/components/AcademyCourseCard'
 import { TrainingNav } from '@/components/TrainingNav'
-import { Avatar } from '@/components/Avatar'
-import { POSTS, trainingOfTheDay } from '@/data/community'
 import {
   AcademyContinuePanel, AcademyOverallCount,
 } from '@/components/AcademyOverviewProgress'
@@ -38,28 +37,20 @@ export const dynamic = 'force-dynamic'
 
 /** Grouping gives the catalog a shape — foundation, then practice, then the
  *  advanced work — without building a curriculum engine to derive it. */
-import { academyPersistenceAvailable } from '@/lib/academy-service'
+import { academyCatalog, academyConfigDurable, academyProgress, orderAcademyCourses } from '@/lib/academy-durable'
 import { DurableModuleUnavailable } from '@/components/DurableModuleUnavailable'
 
 export default async function TrainingPage() {
-  if (!academyPersistenceAvailable()) return <DurableModuleUnavailable title={'Training'} detail={'Training progress is paused until the production database is connected. The imported curriculum remains in the codebase, but this deployment cannot safely save progress or community activity yet.'} />
+  const user = await currentUser(), actor = await actorOrNull()
+  if (!user || !actor) redirect('/login')
 
-  const user = await currentUser()
-  if (!user) redirect('/login')
-
-  const catalog = courses()
-  const overall = overallProgress()
-  const next = continueLesson()
+  let progress: { completedLessonIds: string[]; lastViewedLessonId?: string }, catalog = courses()
+  try { const [savedProgress, config, durable] = await Promise.all([academyProgress(actor), academyConfigDurable(actor), academyCatalog(actor)]); progress = savedProgress; const authored = durable.courses.filter(course => 'source' in course && course.source === 'rcre-authored' && course.state === 'published').map(course => ({ id: course.id, order: course.order, title: course.title, slug: course.id, description: course.description, level: 'Brokerage' as const, lessonCount: durable.lessons.filter(lesson => lesson.courseId === course.id).length, promptCount: 0, resourceCount: 'resources' in course ? course.resources.length : 0, publicPreview: false })); catalog = orderAcademyCourses([...catalog, ...authored], config.order) } catch { return <DurableModuleUnavailable title="Training" detail="The training library is temporarily unavailable. No sample learner progress is shown." /> }
+  const overall = overallProgress(progress)
+  const next = continueLesson(progress)
   const nextCourse = next ? courseById(next.courseId) : undefined
   const { totals } = ACADEMY
-  const preview = catalog.filter(c => c.publicPreview)
-  const featured = trainingOfTheDay()
-  // Newest first. The overview shows the last few things that happened in the
-  // room, not the whole feed — the point is to make Training feel inhabited,
-  // then get out of the way.
-  const recent = [...POSTS].sort((a, b) => a.agoHours - b.agoHours).slice(0, 4)
-  const ago = (h: number) =>
-    h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`
+  const preview = catalog.filter(course => course.publicPreview)
 
   return (
     <AppShell user={user}>
@@ -87,67 +78,7 @@ export default async function TrainingPage() {
           } : null}
         />
 
-        {/* Today's training, and the room it came from. This is the bridge:
-            the community post and the lesson are the same thing seen from two
-            sides, so an agent who reads the post lands in the Classroom. */}
-        {featured && (
-          <section className="mt-10">
-            <div className="flex items-baseline justify-between gap-4 border-b border-hair pb-3">
-              <h2 className="eyebrow">Today in the community</h2>
-              <Link href="/training/community" className="btn-quiet">Open Community →</Link>
-            </div>
-
-            <Link
-              href={`/training/classroom/${featured.lesson.courseId}/${featured.lesson.id}`}
-              className="group mt-5 flex flex-col gap-4 rounded-panel border border-hair-brass
-                         bg-brass-fill/[0.08] p-5 transition-colors hover:bg-brass-fill/[0.13]
-                         sm:flex-row sm:items-center"
-            >
-              {featured.lesson.image && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={featured.lesson.image} alt="" aria-hidden
-                     className="h-24 w-full rounded-control object-cover sm:w-40" loading="lazy" />
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="eyebrow text-brass">AI Training of the Day</span>
-                <span className="mt-1.5 block font-display text-h4 font-600 text-chalk
-                                 group-hover:text-brass">
-                  {featured.lesson.title}
-                </span>
-                <span className="mt-1 block text-label text-chalk-faint">
-                  {featured.course?.title} · posted by {featured.post.authorName}
-                </span>
-              </span>
-              <span aria-hidden className="hidden shrink-0 text-label text-chalk-faint
-                                           transition-all group-hover:translate-x-0.5
-                                           group-hover:text-brass sm:block">
-                Open lesson →
-              </span>
-            </Link>
-
-            <ul className="mt-5 divide-y divide-hair">
-              {recent.map(post => (
-                <li key={post.id}>
-                  <Link href={`/training/community?post=${post.id}`}
-                        className="group -mx-3 flex items-start gap-3.5 rounded-control px-3 py-3
-                                   transition-colors hover:bg-ink-elevated">
-                    <Avatar initials={post.initials} photo={post.photo} name={post.authorName} size="sm" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-body text-chalk group-hover:text-brass">
-                        {post.title}
-                      </span>
-                      <span className="block truncate text-label text-chalk-faint">
-                        {post.authorName} · {post.category} · {ago(post.agoHours)}
-                        {post.comments.length > 0 &&
-                          ` · ${post.comments.length} ${post.comments.length === 1 ? 'reply' : 'replies'}`}
-                      </span>
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <div className="mt-8"><Link href="/training/community" className="btn-quiet">Open Community →</Link></div>
 
         {/* Where to go next, rather than a second copy of the catalog. */}
         <section className="mt-12">

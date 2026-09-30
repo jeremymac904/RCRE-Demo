@@ -1,4 +1,15 @@
-import { academyPersistenceAvailable } from '@/lib/academy-service'
 import { actorOrNull } from '@/lib/platform/auth'
-import { loadAttachment } from '@/lib/academy-attachments'
-export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){if(!academyPersistenceAvailable())return Response.json({error:'This Training or Community action is unavailable until durable production storage is connected. No changes were saved.'},{status:503});const a=await actorOrNull();if(!a)return Response.json({error:'Sign in required'},{status:401});try{const {record:r,bytes}=loadAttachment(a,(await params).id);return new Response(bytes,{headers:{'Content-Type':r.type,'Content-Disposition':`attachment; filename="${r.name}"`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Length':String(r.bytes)}})}catch{return Response.json({error:'Attachment unavailable'},{status:404})}}
+import { downloadAcademyAsset } from '@/lib/academy-durable'
+import { StorageError } from '@/lib/storage'
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const actor = await actorOrNull()
+  if (!actor) return Response.json({ error: 'Sign in required' }, { status: 401 })
+  try {
+    const { asset, bytes } = await downloadAcademyAsset(actor, (await params).id, 'community-attachment')
+    return new Response(Uint8Array.from(bytes), { headers: { 'Content-Type': asset.contentType, 'Content-Disposition': `attachment; filename="${encodeURIComponent(asset.filename)}"`, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store', 'Content-Length': String(bytes.length) } })
+  } catch (error) {
+    const status = error instanceof StorageError ? error.status : 404
+    return Response.json({ error: error instanceof Error ? error.message : 'Attachment unavailable' }, { status })
+  }
+}
