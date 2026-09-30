@@ -14,10 +14,10 @@ const documentSchema = z.object({
   visibility: z.enum(['organization', 'state', 'restricted']), classification: z.enum(['public', 'internal', 'sensitive']), externalUseAllowed: z.boolean(),
   allowedUserIds: z.array(z.string().min(1).max(160)).max(300).optional(), tags: z.array(z.string().trim().min(1).max(60)).max(40), content: z.string().trim().min(1).max(180000),
 })
-function trustedKnowledgeActor(actor: PlatformActor): KnowledgeActor {
+export function trustedKnowledgeActor(actor: PlatformActor): KnowledgeActor {
   const role = actor.role === 'broker_owner' ? 'owner' : actor.role === 'managing_broker' ? 'broker' : actor.role === 'team_leader' ? 'team_lead' : actor.role === 'transaction_coordinator' ? 'staff' : actor.role === 'marketing_admin' || actor.role === 'trainer' ? 'staff' : 'agent'
   const market = actor.market.toLowerCase()
-  const states = actor.officeId === 'al' || market.includes('alabama') ? ['AL'] : actor.officeId === 'fl' || market.includes('florida') ? ['FL'] : ['AL', 'FL']
+  const states = actor.officeId === 'al' || market.includes('alabama') ? ['AL'] : actor.officeId === 'fl' || market.includes('florida') ? ['FL'] : actor.role === 'broker_owner' ? ['AL', 'FL'] : []
   return { userId: actor.userId, organizationId: actor.organizationId, role, states, canViewAllStates: actor.role === 'broker_owner' }
 }
 function canManage(actor: PlatformActor) { return ['broker_owner', 'managing_broker'].includes(actor.role) }
