@@ -77,6 +77,28 @@ describe('storage service', () => {
     await service.delete(actor, asset.id)
   })
 
+  it('keeps the Supabase driver on its private object and metadata endpoints', async () => {
+    const driver = new SupabaseObjectDriver({ NODE_ENV: 'test', SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'server-only-test-secret', RCRE_STORAGE_BUCKET: 'rcre-private', RCRE_STORAGE_BUCKET_PRIVATE: 'true' })
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init })
+      if (init?.method === 'POST' && String(url).includes('/object/sign/')) return new Response(JSON.stringify({ signedURL: '/object/sign/rcre-private/org/agent-headshot/00000000-0000-0000-0000-000000000001?token=test' }), { status: 200 })
+      if ((!init?.method || init.method === 'GET') && String(url).includes('.rcre-metadata')) return new Response(JSON.stringify({ id: '00000000-0000-0000-0000-000000000001', organizationId: 'org-rcre' }), { status: 200 })
+      return new Response('', { status: 200 })
+    }) as typeof fetch
+    try {
+      const asset: StorageAsset = { id: '00000000-0000-0000-0000-000000000001', organizationId: 'org-rcre', ownerId: actor.id, category: 'agent-headshot', visibility: 'private', filename: 'photo.jpg', contentType: 'image/jpeg', size: jpeg.length, sha256: 'a'.repeat(64), createdAt: new Date().toISOString(), provider: 'supabase' }
+      await driver.put(asset, jpeg)
+      expect(await driver.getMetadata(asset.id)).toMatchObject({ id: asset.id })
+      expect(await driver.sign(asset, Date.now() + 60_000)).toContain('https://example.supabase.co/object/sign/')
+      expect(calls).toHaveLength(4)
+      expect(calls.every(call => (call.init?.headers as Record<string, string>).apikey === 'server-only-test-secret')).toBe(true)
+      expect(calls.some(call => call.url.includes('/rcre-private/org-rcre/agent-headshot/'))).toBe(true)
+      expect(calls.some(call => call.url.includes('.rcre-metadata/'))).toBe(true)
+    } finally { globalThis.fetch = originalFetch }
+  })
+
   it('requires an explicitly private Supabase bucket and server-only credentials', () => {
     const base: NodeJS.ProcessEnv = { NODE_ENV: 'test', SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'server-only-test-secret', RCRE_STORAGE_BUCKET: 'rcre-private' }
     expect(() => new SupabaseObjectDriver(base)).toThrow(/confirmed private/)
