@@ -9,6 +9,7 @@ const nunito = Nunito_Sans({ subsets: ['latin'], weight: ['300', '400', '600', '
 export const metadata: Metadata = {
   title: 'RCRE AI — Agent Platform',
   description: 'The technology RCRE gives its agents.',
+  icons: { icon: '/brand/rcre-logo-dark.png' },
 }
 
 /**
