@@ -102,13 +102,13 @@ These dependencies block live activation/verification only. Code hardening, fail
 
 | Owner | Assigned findings | Scope / current state |
 |---|---|---|
-| Identity and access repair agent | P0-01, P1-01, P1-02, P1-06, P1-07 | Anonymous persona sessions, revocation/cookies, Google/invitation path, Taquilla-scoped member administration, onboarding/lifecycle. Active. |
-| AI boundary repair agent | P0-03, P1-11 | Exact free-only model gate and truthful knowledge/retrieval capability. Active. |
-| Public/agent lead repair agent | P1-08, P1-10, P2-02, P2-03 | Truthful server-persisted capture, attribution/routing, agent-site publication boundary and dead actions. Active. |
-| Primary orchestrator | P0-02, P1-03–05, P1-09, P1-12–21, P2-04–06 | PostgreSQL/store path, persistence/infrastructure, production operations and remaining product surfaces; code work and exact external blockers being validated. Active. |
-| Independent verification team | All repaired P0/P1, after repair pass | New auditors who did not implement the repairs will attempt to falsify production readiness. Not started. |
+| Identity and access repair agent | P0-01, P1-01, P1-02, P1-06, P1-07 | Repair pass complete. Production persona login is blocked; Taquilla's scoped admin permission is repaired locally; Google invitation/OIDC and durable onboarding remain open P1s. |
+| AI boundary repair agent | P0-03, P1-11 | Repair pass complete. Web/portal inference is free-only with no paid fallback; production knowledge retrieval remains open. |
+| Public/agent lead repair agent | P1-08, P1-10, P2-02, P2-03 | Repair pass complete. Production lead acceptance and agent-site publishing fail closed; public dead links and production fixture-template exposure are addressed. Durable lead intake/publishing remain open P1s. |
+| Primary orchestrator | P0-02, P1-03–05, P1-09, P1-12–21, P2-04–06 | Repair pass complete. Production SQLite use is blocked; repository-to-PostgreSQL wiring, hosted operations, and remaining product surfaces are still open. |
+| Independent verification team | Repaired P0/P1 and production boundaries | Four independent source/test reviews completed. No audited P0 exploit path remains; they confirmed unresolved production P1 dependencies and did not verify live services or browser rendering. |
 
-Once the current repair owners report, additional specialist repair assignments will be made for each remaining P1 surface; this table will be updated with named owners and evidence. Production go remains prohibited until independent verification finds zero P0/P1, or a finding is fully blocked by a named external dependency and the user receives an explicit no-go report.
+The current implementation pass is complete. Remaining P1s require additional implementation and/or the explicitly listed hosted services, credentials, approved content, and live verification. Production go remains prohibited until every P0/P1 is repaired and independent verification passes; external prerequisites do not count as closed merely because setup is pending.
 
 ## Repair and independent verification snapshot — 2026-09-30
 
