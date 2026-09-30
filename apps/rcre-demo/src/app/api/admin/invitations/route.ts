@@ -1,3 +1,4 @@
+import { assertSameOriginMutation } from '@/lib/auth/request-origin'
 import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { AccessError, assertCapability, requireActor, type PlatformRole } from '@/lib/platform/auth'
@@ -20,8 +21,7 @@ export async function GET() {
 }
 export async function POST(request: NextRequest) {
   try {
-    const origin = request.headers.get('origin')
-    if (origin && new URL(origin).origin !== request.nextUrl.origin) throw new AccessError('Cross-origin request denied.', 403)
+    assertSameOriginMutation(request)
     if (Number(request.headers.get('content-length') ?? 0) > 12_000) throw new AccessError('Request is too large.', 413)
     const actor = await requireActor(); assertCapability(actor, 'settings.people')
     const input = schema.parse(await request.json())

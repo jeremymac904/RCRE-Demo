@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
   if (!config) return NextResponse.redirect(new URL('/login?error=identity-unavailable', request.url), 303)
   const start = makeGoogleAuthorization(config)
   const response = NextResponse.redirect(start.authorizationUrl, 302)
+  response.headers.set('cache-control', 'no-store, max-age=0')
+  response.headers.set('referrer-policy', 'no-referrer')
   const common = { httpOnly: true, secure: secureCookie, sameSite: 'lax' as const, path: TRANSIENT_PATH, maxAge: 600 }
   response.cookies.set('rcre_oidc_state', start.state, common)
   response.cookies.set('rcre_oidc_nonce', start.nonce, common)

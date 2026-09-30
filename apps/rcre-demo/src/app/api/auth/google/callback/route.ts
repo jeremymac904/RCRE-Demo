@@ -14,7 +14,10 @@ function failure(request: NextRequest, reason: string, trustedOrigin?: string) {
   const fallback = process.env.NODE_ENV === 'production' ? trustedOrigin ?? request.nextUrl.origin : request.nextUrl.origin
   const response = NextResponse.redirect(new URL(`/login?error=${reason}`, fallback), 303)
   clearTransient(response)
-  response.cookies.set(SESSION_COOKIE, '', { ...sessionCookieOptions(), maxAge: 0, expires: new Date(0) })
+  // A failed or cross-site callback must not be able to sign an already-authenticated
+  // user out. Only explicit logout revokes and clears an existing RCRE session.
+  response.headers.set('cache-control', 'no-store, max-age=0')
+  response.headers.set('referrer-policy', 'no-referrer')
   return response
 }
 
@@ -52,6 +55,8 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(new URL(destination, trustedOrigin), 303)
     clearTransient(response)
     response.cookies.set(SESSION_COOKIE, session.token, { ...sessionCookieOptions(), maxAge: Math.floor((session.expiresAt.getTime() - Date.now()) / 1000) })
+    response.headers.set('cache-control', 'no-store, max-age=0')
+    response.headers.set('referrer-policy', 'no-referrer')
     return response
   } catch (error) {
     const reason = error instanceof OidcError ? 'sign-in-failed' : 'sign-in-unavailable'
