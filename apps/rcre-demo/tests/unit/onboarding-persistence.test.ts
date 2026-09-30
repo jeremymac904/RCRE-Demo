@@ -1,21 +1,34 @@
-import {describe,it,expect} from 'vitest'
-import {PERSONAS} from '../../src/lib/platform/auth'
-import {loadOnboarding,saveOnboarding} from '../../src/lib/platform/onboarding'
-const agent=PERSONAS.find(p=>p.role==='agent')!
-describe('onboarding profile progress',()=>{
- it('saves optional profile fields and progress per authenticated actor',()=>{
-  const saved=saveOnboarding(agent,{version:0,phone:'(904) 555-0100',licenses:[{state:'Florida',number:'SL0000001'}],markets:['Jacksonville'],specialties:['First-time buyers'],biography:'A short profile.',socialLinks:{instagram:'',facebook:'',linkedin:''},websiteTemplate:'urban-modern',websiteSlug:'agent-example',steps:{identityConfirmed:true,profileReviewed:true,licenseReviewed:true,marketsReviewed:true,websiteSelected:true}})
-  const loaded=loadOnboarding(agent)
-  expect(loaded.profile.version).toBe(saved.version)
-  expect(loaded.profile.licenses).toEqual([{state:'Florida',number:'SL0000001'}])
-  expect(loaded.profile.steps.websiteSelected).toBe(true)
-  expect(loaded.displayName).toBe(agent.name)
-  expect(loaded.photoUploaded).toBe(false)
- })
- it('rejects malformed identity-bearing profile data and stale saves',()=>{
-  expect(()=>saveOnboarding(agent,{version:0,licenses:[{state:'Florida',number:''}]})).toThrow()
-  const version=loadOnboarding(agent).profile.version
-  saveOnboarding(agent,{version,phone:'',licenses:[],markets:[],specialties:[],biography:'',socialLinks:{instagram:'',facebook:'',linkedin:''},websiteTemplate:'signature',steps:{}})
-  expect(()=>saveOnboarding(agent,{version,phone:'',licenses:[],markets:[],specialties:[],biography:'',socialLinks:{instagram:'',facebook:'',linkedin:''},websiteTemplate:'signature',steps:{}})).toThrow(/changed/i)
- })
+import { describe, it, expect } from 'vitest'
+import { MemoryRepository, emptySeed } from '../../src/lib/db/repository'
+import type { PlatformActor } from '../../src/lib/platform/auth'
+import { loadOnboarding, saveOnboarding } from '../../src/lib/platform/onboarding'
+const agent: PlatformActor = { id: 'agent-1', userId: 'agent-1', organizationId: 'org-1', name: 'Morgan Agent', role: 'agent', market: 'Florida', officeId: 'fl', teamId: 'fl' }
+function repo() { const seed = emptySeed(); seed.users.push({ id: agent.id, organizationId: agent.organizationId, email: 'morgan@example.test', fullName: agent.name, role: 'agent', fubUserId: null, isActive: true }); return new MemoryRepository(seed) }
+describe('durable onboarding profile progress', () => {
+  it('persists profile and progress in the shared repository scoped to the authenticated user', async () => {
+    const database = repo()
+    const initial = await loadOnboarding(agent, database)
+    expect(initial.profile.verifiedPersonId).toBeNull()
+    const saved = await saveOnboarding(agent, { version: 0, phone: '(904) 555-0100', professionalTitle: 'REALTOR®', officeId: 'fl', licenses: [{ state: 'Florida', number: 'SL0000001' }], markets: ['Jacksonville'], specialties: ['First-time buyers'], biography: 'A short profile.', socialLinks: { instagram: '', facebook: '', linkedin: '' }, websiteTemplate: 'urban-modern', websiteSlug: 'agent-example', steps: { identityConfirmed: true, profileReviewed: true, licenseReviewed: true, marketsReviewed: true, websiteSelected: true } }, database)
+    const loaded = await loadOnboarding(agent, database)
+    expect(loaded.profile.version).toBe(saved.version)
+    expect(loaded.profile.licenses).toEqual([{ state: 'Florida', number: 'SL0000001' }])
+    expect(loaded.profile.steps.websiteSelected).toBe(true)
+    expect(loaded.displayName).toBe(agent.name)
+    expect(loaded.photoUploaded).toBe(false)
+    expect((await database.listAudit({ userId: agent.id, organizationId: agent.organizationId, role: 'broker' })).map(row => row.action)).toContain('onboarding.progress-saved')
+  })
+  it('rejects malformed profile data and stale writes', async () => {
+    const database = repo()
+    await expect(saveOnboarding(agent, { version: 0, licenses: [{ state: 'Florida', number: '' }] }, database)).rejects.toThrow()
+    const version = (await loadOnboarding(agent, database)).profile.version
+    await saveOnboarding(agent, { version, phone: '', licenses: [], markets: [], specialties: [], biography: '', socialLinks: { instagram: '', facebook: '', linkedin: '' }, websiteTemplate: 'signature', steps: {} }, database)
+    await expect(saveOnboarding(agent, { version, phone: '', licenses: [], markets: [], specialties: [], biography: '', socialLinks: { instagram: '', facebook: '', linkedin: '' }, websiteTemplate: 'signature', steps: {} }, database)).rejects.toThrow(/changed/i)
+  })
+  it('rejects cross-user profile reads and writes at the repository boundary', async () => {
+    const database = repo()
+    const other = { ...agent, id: 'agent-2', userId: 'agent-2' }
+    await saveOnboarding(other, { phone: '555', licenses: [], markets: [], specialties: [], biography: '', socialLinks: {}, websiteTemplate: 'signature', steps: {} }, database)
+    expect((await loadOnboarding(agent, database)).profile.phone).toBe('')
+  })
 })

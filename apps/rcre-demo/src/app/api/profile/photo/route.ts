@@ -1,9 +1,28 @@
-import {requireActor,AccessError} from '@/lib/platform/auth'
-import {getRecord,putRecord,deleteRecord} from '@/lib/platform/store'
-import {audit} from '@/lib/platform/service'
-export const dynamic='force-dynamic'
-export async function GET(){try{const a=await requireActor(),r=getRecord<any>('profile_photos',a.organizationId+':'+a.id);if(!r)throw new AccessError('No photo',404);return new Response(new Uint8Array(Buffer.from(r.bytes,'base64')),{headers:{'Content-Type':r.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}})}catch(e){return fail(e)}}
-export async function POST(req:Request){try{const a=await requireActor();origin(req);if(Number(req.headers.get('content-length'))>2200000)throw new AccessError('Photo must be under 2 MB',413);const f=(await req.formData()).get('photo');if(!(f instanceof File)||f.size>2*1024*1024)throw new AccessError('Choose a PNG or JPEG under 2 MB',400);const bytes=Buffer.from(await f.arrayBuffer());const png=f.type==='image/png'&&bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])),jpeg=f.type==='image/jpeg'&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;if(!png&&!jpeg)throw new AccessError('Invalid PNG or JPEG file',400);putRecord('profile_photos',{id:a.organizationId+':'+a.id,mime:f.type,bytes:bytes.toString('base64'),updatedAt:Date.now()});audit(a,'profile.photo-saved',a.id);return Response.json({saved:true})}catch(e){return fail(e)}}
-export async function DELETE(req:Request){try{origin(req);const a=await requireActor();deleteRecord('profile_photos',a.organizationId+':'+a.id);audit(a,'profile.photo-removed',a.id);return Response.json({removed:true})}catch(e){return fail(e)}}
-function origin(req:Request){const o=req.headers.get('origin');if(o&&new URL(o).host!==new URL(req.url).host)throw new AccessError('Origin mismatch')}
-function fail(e:unknown){return Response.json({error:e instanceof Error?e.message:'Photo request failed'},{status:e instanceof AccessError?e.status:500})}
+import { requireActor, AccessError } from '@/lib/platform/auth'
+import { downloadHeadshot, loadOnboarding, removeHeadshot, saveHeadshot } from '@/lib/platform/onboarding'
+import { StorageError } from '@/lib/storage/types'
+export const dynamic = 'force-dynamic'
+export async function GET() {
+  try {
+    const actor = await requireActor(), { profile } = await loadOnboarding(actor)
+    if (!profile.headshotAssetId) throw new AccessError('No photo', 404)
+    const { asset, bytes } = await downloadHeadshot(actor, profile.headshotAssetId)
+    return new Response(new Uint8Array(bytes), { headers: { 'Content-Type': asset.contentType, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } })
+  } catch (error) { return fail(error) }
+}
+export async function POST(request: Request) {
+  try {
+    const actor = await requireActor(); origin(request)
+    if (Number(request.headers.get('content-length') ?? 0) > 9 * 1024 * 1024) throw new AccessError('Photo must be under 8 MB', 413)
+    const photo = (await request.formData()).get('photo')
+    if (!(photo instanceof File) || photo.size > 8 * 1024 * 1024) throw new AccessError('Choose a PNG, JPEG, or WebP under 8 MB', 400)
+    await saveHeadshot(actor, { bytes: Buffer.from(await photo.arrayBuffer()), contentType: photo.type, filename: photo.name })
+    return Response.json({ saved: true }, { headers: { 'Cache-Control': 'private, no-store' } })
+  } catch (error) { return fail(error) }
+}
+export async function DELETE(request: Request) {
+  try { origin(request); const actor = await requireActor(); return Response.json({ removed: await removeHeadshot(actor) }, { headers: { 'Cache-Control': 'private, no-store' } }) }
+  catch (error) { return fail(error) }
+}
+function origin(request: Request) { const value = request.headers.get('origin'); if (value && new URL(value).host !== new URL(request.url).host) throw new AccessError('Origin mismatch') }
+function fail(error: unknown) { return Response.json({ error: error instanceof Error ? error.message : 'Photo request failed' }, { status: error instanceof AccessError ? error.status : error instanceof StorageError ? error.status : (error as { status?: number })?.status ?? 500, headers: { 'Cache-Control': 'private, no-store' } }) }

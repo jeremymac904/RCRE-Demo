@@ -1,0 +1,101 @@
+import 'server-only'
+import { z } from 'zod'
+import { getRepository } from '@/lib/db'
+import type { Repository } from '@/lib/db/repository'
+import { getAuthPersistence, type MemberSummary } from '@/lib/auth/persistence'
+import { AccessError, assertCapability, type PlatformActor } from './auth'
+import { repositoryActor, type OnboardingRecord } from './onboarding'
+
+export type AdminAgent = MemberSummary & {
+  publicVisible: boolean | null
+  licenses: Array<{ state: 'Alabama' | 'Florida'; number: string }>
+  onboardingComplete: boolean
+  onboardingStepsComplete: number
+  licenseStates: string[]
+  websiteTemplate: string | null
+  websiteSlug: string | null
+  professionalTitle: string
+  biography: string
+  specialties: string[]
+  markets: string[]
+}
+
+function inScope(actor: PlatformActor, member: MemberSummary) {
+  if (actor.organizationId !== member.organizationId) return false
+  if (actor.role === 'broker_owner') return true
+  return actor.role === 'managing_broker' && member.officeId === actor.officeId && member.userId !== actor.id && ['agent', 'team_leader', 'transaction_coordinator'].includes(member.platformRole)
+}
+
+export async function listAdminAgents(actor: PlatformActor, repository?: Repository): Promise<AdminAgent[]> {
+  assertCapability(actor, 'settings.people')
+  const auth = await getAuthPersistence()
+  const [members, repo] = await Promise.all([auth.listMembers(actor), repository ?? getRepository()])
+  const context = repositoryActor(actor)
+  return Promise.all(members.filter(member => inScope(actor, member)).map(async member => {
+    const stored = await repo.getDomainRecord<OnboardingRecord>(context, 'member_profiles', member.userId)
+    const profile = stored?.data
+    const completedSteps = profile ? Object.values(profile.steps).filter(Boolean).length : 0
+    return {
+      ...member,
+      publicVisible: profile ? Boolean(profile.publicVisible) : null,
+      licenses: profile?.licenses ?? [],
+      onboardingComplete: completedSteps === 5,
+      onboardingStepsComplete: completedSteps,
+      licenseStates: profile?.licenses.map(license => license.state) ?? [],
+      websiteTemplate: profile?.websiteTemplate ?? null,
+      websiteSlug: profile?.websiteSlug || null,
+      professionalTitle: profile?.professionalTitle ?? '',
+      biography: profile?.biography ?? '',
+      specialties: profile?.specialties ?? [],
+      markets: profile?.markets ?? [],
+    }
+  }))
+}
+
+export async function updateAdminAgent(actor: PlatformActor, userId: string, raw: unknown, repository?: Repository) {
+  assertCapability(actor, 'settings.people')
+  const change = z.object({
+    role: z.enum(['agent', 'team_leader', 'managing_broker', 'broker_owner', 'transaction_coordinator', 'marketing_admin', 'trainer']),
+    officeId: z.string().min(1).max(100),
+    teamId: z.string().min(1).max(100),
+    market: z.string().min(1).max(120),
+    active: z.boolean(),
+    publicVisible: z.boolean(),
+    licenses: z.array(z.object({ state: z.enum(['Alabama', 'Florida']), number: z.string().trim().min(1).max(100) })).max(10),
+    professionalTitle: z.string().trim().max(100),
+    biography: z.string().trim().max(5000),
+    specialties: z.array(z.string().trim().min(1).max(100)).max(20),
+    markets: z.array(z.string().trim().min(1).max(100)).max(20),
+  }).parse(raw)
+  const auth = await getAuthPersistence()
+  const members = await auth.listMembers(actor)
+  const target = members.find(member => member.userId === userId)
+  if (!target || !inScope(actor, target)) throw new AccessError('Member is outside your authorized scope', 403)
+  if (actor.role === 'managing_broker' && (!['agent', 'team_leader', 'transaction_coordinator'].includes(change.role) || change.officeId !== actor.officeId || change.teamId !== actor.officeId || !change.market.includes('Alabama') || !target.market.includes('Alabama') || change.markets.some(market => !market.includes('Alabama')) || change.licenses.some(license => license.state !== 'Alabama'))) {
+    throw new AccessError('This change is outside your managing broker authority', 403)
+  }
+  const repo = repository ?? await getRepository()
+  const context = repositoryActor(actor)
+  const current = await repo.getDomainRecord<OnboardingRecord & { publicVisible?: boolean }>(context, 'member_profiles', userId)
+  const profile = current?.data ?? ({ id: userId, memberId: userId, organizationId: actor.organizationId, phone: '', professionalTitle: '', officeId: change.officeId, licenses: [], markets: [], specialties: [], biography: '', socialLinks: { instagram: '', facebook: '', linkedin: '' }, websiteTemplate: 'signature', websiteSlug: '', steps: { identityConfirmed: false, profileReviewed: false, licenseReviewed: false, marketsReviewed: false, websiteSelected: false }, version: 0, verifiedPersonId: target.canonicalPersonId ?? null, savedAt: new Date().toISOString() } as OnboardingRecord)
+  const next = { ...profile, publicVisible: change.publicVisible, licenses: change.licenses, professionalTitle: change.professionalTitle, biography: change.biography, specialties: change.specialties, officeId: change.officeId, markets: change.markets, version: (current?.version ?? 0) + 1, savedAt: new Date().toISOString() }
+  await repo.putDomainRecord(context, { collection: 'member_profiles', recordId: userId, ownerUserId: userId, data: next as unknown as Record<string, unknown>, ...(current ? { expectedVersion: current.version } : {}) })
+  const updated = await auth.updateMember(actor, userId, { role: change.role, officeId: change.officeId, teamId: change.teamId, market: change.market, active: change.active })
+  if (!updated) throw new AccessError('Member could not be updated; profile changes were saved, reload and retry the account change', 409)
+  await repo.recordAudit(context, { organizationId: actor.organizationId, actorUserId: actor.id, actorKind: 'user', action: 'agent.lifecycle-updated', targetType: 'member', targetId: userId, effect: 'write', allowed: true, detail: { role: change.role, active: change.active, officeId: change.officeId, publicVisible: change.publicVisible, licenseCount: change.licenses.length } })
+  const revokedSessions = change.active ? 0 : await auth.revokeUserSessions(actor, userId)
+  return { updated: true, sessionsRevoked: !change.active, revokedSessions }
+}
+
+export async function revokeAdminAgentSessions(actor: PlatformActor, userId: string, repository?: Repository) {
+  assertCapability(actor, 'settings.people')
+  const auth = await getAuthPersistence()
+  const members = await auth.listMembers(actor)
+  const target = members.find(member => member.userId === userId)
+  if (!target || !inScope(actor, target)) throw new AccessError('Member is outside your authorized scope', 403)
+  const revoked = await auth.revokeUserSessions(actor, userId)
+  const context = repositoryActor(actor)
+  const repo = repository ?? await getRepository()
+  await repo.recordAudit(context, { organizationId: actor.organizationId, actorUserId: actor.id, actorKind: 'user', action: 'agent.sessions-revoked', targetType: 'member', targetId: userId, effect: 'write', allowed: true, detail: { revoked } })
+  return { revoked }
+}

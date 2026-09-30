@@ -4,6 +4,7 @@ import { actorOrNull,can } from '@/lib/platform/auth'
 import { AppShell } from '@/components/AppShell'
 import { AgentInspector } from '@/components/AgentInspector'
 import { AgentProfileAdmin } from '@/components/AgentProfileAdmin'
+import { AgentLifecycleAdmin } from '@/components/AgentLifecycleAdmin'
 export const dynamic='force-dynamic'
 export const metadata={robots:{index:false,follow:false}}
-export default async function Page({params}:{params:Promise<{id?:string}>}){const actor=await actorOrNull();const user=await currentUser();if(!actor||!user)redirect('/login');if(!can(actor,'command'))redirect('/forbidden');const p=await params;return <AppShell user={user}>{!p?.id&&can(actor,'settings.people')&&<AgentProfileAdmin/>}<AgentInspector agentId={p?.id}/></AppShell>}
+export default async function Page({params}:{params:Promise<{id?:string}>}){const actor=await actorOrNull();const user=await currentUser();if(!actor||!user)redirect('/login');if(!can(actor,'command'))redirect('/forbidden');const p=await params;return <AppShell user={user}>{!p?.id&&can(actor,'settings.people')&&<><AgentLifecycleAdmin managingBroker={actor.role==='managing_broker'}/><AgentProfileAdmin/></>}<AgentInspector agentId={p?.id}/></AppShell>}
