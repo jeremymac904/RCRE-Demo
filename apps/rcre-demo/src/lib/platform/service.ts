@@ -1,11 +1,12 @@
 import 'server-only'
 import {settingsSchema} from './settings'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { CONTACTS,TASKS,APPOINTMENTS,LISTINGS,RECRUITS,STAGE_THRESHOLD_DAYS,type DemoContact,type DemoTask,type DemoAppointment } from '@/data/demo'
 import { getRecord,putRecord,readRecords,transaction } from './store'
 import { type PlatformActor,PERSONAS,directory,can,scopedOwner,assertCapability,AccessError } from './auth'
-import type { Actor as RepositoryActor, Repository } from '@/lib/db/repository'
+import { DomainRecordConflictError, type Actor as RepositoryActor, type Repository } from '@/lib/db/repository'
 import { getRepository } from '@/lib/db'
+import { repositoryRoleForPlatform } from '@/lib/auth/role-mapping'
 export interface Contact extends DemoContact {organizationId:string;officeId:string;version:number;consent?:boolean;sourceSystem?:string;fubId?:number;sourceDeleted?:boolean}
 export interface Task extends DemoTask {organizationId:string;officeId:string;version:number;sourceDeleted?:boolean}
 export interface Appointment extends DemoAppointment {organizationId:string;officeId:string;endsAt:string;version:number;kind?:string;sourceDeleted?:boolean;createdAt?:string;status?:'planned'|'held'|'missed'|'canceled'|'completed';taskId?:string|null}
@@ -49,11 +50,7 @@ export function discardProposedFubChange(a:PlatformActor,id:string){return trans
 // Production CRM records live in the shared tenant-scoped PostgreSQL repository.
 // The legacy platform store remains the fixture adapter used by local review.
 function repositoryActor(a: PlatformActor): RepositoryActor {
-  const roles: Record<PlatformActor['role'], RepositoryActor['role']> = {
-    broker_owner: 'owner', managing_broker: 'broker', team_leader: 'team_lead',
-    agent: 'agent', transaction_coordinator: 'staff', marketing_admin: 'staff', trainer: 'viewer',
-  }
-  return { userId: a.id, organizationId: a.organizationId, role: roles[a.role] }
+  return { userId: a.id, organizationId: a.organizationId, role: repositoryRoleForPlatform(a.role) }
 }
 
 function contactDomainActor(a: PlatformActor): RepositoryActor {
@@ -155,10 +152,44 @@ export async function createContactDurable(a: PlatformActor, input: Record<strin
     firstTouchAt: null, lastTouchAt: null, lastInboundAt: null, lastOutboundAt: null, timeline: [],
     priority: null, reasons: [], tags: [], consent: input.consent === true,
   }
-  const written = await repository.putDomainRecord(actor, { collection: 'crm_contacts', recordId: contact.id, ownerUserId: requestedOwner, data: contact as unknown as Record<string, unknown> })
-  await repository.putDomainRecord(actor, {
-    collection: 'crm_assignment_history', recordId: `${contact.id}:initial`, ownerUserId: requestedOwner,
-    data: { contactId: contact.id, organizationId: a.organizationId, originalRecipient: requestedOwner, to: requestedOwner, at: now, actorId: a.id, kind: 'initial delivery' },
-  })
-  return { ...contact, version: written.version }
+  const idempotencyKey = typeof input.idempotencyKey === 'string' ? input.idempotencyKey.trim() : ''
+  if (idempotencyKey && (idempotencyKey.length < 8 || idempotencyKey.length > 200)) throw new AccessError('A valid idempotency key is required.', 400)
+  const idempotencyId = idempotencyKey
+    ? createHash('sha256').update(`crm-contact-create\0${a.organizationId}\0${a.id}\0${idempotencyKey}`).digest('hex')
+    : null
+  const payloadHash = createHash('sha256').update(JSON.stringify({
+    ownerId: requestedOwner, officeId, firstName: contact.firstName, lastName: contact.lastName,
+    email: contact.email, phone: contact.phone, source: contact.source, market: contact.location,
+    consent: contact.consent,
+  })).digest('hex')
+
+  if (idempotencyId) {
+    const prior = await repository.getDomainRecord<{ payloadHash: string; contactId: string }>(actor, 'crm_contact_idempotency', idempotencyId)
+    if (prior) {
+      if (prior.data.payloadHash !== payloadHash) throw new AccessError('This idempotency key was already used for different contact information.', 409)
+      return getContactDurable(a, prior.data.contactId, repository)
+    }
+  }
+
+  const historyId = `${contact.id}:initial`
+  const inputs = [
+    { collection: 'crm_contacts', recordId: contact.id, ownerUserId: requestedOwner, data: contact as unknown as Record<string, unknown>, createOnly: true },
+    { collection: 'crm_assignment_history', recordId: historyId, ownerUserId: requestedOwner,
+      data: { contactId: contact.id, organizationId: a.organizationId, originalRecipient: requestedOwner, to: requestedOwner, at: now, actorId: a.id, kind: 'initial delivery' }, createOnly: true },
+    ...(idempotencyId ? [{ collection: 'crm_contact_idempotency', recordId: idempotencyId, ownerUserId: a.id,
+      data: { payloadHash, contactId: contact.id, createdAt: now }, createOnly: true }] : []),
+  ]
+  const auditEvent = { organizationId: a.organizationId, actorUserId: a.id, actorKind: 'user' as const,
+    action: 'crm.contact_created', targetType: 'crm_contacts', targetId: contact.id, effect: 'write' as const, allowed: true,
+    detail: { source: contact.source, assignedOwnerId: requestedOwner } }
+  try {
+    const written = await repository.putDomainRecordsAtomic(actor, inputs, [auditEvent])
+    return { ...contact, version: written[0].version }
+  } catch (error) {
+    if (!idempotencyId || !(error instanceof DomainRecordConflictError)) throw error
+    const winner = await repository.getDomainRecord<{ payloadHash: string; contactId: string }>(actor, 'crm_contact_idempotency', idempotencyId)
+    if (!winner) throw error
+    if (winner.data.payloadHash !== payloadHash) throw new AccessError('This idempotency key was already used for different contact information.', 409)
+    return getContactDurable(a, winner.data.contactId, repository)
+  }
 }

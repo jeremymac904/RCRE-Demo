@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { DomainRecordConflictError, emptySeed, MemoryRepository } from '@/lib/db/repository'
+import { DomainRecordConflictError, emptySeed, MemoryRepository, type Actor, type DomainRecordInput } from '@/lib/db/repository'
+import type { AuditEvent } from '@/lib/domain-types'
 import type { PlatformActor } from '@/lib/platform/auth'
+import { AccessError } from '@/lib/platform/auth'
 import { createContactDurable, listContactsPage } from '@/lib/platform/service'
 import { persistIntakeDurable, IntakeError } from '@/lib/public/intake'
+import { durableNotifications } from '@/lib/services/notifications-durable'
 
 const org = '10000000-0000-4000-8000-000000000001'
 const agentId = '20000000-0000-4000-8000-000000000001'
@@ -57,6 +60,45 @@ describe('durable CRM repository contract', () => {
     expect(created).toMatchObject({ organizationId: org, ownerId: agentId, officeId: 'fl', source: 'Instagram', email: 'river@example.test', stage: 'New Lead', consent: true })
     expect(await repository.getDomainRecord({ userId: agentId, organizationId: org, role: 'agent' }, 'crm_contacts', created.id)).toMatchObject({ data: { email: 'river@example.test' }, ownerUserId: agentId })
   })
+
+  it('commits a new contact, initial assignment history, and audit event in one atomic write', async () => {
+    const repository = new MemoryRepository(seed())
+    const created = await createContactDurable(agent, { firstName: 'River', lastName: 'Client' }, repository)
+    const actor = { userId: agentId, organizationId: org, role: 'agent' as const }
+    expect(await repository.getDomainRecord(actor, 'crm_contacts', created.id)).toMatchObject({ data: { id: created.id } })
+    expect(await repository.getDomainRecord(actor, 'crm_assignment_history', `${created.id}:initial`)).toMatchObject({ data: { contactId: created.id, kind: 'initial delivery' } })
+    expect(await repository.listAudit({ userId: brokerId, organizationId: org, role: 'broker' })).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'crm.contact_created', targetId: created.id })]))
+  })
+
+  it('leaves no partial contact or assignment when the atomic repository write fails', async () => {
+    class FailingAtomicRepository extends MemoryRepository {
+      override async putDomainRecordsAtomic(actor: Actor, inputs: DomainRecordInput[], events: AuditEvent[] = []) {
+        if (inputs.some(input => input.collection === 'crm_contacts')) throw new Error('injected database failure')
+        return super.putDomainRecordsAtomic(actor, inputs, events)
+      }
+    }
+    const repository = new FailingAtomicRepository(seed())
+    await expect(createContactDurable(agent, { firstName: 'River', lastName: 'Client' }, repository)).rejects.toThrow('injected database failure')
+    const actor = { userId: agentId, organizationId: org, role: 'agent' as const }
+    expect(await repository.listDomainRecords(actor, 'crm_contacts')).toHaveLength(0)
+    expect(await repository.listDomainRecords(actor, 'crm_assignment_history')).toHaveLength(0)
+    expect(await repository.listAudit({ userId: brokerId, organizationId: org, role: 'broker' })).toHaveLength(0)
+  })
+
+  it('returns one contact for concurrent retries and rejects key reuse with a different payload', async () => {
+    const repository = new MemoryRepository(seed())
+    const input = { firstName: 'River', lastName: 'Client', email: 'river@example.test', idempotencyKey: 'review-contact-001' }
+    const [first, retry] = await Promise.all([
+      createContactDurable(agent, input, repository),
+      createContactDurable(agent, input, repository),
+    ])
+    expect(retry.id).toBe(first.id)
+    const actor = { userId: agentId, organizationId: org, role: 'agent' as const }
+    expect(await repository.listDomainRecords(actor, 'crm_contacts')).toHaveLength(1)
+    expect(await repository.listDomainRecords(actor, 'crm_assignment_history')).toHaveLength(1)
+    expect(await repository.listAudit({ userId: brokerId, organizationId: org, role: 'broker' })).toHaveLength(1)
+    await expect(createContactDurable(agent, { ...input, firstName: 'Different' }, repository)).rejects.toBeInstanceOf(AccessError)
+  })
 })
 
 
@@ -76,9 +118,21 @@ describe('durable public inquiry intake', () => {
     expect(retry).toMatchObject({ id: first.id, duplicate: true })
     const inquiry = await repository.getDomainRecord(actor, 'public_inquiries', first.id)
     expect(inquiry?.data).toMatchObject({ ownerId: siteOwnerId, agentWebsiteSlug: 'molly-homes', listingId: 'listing-1', providerId: 'realmls', utmSource: 'campaign' })
-    expect(await repository.getDomainRecord(actor, 'notification_outbox', `website-lead:${first.id}`)).toMatchObject({ data: { status: 'queued', kind: 'website_lead' } })
+    const notice = await durableNotifications(repository).list({ userId: siteOwnerId, organizationId: org, role: 'agent' })
+    expect(notice).toHaveLength(1)
+    expect(notice[0]).toMatchObject({ eventType: 'website_lead', deliveryState: 'queued', href: `/crm/${first.contactId}` })
     const altered = { ...input, message: 'different payload' }
     await expect(persistIntakeDurable(altered, repository, actor)).rejects.toBeInstanceOf(IntakeError)
+  })
+
+  it('uses the durable office lead-routing policy for brokerage inquiries', async () => {
+    const repository = new MemoryRepository(seed())
+    const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
+    await repository.putDomainRecord(actor, { collection: 'platform_settings', recordId: 'leads:fl', ownerUserId: brokerId, data: { routing: { fl: agentId } } })
+    await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: agentId, ownerUserId: agentId, data: { officeId: 'fl', market: 'Florida', role: 'agent', active: true } })
+    const input = { submissionId: 'c0a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'buyer', name: 'Routed Client', email: 'routed@example.test', market: 'Florida', consent: true }
+    const result = await persistIntakeDurable(input, repository, actor)
+    expect(await repository.getDomainRecord(actor, 'public_inquiries', result.id)).toMatchObject({ data: { ownerId: agentId } })
   })
 
   it('fails closed for unknown agent website slugs instead of using brokerage fallback routing', async () => {
