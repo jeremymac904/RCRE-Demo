@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { requireActor, AccessError, type PlatformActor } from '@/lib/platform/auth'
 import { getRepository } from '@/lib/db'
 import { DomainRecordConflictError } from '@/lib/db/repository'
-import { domainKnowledgeRepository, createKnowledgeDocument, updateKnowledgeDocument, archiveKnowledgeDocument, listKnowledgeDocuments, searchKnowledge, getKnowledgeDocument, type KnowledgeActor } from '@/lib/services/ai-knowledge'
+import { domainKnowledgeRepository, createKnowledgeDocument, updateKnowledgeDocument, archiveKnowledgeDocument, listKnowledgeDocuments, searchKnowledge, getKnowledgeDocument } from '@/lib/services/ai-knowledge'
+import { trustedKnowledgeActor } from '@/lib/platform/knowledge-access'
 
 export const dynamic = 'force-dynamic'
 const audienceRoles = z.array(z.enum(['owner', 'broker', 'team_lead', 'agent', 'staff', 'recruiter', 'viewer'])).min(1).max(7)
@@ -14,12 +15,6 @@ const documentSchema = z.object({
   visibility: z.enum(['organization', 'state', 'restricted']), classification: z.enum(['public', 'internal', 'sensitive']), externalUseAllowed: z.boolean(),
   allowedUserIds: z.array(z.string().min(1).max(160)).max(300).optional(), tags: z.array(z.string().trim().min(1).max(60)).max(40), content: z.string().trim().min(1).max(180000),
 })
-export function trustedKnowledgeActor(actor: PlatformActor): KnowledgeActor {
-  const role = actor.role === 'broker_owner' ? 'owner' : actor.role === 'managing_broker' ? 'broker' : actor.role === 'team_leader' ? 'team_lead' : actor.role === 'transaction_coordinator' ? 'staff' : actor.role === 'marketing_admin' || actor.role === 'trainer' ? 'staff' : 'agent'
-  const market = actor.market.toLowerCase()
-  const states = actor.officeId === 'al' || market.includes('alabama') ? ['AL'] : actor.officeId === 'fl' || market.includes('florida') ? ['FL'] : actor.role === 'broker_owner' ? ['AL', 'FL'] : []
-  return { userId: actor.userId, organizationId: actor.organizationId, role, states, canViewAllStates: actor.role === 'broker_owner' }
-}
 function canManage(actor: PlatformActor) { return ['broker_owner', 'managing_broker'].includes(actor.role) }
 function fail(error: unknown) {
   const status = error instanceof AccessError ? error.status : error instanceof DomainRecordConflictError ? 409 : error instanceof z.ZodError ? 400 : error instanceof Error && /not found/.test(error.message) ? 404 : 400

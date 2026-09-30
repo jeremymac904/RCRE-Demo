@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { trustedKnowledgeActor } from '@/app/api/knowledge/route'
+import { trustedKnowledgeActor } from '@/lib/platform/knowledge-access'
 import type { PlatformActor } from '@/lib/platform/auth'
 
 function actor(overrides: Partial<PlatformActor> = {}): PlatformActor {
