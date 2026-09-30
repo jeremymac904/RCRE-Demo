@@ -137,7 +137,8 @@ export function demoEnabled() {
 }
 
 export function sessionCookieOptions() {
-  return { httpOnly: true as const, sameSite: 'strict' as const, path: '/', maxAge: SESSION_TTL_MS / 1000, secure: process.env.NODE_ENV === 'production' }
+  // Lax is required for the top-level GET back from Google's OIDC callback.
+  return { httpOnly: true as const, sameSite: 'lax' as const, path: '/', maxAge: SESSION_TTL_MS / 1000, secure: process.env.NODE_ENV === 'production' }
 }
 
 export function createSession(id: string) {
@@ -159,10 +160,19 @@ export function createSession(id: string) {
 }
 
 export async function actorOrNull(): Promise<PlatformActor | null> {
-  if (!demoEnabled()) return null
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return null
+  if (!demoEnabled()) {
+    try {
+      const { getAuthPersistence, hashSecret, platformActor } = await import('@/lib/auth/persistence')
+      const actor = await (await getAuthPersistence()).validateSession(hashSecret(token))
+      return actor ? platformActor(actor) : null
+    } catch {
+      // Production identity fails closed when PostgreSQL or auth state is unavailable.
+      return null
+    }
+  }
   // Primary path: signed cookie payload.
   const payload = decodeSession(token)
   if (payload) {
@@ -211,6 +221,13 @@ export async function revokeSession() {
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return
   cookieStore.delete(SESSION_COOKIE)
+  if (!demoEnabled()) {
+    try {
+      const { getAuthPersistence, hashSecret } = await import('@/lib/auth/persistence')
+      await (await getAuthPersistence()).revokeSession(hashSecret(token))
+    } catch { /* the response still clears the browser cookie */ }
+    return
+  }
   // Server-side revocation is checked by actorOrNull on every authenticated request.
   try {
     const payload = decodeSession(token)
@@ -219,6 +236,21 @@ export async function revokeSession() {
   } catch {
     // The cookie is deleted; server-side state remains the authority for acceptance.
   }
+}
+
+/** Issue an opaque, hashed-at-rest PostgreSQL session after verified OIDC. */
+export async function issueDurableSession(actorId: string, metadata: { userAgent?: string | null; ip?: string | null } = {}) {
+  const { createHash } = await import('node:crypto')
+  const { getAuthPersistence, hashSecret, opaqueSecret } = await import('@/lib/auth/persistence')
+  const token = opaqueSecret(32)
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
+  const digest = (value: string | null | undefined) => createHash('sha256').update(value ?? '').digest('hex')
+  const result = await (await getAuthPersistence()).issueSession({
+    userId: actorId, tokenHash: hashSecret(token), expiresAt, deviceLabel: 'Web browser',
+    userAgentHash: digest(metadata.userAgent), ipHash: digest(metadata.ip),
+  })
+  if (!result) throw new AccessError('Your RCRE account is not active. Contact an administrator.', 403)
+  return { token, expiresAt, sessionId: result.sessionId }
 }
 
 export function can(a: PlatformActor, c: string): boolean {

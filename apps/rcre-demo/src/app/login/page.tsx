@@ -1,11 +1,13 @@
 import { PERSONAS, demoEnabled } from '@/lib/platform/auth'
 import { Logo } from '@/components/Logo'
 import Link from 'next/link'
+import { googleConfig } from '@/lib/auth/google-oidc'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const localDemo = demoEnabled()
+  const googleReady = !!googleConfig()
   const { error } = await searchParams
   return <main className="min-h-screen bg-ink px-6 py-10">
     <div className="mx-auto max-w-5xl">
@@ -28,9 +30,9 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
       </> : <>
         <p className="eyebrow mt-12">Secure access</p>
         <h1 className="font-display text-4xl mt-3">Sign in to RCRE.</h1>
-        <p className="text-chalk-muted max-w-2xl my-5">Google sign-in is not connected yet. An administrator must configure Google OAuth before production accounts can sign in. Mailbox access remains a separate optional permission.</p>
-        <button disabled className="border border-hair px-5 py-3 opacity-60 cursor-not-allowed" aria-describedby="google-status">Sign in with Google</button>
-        <p id="google-status" className="mt-3 text-sm text-chalk-muted">{error === 'google-required' ? 'Google identity configuration is required.' : 'Production sign-in is unavailable until Google OAuth is configured.'}</p>
+        <p className="text-chalk-muted max-w-2xl my-5">Use your invited RCRE Google account to sign in. Mailbox, Calendar, and Drive access remain separate optional permissions.</p>
+        {googleReady ? <form action="/api/auth/google" method="get"><button className="inline-flex min-h-11 items-center border border-hair px-5 py-3 hover:border-brass-fill">Sign in with Google</button></form> : <button disabled className="border border-hair px-5 py-3 opacity-60 cursor-not-allowed" aria-describedby="google-status">Sign in with Google</button>}
+        <p id="google-status" className="mt-3 text-sm text-chalk-muted">{error === 'not-invited' ? 'This Google account does not match an active RCRE invitation.' : error === 'sign-in-failed' ? 'Google sign-in could not be verified. Please try again.' : googleReady ? 'Google identity is ready; only invited RCRE accounts may enter.' : 'Google identity configuration is required before account sign-in is available.'}</p>
       </>}
       <Link href="/" className="ml-5">Back to RCRE</Link>
     </div>

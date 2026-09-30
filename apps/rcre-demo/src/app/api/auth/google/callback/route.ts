@@ -1,0 +1,60 @@
+import { NextResponse, type NextRequest } from 'next/server'
+import { exchangeGoogleCode, googleConfig, OidcError } from '@/lib/auth/google-oidc'
+import { getAuthPersistence, hashSecret } from '@/lib/auth/persistence'
+import { issueDurableSession, SESSION_COOKIE, sessionCookieOptions } from '@/lib/platform/auth'
+
+export const dynamic = 'force-dynamic'
+const cookiePath = '/api/auth/google'
+const clearTransient = (response: NextResponse) => {
+  for (const name of ['rcre_oidc_state', 'rcre_oidc_nonce', 'rcre_oidc_verifier']) response.cookies.set(name, '', { path: cookiePath, httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 0 })
+  response.cookies.set('rcre_invitation_token', '', { path: '/api/auth/google/callback', httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 0 })
+}
+
+function failure(request: NextRequest, reason: string, trustedOrigin?: string) {
+  const fallback = process.env.NODE_ENV === 'production' ? trustedOrigin ?? request.nextUrl.origin : request.nextUrl.origin
+  const response = NextResponse.redirect(new URL(`/login?error=${reason}`, fallback), 303)
+  clearTransient(response)
+  response.cookies.set(SESSION_COOKIE, '', { ...sessionCookieOptions(), maxAge: 0, expires: new Date(0) })
+  return response
+}
+
+export async function GET(request: NextRequest) {
+  const config = googleConfig()
+  if (!config) return failure(request, 'identity-unavailable')
+  const trustedOrigin = new URL(config.redirectUri).origin
+  if (request.nextUrl.origin !== trustedOrigin || request.nextUrl.pathname !== new URL(config.redirectUri).pathname) return failure(request, 'sign-in-failed', trustedOrigin)
+  const params = request.nextUrl.searchParams
+  const code = params.get('code')
+  const returnedState = params.get('state')
+  const state = request.cookies.get('rcre_oidc_state')?.value
+  const nonce = request.cookies.get('rcre_oidc_nonce')?.value
+  const verifier = request.cookies.get('rcre_oidc_verifier')?.value
+  if (params.has('error') || !code || !returnedState || !state || !nonce || !verifier || returnedState !== state) return failure(request, 'sign-in-failed', trustedOrigin)
+  try {
+    const identity = await exchangeGoogleCode({ config, code, verifier, expectedNonce: nonce })
+    const inviteToken = request.cookies.get('rcre_invitation_token')?.value
+    const actor = await (await getAuthPersistence()).linkGoogle({
+      email: identity.email,
+      subject: identity.subject,
+      name: identity.name,
+      invitationTokenHash: inviteToken ? hashSecret(inviteToken) : null,
+    })
+    if (!actor) return failure(request, 'not-invited', trustedOrigin)
+    const metadata = {
+      userAgent: request.headers.get('user-agent'),
+      ip: request.headers.get('x-nf-client-connection-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    }
+    const session = await issueDurableSession(actor.userId, metadata)
+    const destination = actor.role === 'transaction_coordinator' ? '/transactions'
+      : actor.role === 'trainer' ? '/training'
+      : actor.role === 'marketing_admin' ? '/marketing'
+      : ['broker_owner', 'managing_broker', 'team_leader'].includes(actor.role) ? '/command' : '/today'
+    const response = NextResponse.redirect(new URL(destination, trustedOrigin), 303)
+    clearTransient(response)
+    response.cookies.set(SESSION_COOKIE, session.token, { ...sessionCookieOptions(), maxAge: Math.floor((session.expiresAt.getTime() - Date.now()) / 1000) })
+    return response
+  } catch (error) {
+    const reason = error instanceof OidcError ? 'sign-in-failed' : 'sign-in-unavailable'
+    return failure(request, reason, trustedOrigin)
+  }
+}
