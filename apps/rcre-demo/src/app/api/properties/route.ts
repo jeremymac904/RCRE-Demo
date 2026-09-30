@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchProperties } from '@/lib/property/service'
 import type { PropertySearchFilters } from '@/lib/property/types'
+import { rateLimitRequest, SharedRateLimitUnavailableError } from '@/lib/services/rate-limit'
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
-const bucket=new Map<string,{start:number;count:number}>()
-function rateLimited(req:NextRequest){const key=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||'local';const now=Date.now();const old=bucket.get(key);if(!old||now-old.start>60000){bucket.set(key,{start:now,count:1});return false}old.count++;return old.count>90}
 const number=(v:string|null,min=0,max=100000000)=>{if(v===null||v==='')return undefined;const n=Number(v);return Number.isFinite(n)&&n>=min&&n<=max?n:undefined}
 const bool=(v:string|null)=>v==='true'?true:v==='false'?false:undefined
 export async function GET(req:NextRequest){
- if(rateLimited(req))return NextResponse.json({error:'Search is receiving too many requests. Try again in a moment.'},{status:429,headers:{'Cache-Control':'no-store'}})
+ let quota
+ try{quota=await rateLimitRequest('property_search',req.headers,90)}catch(error){if(error instanceof SharedRateLimitUnavailableError)return NextResponse.json({error:'Search is temporarily unavailable. Please try again shortly.'},{status:503,headers:{'Cache-Control':'no-store'}});throw error}
+ if(!quota.allowed)return NextResponse.json({error:'Search is receiving too many requests. Try again in a moment.'},{status:429,headers:{'Cache-Control':'no-store','Retry-After':String(quota.retryAfterSeconds)}})
  const q=req.nextUrl.searchParams
  const state=q.get('state')
  if(state&&state!=='AL'&&state!=='FL')return NextResponse.json({error:'Select Alabama or Florida.'},{status:400})
