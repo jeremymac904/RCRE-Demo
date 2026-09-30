@@ -4,16 +4,31 @@ import {listAdminAgentProfiles,saveAdminAgentProfile,visiblePublicAgentSlugs} fr
 import {getRecord} from '../../src/lib/platform/store'
 import {getWebsiteConfig} from '../../src/lib/agent-website/agent-service'
 import {resolvePublicProfile} from '../../src/lib/public/server'
+import {publicAgents} from '../../src/lib/public/content'
+import {agentProfileFor} from '../../src/lib/platform/agent-profiles'
 const owner=PERSONAS.find(p=>p.role==='broker_owner')!
 const taquilla=PERSONAS.find(p=>p.id==='u-taquilla')!
 const complete=(profile:any,overrides:any={})=>({...profile,...overrides})
 describe('canonical public agent administration',()=>{
  it('returns canonical roster to owner and only authorized Alabama profiles to managing broker',()=>{
   expect(listAdminAgentProfiles(owner)).toHaveLength(13)
+  expect(listAdminAgentProfiles(owner).find(p=>p.id==='lekeshia-jones')).toBeDefined()
+  expect(agentProfileFor('lekeshia-jones')?.publicVisible).toBe(false)
+  expect(visiblePublicAgentSlugs(owner.organizationId)).toHaveLength(12)
+  expect(visiblePublicAgentSlugs(owner.organizationId)).not.toContain('lekeshia-jones')
   const local=listAdminAgentProfiles(taquilla)
   expect(local.some(p=>p.id==='julio-arango'||p.id==='taquilla-allen')).toBe(false)
   expect(local.every(p=>p.market.includes('Alabama'))).toBe(true)
   expect(()=>listAdminAgentProfiles(PERSONAS[0])).toThrow()
+ })
+ it('retains Lekeshia historically, allows owner reactivation, and keeps Margies public title separate from TC access',()=>{
+  const lekeshia=listAdminAgentProfiles(owner).find(p=>p.id==='lekeshia-jones')!
+  const reactivated=saveAdminAgentProfile(owner,lekeshia.id,complete(lekeshia,{version:lekeshia.version,publicVisible:true}))
+  expect(visiblePublicAgentSlugs(owner.organizationId)).toContain('lekeshia-jones')
+  saveAdminAgentProfile(owner,lekeshia.id,complete(reactivated,{version:reactivated.version,publicVisible:false}))
+  expect(publicAgents.find(p=>p.slug==='margie-olsen-alvarez')?.role).toBe('REALTOR®')
+  expect(agentProfileFor('margie-olsen-alvarez')?.publicTitle).toBe('REALTOR®')
+  expect(PERSONAS.find(p=>p.id==='u-tc')?.role).toBe('transaction_coordinator')
  })
  it('persists public profile fields while keeping identity and operating role separate',()=>{
   const p=listAdminAgentProfiles(owner).find(x=>x.id==='sarah-brockner')!

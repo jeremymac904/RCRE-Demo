@@ -1,7 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { publicAgents } from '@/lib/public/content'
-import { AccessError, assertCapability, type PlatformActor } from './auth'
+import { AccessError, assertCapability, directory, type PlatformActor, type PlatformRole } from './auth'
 import { getRecord, putRecord, readRecords } from './store'
 import { audit } from './service'
 
@@ -25,8 +25,12 @@ export const agentProfileInput = z.object({
 export type AgentProfileInput = z.infer<typeof agentProfileInput>
 export type AgentProfileRecord = AgentProfileInput & {id:string;organizationId:string;version:number;updatedAt:string;updatedBy:string}
 
-const leadership = (title:string) => /broker|owner|managing/i.test(title)
+// Public title is marketing copy, never an operating permission. These explicit links
+// connect the known leadership/TC identities to their separate platform memberships.
+const canonicalActorLinks:Record<string,string>={'julio-arango':'u-julio','taquilla-allen':'u-taquilla','margie-olsen-alvarez':'u-tc'}
+const protectedOperatingRoles:PlatformRole[]=['broker_owner','managing_broker']
 function canonical(slug:string){return publicAgents.find(p=>p.slug===slug)}
+function canonicalOperatingRole(slug:string,organizationId:string):PlatformRole|undefined{const actorId=canonicalActorLinks[slug];if(!actorId)return undefined;return directory(organizationId).find(actor=>actor.id===actorId)?.role}
 export function agentProfileFor(slug:string,organizationId='rcre-local') {
   const person=canonical(slug)
   if(!person)return null
@@ -39,21 +43,25 @@ export function agentProfileFor(slug:string,organizationId='rcre-local') {
     bio:overlay?.bio??person.bio, specialties:overlay?.specialties??[],
     socialLinks:overlay?.socialLinks??{instagram:'',facebook:'',linkedin:''},
     websiteTemplate:overlay?.websiteTemplate??'signature',
-    publicVisible:overlay?.publicVisible??true, image:person.image,
+    publicVisible:overlay?.publicVisible??person.slug!=='lekeshia-jones', image:person.image,
   }
 }
 export function listAdminAgentProfiles(actor:PlatformActor) {
   assertCapability(actor,'settings.people')
   return publicAgents.flatMap(person=>{
     const profile=agentProfileFor(person.slug,actor.organizationId)!
-    return actor.role==='broker_owner' || (actor.role==='managing_broker' && person.slug!=='taquilla-allen' && !leadership(person.role) && person.market.includes('Alabama')) ? [profile] : []
+    const targetRole=canonicalOperatingRole(person.slug,actor.organizationId)
+    const protectedTarget=targetRole===undefined?['julio-arango','taquilla-allen'].includes(person.slug):protectedOperatingRoles.includes(targetRole)
+    return actor.role==='broker_owner' || (actor.role==='managing_broker' && !protectedTarget && person.market.includes('Alabama')) ? [profile] : []
   })
 }
 export function saveAdminAgentProfile(actor:PlatformActor,slug:string,input:unknown) {
   assertCapability(actor,'settings.people')
   const person=canonical(slug)
   if(!person)throw new AccessError('Canonical RCRE person not found',404)
-  if(actor.role==='managing_broker' && (slug==='taquilla-allen'||leadership(person.role)||!person.market.includes('Alabama')))
+  const targetRole=canonicalOperatingRole(slug,actor.organizationId)
+  const protectedTarget=targetRole===undefined?['julio-arango','taquilla-allen'].includes(slug):protectedOperatingRoles.includes(targetRole)
+  if(actor.role==='managing_broker' && (protectedTarget||!person.market.includes('Alabama')))
     throw new AccessError('This canonical profile is outside your authorized scope',403)
   const value=agentProfileInput.parse(input)
   if(actor.role==='managing_broker' && !value.market.includes('Alabama'))
