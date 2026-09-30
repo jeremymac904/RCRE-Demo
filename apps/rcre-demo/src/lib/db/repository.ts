@@ -40,8 +40,8 @@ export function canSeeRecruiting(role: UserRole): boolean {
 }
 
 export interface Repository {
-  getOrganization(id: string): Promise<Organization | null>
-  getUser(id: string): Promise<User | null>
+  getOrganization(actor: Actor, id: string): Promise<Organization | null>
+  getUser(actor: Actor, id: string): Promise<User | null>
   listUsers(actor: Actor): Promise<User[]>
 
   /** People visible to this actor. Agents see only their own assigned book. */
@@ -54,7 +54,7 @@ export interface Repository {
   listDeals(actor: Actor): Promise<Deal[]>
   listRecruitingProspects(actor: Actor): Promise<RecruitingProspect[]>
 
-  recordAudit(event: AuditEvent): Promise<void>
+  recordAudit(actor: Actor, event: AuditEvent): Promise<void>
   listAudit(actor: Actor, limit?: number): Promise<(AuditEvent & { occurredAt: string })[]>
 }
 
@@ -97,12 +97,16 @@ export class MemoryRepository implements Repository {
     return rows.filter(r => r.organizationId === actor.organizationId)
   }
 
-  async getOrganization(id: string) {
+  async getOrganization(actor: Actor, id: string) {
+    if (id !== actor.organizationId) return null
     return this.seed.organizations.find(o => o.id === id) ?? null
   }
 
-  async getUser(id: string) {
-    return this.seed.users.find(u => u.id === id) ?? null
+  async getUser(actor: Actor, id: string) {
+    const user = this.seed.users.find(u => u.id === id && u.organizationId === actor.organizationId)
+    if (!user) return null
+    if (!canSeeWholeBrokerage(actor.role) && user.id !== actor.userId) return null
+    return user
   }
 
   async listUsers(actor: Actor) {
@@ -172,7 +176,10 @@ export class MemoryRepository implements Repository {
     return this.sameOrg(actor, this.seed.recruitingProspects)
   }
 
-  async recordAudit(event: AuditEvent) {
+  async recordAudit(actor: Actor, event: AuditEvent) {
+    if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) {
+      throw new PermissionDeniedError('recordAudit', 'audit identity must match the trusted actor')
+    }
     this.audit.push({ ...event, occurredAt: new Date().toISOString() })
   }
 

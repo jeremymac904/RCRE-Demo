@@ -45,5 +45,4 @@ export const env = {
 export function assertLiveConfig(): void {
   if (dataMode() !== 'live') return
   if (!env.databaseUrl) throw new Error('DATABASE_URL is required in live mode')
-  if (!env.fub.apiKey) throw new Error('FUB_API_KEY is required in live mode')
 }

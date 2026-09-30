@@ -31,22 +31,14 @@ import type {
  * application predicates. The second failure is silent, which is what makes it
  * dangerous.
  *
- * Reads that legitimately precede an actor — `getOrganization`, `getUser`,
- * which are how an actor is resolved in the first place — pass `null` context
- * explicitly and are marked at the call site. They must stay few and obvious.
+ * There are no unscoped bootstrap reads. Identity-provider claims must resolve
+ * to a trusted actor before repository access; every query, including identity
+ * lookups, is scoped through RLS.
  *
  * NOT YET EXERCISED against a real database — no Postgres instance is
  * provisioned and doing so is outside the current authorization. Structure and
  * SQL are written; the MemoryRepository is what the MVP currently runs on.
  */
-/**
- * Stand-in user id for audit rows a human did not cause — webhook ingestion,
- * scheduled jobs. It is a real UUID rather than an empty string so the RLS
- * context validator cannot mistake a system write for a missing context, which
- * is the failure that would silently drop the row.
- */
-const SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000'
-
 let pool: Pool | null = null
 function getPool(): Pool {
   if (!pool) {
@@ -77,7 +69,7 @@ export class PgRepository implements Repository {
    * deliberately.
    */
   private async q<T>(
-    actor: Actor | null,
+    actor: Actor,
     text: string,
     params: unknown[] = [],
   ): Promise<T[]> {
@@ -92,21 +84,21 @@ export class PgRepository implements Repository {
     }
   }
 
-  async getOrganization(id: string): Promise<Organization | null> {
-    // Bootstrap read: resolves the org an actor belongs to, so it precedes the
-    // actor. Returns one row by primary key; carries no person-scoped data.
-    const rows = await this.q<Organization>(null,
+  async getOrganization(actor: Actor, id: string): Promise<Organization | null> {
+    if (id !== actor.organizationId) return null
+    const rows = await this.q<Organization>(actor,
       `select id, name, slug, fub_account_id as "fubAccountId"
-         from organizations where id = $1`, [id])
+         from organizations where id = $1 and id = $2`, [actor.organizationId, id])
     return rows[0] ?? null
   }
 
-  async getUser(id: string): Promise<User | null> {
-    // Bootstrap read: this is how an Actor is built. Same reasoning as above.
-    const rows = await this.q<User>(null,
+  async getUser(actor: Actor, id: string): Promise<User | null> {
+    const own = canSeeWholeBrokerage(actor.role) ? '' : ' and id = $3'
+    const params = canSeeWholeBrokerage(actor.role) ? [actor.organizationId, id] : [actor.organizationId, id, actor.userId]
+    const rows = await this.q<User>(actor,
       `select id, organization_id as "organizationId", email, full_name as "fullName",
               role, fub_user_id as "fubUserId", is_active as "isActive"
-         from users where id = $1`, [id])
+         from users where organization_id = $1 and id = $2${own}`, params)
     return rows[0] ?? null
   }
 
@@ -244,24 +236,10 @@ export class PgRepository implements Repository {
       [actor.organizationId])
   }
 
-  async recordAudit(e: AuditEvent): Promise<void> {
-    // The audit row carries its own actor, so reconstruct the context the RLS
-    // insert policy checks rather than writing outside a session.
-    //
-    // `organizationId` is legitimately null for system-level events — migration
-    // 0003 makes the column nullable for exactly this case and notes those rows
-    // are reachable only by the ingestion role. We pass a null context there
-    // rather than inventing a tenant: under RLS the insert will be refused
-    // unless the connection genuinely holds that role, which is the correct
-    // and visible outcome. Fabricating an org id would make a cross-tenant
-    // audit row look like it belonged to someone.
-    const actor: Actor | null = e.organizationId
-      ? {
-          userId: e.actorUserId ?? SYSTEM_ACTOR_ID,
-          organizationId: e.organizationId,
-          role: 'owner',
-        }
-      : null
+  async recordAudit(actor: Actor, e: AuditEvent): Promise<void> {
+    if (e.organizationId !== actor.organizationId || e.actorUserId !== actor.userId) {
+      throw new PermissionDeniedError('recordAudit', 'audit identity must match the trusted actor')
+    }
     await this.q(actor,
       `insert into audit_events
          (organization_id, actor_user_id, actor_kind, action, target_type, target_id,

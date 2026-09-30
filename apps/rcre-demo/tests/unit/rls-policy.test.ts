@@ -464,23 +464,17 @@ describe('PgRepository actually opens an RLS session', () => {
   })
 
   it('makes the actor a required first argument, so omitting it is a type error', () => {
-    expect(pg).toMatch(/private async q<T>\(\s*\n\s*actor: Actor \| null,/)
+    expect(pg).toMatch(/private async q<T>\(\s*\n\s*actor: Actor,/ )
   })
 
-  it('passes null context only where an actor cannot yet exist', () => {
-    // getOrganization and getUser are how an Actor is built, so they precede it.
-    // Any other null context is a scoping hole.
-    const nullCalls = [...pg.matchAll(/this\.q<[^>]+>\(null,/g)]
-    expect(nullCalls).toHaveLength(2)
-    for (const m of nullCalls) {
-      const before = pg.slice(Math.max(0, m.index! - 400), m.index!)
-      expect(before).toMatch(/getOrganization|getUser/)
-    }
+  it('does not permit unscoped bootstrap queries', () => {
+    expect(pg).not.toMatch(/this\.q<[^>]+>\(null,/)
+    expect(pg).toMatch(/getOrganization\(actor: Actor, id: string\)/)
+    expect(pg).toMatch(/getUser\(actor: Actor, id: string\)/)
   })
 
-  it('does not invent a tenant for a system-level audit row', () => {
-    // audit_events.organization_id is nullable by design in 0003. Fabricating
-    // an org id would make a cross-tenant row look like it belonged to someone.
-    expect(pg).toMatch(/const actor: Actor \| null = e\.organizationId/)
+  it('binds audit identity to the trusted scoped actor', () => {
+    expect(pg).toMatch(/async recordAudit\(actor: Actor, e: AuditEvent\)/)
+    expect(pg).toMatch(/e\.organizationId !== actor\.organizationId \|\| e\.actorUserId !== actor\.userId/)
   })
 })
