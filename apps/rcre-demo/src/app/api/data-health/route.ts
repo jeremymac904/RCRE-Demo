@@ -3,6 +3,9 @@ import path from 'node:path'
 import { requireActor, assertCapability, AccessError } from '@/lib/platform/auth'
 import { DurableStoreUnavailableError, readRecords, getRecord, storageRoot } from '@/lib/platform/store'
 import { getSetting } from '@/lib/platform/service'
+import { isProduction } from '@/lib/config/env'
+import { dependencyReadiness } from '@/lib/operations/readiness'
+import { getPgPool } from '@/lib/db/pg'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,6 +15,26 @@ export async function GET() {
   try {
     const actor = await requireActor()
     assertCapability(actor, 'settings.audit')
+    if (isProduction) {
+      const dependencies = dependencyReadiness()
+      let database = { status: 'not_configured' as string, healthy: false }
+      if (process.env.DATABASE_URL) {
+        try {
+          await getPgPool().query('select 1')
+          database = { status: 'connected', healthy: true }
+        } catch {
+          database = { status: 'unavailable', healthy: false }
+        }
+      }
+      return Response.json({
+        mode: 'production', checkedAt: new Date().toISOString(), externalWritesEnabled: false,
+        database, dependencies,
+        databaseParity: database.healthy ? 'PostgreSQL connectivity was verified. Schema, backups, and restore status require separate operational checks.' : 'PostgreSQL is not healthy; brokerage workflows remain unavailable.',
+        counts: null, worker: { status: 'unknown', fresh: false, lastRun: null },
+        notifications: { inApp: 'database-backed status not yet verified', email: dependencies.optional.email.state },
+        auditPolicy: null, backups: null,
+      }, { headers: { 'Cache-Control': 'no-store' } })
+    }
     if (!storageRoot) throw new DurableStoreUnavailableError()
 
     const workerRecord = getRecord<any>('local_worker', actor.organizationId)

@@ -64,8 +64,10 @@ describe('durable public inquiry intake', () => {
   it('routes to the canonical active site owner, preserves attribution, queues notification, and is idempotent', async () => {
     const repository = new MemoryRepository(seed())
     const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
-    await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: '20000000-0000-4000-8000-000000000003', ownerUserId: '20000000-0000-4000-8000-000000000003', data: { officeId: 'fl', market: 'Florida', role: 'agent', publicVisible: true, websiteStatus: 'published' } })
-    const input = { submissionId: 'a0a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'property', name: 'Demo Client', email: 'client@example.test', market: 'Florida', agentSlug: 'molly-plude', consent: true, listingId: 'listing-1', providerId: 'realmls', mlsListingId: '123', landingPage: '/homes/listing-1', utmSource: 'campaign', propertyAddress: '12 Main Street' }
+    const siteOwnerId = '20000000-0000-4000-8000-000000000003'
+    await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: siteOwnerId, ownerUserId: siteOwnerId, data: { officeId: 'fl', market: 'Florida', role: 'agent', verifiedPersonId: 'molly-plude', websiteSlug: 'molly-homes', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: siteOwnerId, ownerUserId: siteOwnerId, data: { slug: 'molly-homes', published: true } })
+    const input = { submissionId: 'a0a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'property', name: 'Demo Client', email: 'client@example.test', market: 'Florida', agentSlug: 'molly-homes', consent: true, listingId: 'listing-1', providerId: 'realmls', mlsListingId: '123', landingPage: '/homes/listing-1', utmSource: 'campaign', propertyAddress: '12 Main Street' }
     const [first, retry] = await Promise.all([
       persistIntakeDurable(input, repository, actor),
       persistIntakeDurable(input, repository, actor),
@@ -73,9 +75,17 @@ describe('durable public inquiry intake', () => {
     expect(first).toMatchObject({ status: 'saved', persistence: 'postgres', duplicate: false })
     expect(retry).toMatchObject({ id: first.id, duplicate: true })
     const inquiry = await repository.getDomainRecord(actor, 'public_inquiries', first.id)
-    expect(inquiry?.data).toMatchObject({ ownerId: '20000000-0000-4000-8000-000000000003', agentWebsiteSlug: 'molly-plude', listingId: 'listing-1', providerId: 'realmls', utmSource: 'campaign' })
+    expect(inquiry?.data).toMatchObject({ ownerId: siteOwnerId, agentWebsiteSlug: 'molly-homes', listingId: 'listing-1', providerId: 'realmls', utmSource: 'campaign' })
     expect(await repository.getDomainRecord(actor, 'notification_outbox', `website-lead:${first.id}`)).toMatchObject({ data: { status: 'queued', kind: 'website_lead' } })
     const altered = { ...input, message: 'different payload' }
     await expect(persistIntakeDurable(altered, repository, actor)).rejects.toBeInstanceOf(IntakeError)
+  })
+
+  it('fails closed for unknown agent website slugs instead of using brokerage fallback routing', async () => {
+    const repository = new MemoryRepository(seed())
+    const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
+    await repository.putDomainRecord(actor, { collection: 'settings', recordId: 'leads', ownerUserId: null, data: { routing: { fl: agentId }, defaultOwnerId: agentId } })
+    const input = { submissionId: 'b0a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'property', name: 'Demo Client', email: 'client@example.test', market: 'Florida', agentSlug: 'not-a-published-site', consent: true }
+    await expect(persistIntakeDurable(input, repository, actor)).rejects.toMatchObject({ status: 503 })
   })
 })

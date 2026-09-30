@@ -133,21 +133,53 @@ async function durableOwner(input: IntakeFields, repository: Repository, actor: 
     throw new IntakeError('We cannot receive requests right now. Please contact the office directly.', 503)
   }
   const users = await repository.listUsers(actor)
-  const rosterMatch = input.agentSlug ? publicAgents.find(agent => agent.slug === input.agentSlug) : null
-  const email = rosterMatch?.email?.trim().toLowerCase()
-  const candidate = email ? users.find(user => user.isActive && user.email.trim().toLowerCase() === email) : null
+  let rosterMatch = input.agentSlug ? publicAgents.find(agent => agent.slug === input.agentSlug) : null
+  let candidate = undefined as (typeof users)[number] | undefined
+  let candidateProfile: Record<string, any> | undefined
+
+  // A personal website slug is configurable and is not the canonical person ID.
+  // Resolve it only through a published site owned by an active member whose
+  // profile is linked to a verified public RCRE person. Never fall back to the
+  // brokerage's default routing when an agent-site slug is unknown or stale.
+  if (input.agentSlug) {
+    const slug = input.agentSlug.trim().toLowerCase()
+    for (let offset = 0; ; offset += 200) {
+      const profiles = await repository.listDomainRecords<Record<string, any>>(actor, 'member_profiles', { limit: 200, offset })
+      for (const profileRow of profiles) {
+        const profile = profileRow.data
+        if (String(profile.websiteSlug ?? '').trim().toLowerCase() !== slug || profile.publicVisible !== true
+          || profile.active === false || profile.disabled === true) continue
+        const canonical = typeof profile.verifiedPersonId === 'string'
+          ? publicAgents.find(person => person.slug === profile.verifiedPersonId)
+          : undefined
+        if (!canonical) continue
+        const site = await repository.getDomainRecord<Record<string, any>>(actor, 'agent_websites', profileRow.recordId)
+        if (!site || site.ownerUserId !== profileRow.recordId || site.data.published !== true
+          || String(site.data.slug ?? '').trim().toLowerCase() !== slug) continue
+        const member = users.find(user => user.id === profileRow.recordId && user.isActive
+          && ['agent', 'team_lead', 'broker', 'owner'].includes(user.role))
+        if (!member) continue
+        rosterMatch = canonical
+        candidate = member
+        candidateProfile = profile
+        break
+      }
+      if (candidate || profiles.length < 200) break
+    }
+    if (!candidate) throw new IntakeError('We cannot assign this request to a verified RCRE representative right now. Please contact the office directly.', 503)
+  }
   const marketOffice = input.market?.toLowerCase().includes('alabama') ? 'al' : input.market?.toLowerCase().includes('florida') ? 'fl' : ''
   const policy = await repository.getDomainRecord<Record<string, any>>(actor, 'settings', 'leads')
-  const routeId = candidate?.id ?? (marketOffice ? policy?.data.routing?.[marketOffice] : undefined)
+  const routeId = input.agentSlug ? candidate?.id : (marketOffice ? policy?.data.routing?.[marketOffice] : undefined)
     ?? policy?.data.routing?.[input.kind] ?? policy?.data.defaultOwnerId
   if (!routeId) throw new IntakeError('We cannot assign this request to a verified RCRE representative right now. Please contact the office directly.', 503)
   const owner = users.find(user => user.id === routeId && user.isActive)
-  const profileRecord = owner ? await repository.getDomainRecord<Record<string, any>>(actor, 'member_profiles', owner.id) : null
-  const profile = profileRecord?.data
+  const profileRecord = owner && !candidateProfile ? await repository.getDomainRecord<Record<string, any>>(actor, 'member_profiles', owner.id) : null
+  const profile = candidateProfile ?? profileRecord?.data
   const allowedRoles = ['agent', 'team_lead', 'broker', 'owner']
   if (!owner || !profile || !allowedRoles.includes(String(profile.role ?? owner.role))
     || profile.active === false || profile.disabled === true
-    || (input.agentSlug && (profile.publicVisible === false || profile.websiteStatus === 'unpublished' || profile.websiteStatus === 'inactive'))
+    || (input.agentSlug && (profile.publicVisible !== true || profile.websiteSlug?.trim().toLowerCase() !== input.agentSlug.trim().toLowerCase()))
     || (marketOffice && profile.officeId !== marketOffice && !input.agentSlug)) {
     throw new IntakeError('We cannot assign this request to a verified RCRE representative right now. Please contact the office directly.', 503)
   }
