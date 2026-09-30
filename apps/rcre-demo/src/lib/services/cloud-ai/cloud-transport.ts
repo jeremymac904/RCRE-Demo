@@ -6,7 +6,7 @@
  * No `openai` npm package — uses native fetch throughout.
  */
 
-import { CloudProviderConfig, resolveEndpoint, authHeaderKey, authHeaderPrefix } from './providers'
+import { type CloudProviderConfig, resolveEndpoint, assertFreeOnlyConfig, OPENROUTER_FREE_MODEL } from './providers'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,6 +55,7 @@ interface ChatCompletionRequest {
   top_p?: number
   stop?: string | string[]
   user?: string
+  provider?: { allow_fallbacks: false; data_collection: 'deny'; max_price: { prompt: number; completion: number } }
   // Tool calling
   tools?: Array<{
     type: 'function'
@@ -194,6 +195,7 @@ export class CloudTransport {
   private timeoutMs: number
 
   constructor(config: CloudProviderConfig, timeoutMs = 120_000) {
+    assertFreeOnlyConfig(config)
     this.config = config
     this.timeoutMs = timeoutMs
   }
@@ -202,6 +204,7 @@ export class CloudTransport {
    * Update the active configuration (e.g., after settings save).
    */
   updateConfig(config: CloudProviderConfig): void {
+    assertFreeOnlyConfig(config)
     this.config = config
   }
 
@@ -367,65 +370,26 @@ export class CloudTransport {
     messages: ChatMessage[],
     options: { stream?: boolean; signal?: AbortSignal; user?: string }
   ): Promise<Response> {
+    assertFreeOnlyConfig(this.config)
+    const apiKey = process.env.OPENROUTER_API_KEY
+    if (!apiKey) throw new Error('OpenRouter is not configured on the server')
     const endpoint = resolveEndpoint(this.config)
-    const url = `${endpoint}/chat/completions`
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
-
-    // Auth header
-    const keyName = authHeaderKey(this.config.provider)
-    const prefix = authHeaderPrefix(this.config.provider)
-    if (this.config.apiKey) {
-      if (keyName === 'api-key') {
-        headers[keyName] = this.config.apiKey
-      } else {
-        headers[keyName] = `${prefix}${this.config.apiKey}`
-      }
-    }
-
-    // Azure OpenAI requires the api-version query param
-    if (this.config.provider === 'azure-openai') {
-      const azureVersion = new URL(url).searchParams.get('api-version') ?? '2024-02-01'
-      // Ensure it's included if not already
-      if (!url.includes('api-version=')) {
-        const separator = url.includes('?') ? '&' : '?'
-        // We'll append after constructing the URL
-        void azureVersion
-      }
-    }
-
     const body: ChatCompletionRequest = {
-      model: this.config.model,
+      model: OPENROUTER_FREE_MODEL,
       messages,
       stream: options.stream ?? false,
-      ...(this.config.maxTokens ? { max_tokens: this.config.maxTokens } : {}),
+      max_tokens: this.config.maxTokens ?? 1200,
       ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
       ...(options.user ? { user: options.user } : {}),
+      provider: { allow_fallbacks: false, data_collection: 'deny', max_price: { prompt: 0, completion: 0 } },
     }
-
-    // Build URL with Azure api-version
-    let finalUrl = url
-    if (this.config.provider === 'azure-openai') {
-      const separator = finalUrl.includes('?') ? '&' : '?'
-      finalUrl += `${separator}api-version=2024-02-01`
-    }
-
-    const signal = AbortSignal.any([
-      options.signal ?? new AbortController().signal,
-      AbortSignal.timeout(this.timeoutMs),
-    ])
-
-    const response = await fetch(finalUrl, {
+    return fetch(`${endpoint}/chat/completions`, {
       method: 'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify(body),
-      signal,
-      // Note: redirect:'error' is intentionally omitted for OpenRouter/Groq that may redirect
+      signal: AbortSignal.any([options.signal ?? new AbortController().signal, AbortSignal.timeout(this.timeoutMs)]),
+      redirect: 'error',
     })
-
-    return response
   }
 
   private parseErrorResponse(status: number, body: string): AIError {
@@ -439,64 +403,21 @@ export class CloudTransport {
   }
 
   /**
-   * Validates credentials by sending a minimal request to the provider.
-   * Returns the list of available models on success.
+   * Checks server credentials with a read-only models catalogue request. It never
+   * sends a completion during validation.
    */
   async validateCredentials(): Promise<{ valid: true; models: string[] } | { valid: false; error: string }> {
     try {
-      const endpoint = resolveEndpoint(this.config)
-      const headers: Record<string, string> = {}
-
-      const keyName = authHeaderKey(this.config.provider)
-      const prefix = authHeaderPrefix(this.config.provider)
-      if (this.config.apiKey) {
-        if (keyName === 'api-key') {
-          headers[keyName] = this.config.apiKey
-        } else {
-          headers[keyName] = `${prefix}${this.config.apiKey}`
-        }
-      }
-
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 10_000)
-
-      try {
-        // Try models list endpoint first
-        const response = await fetch(`${endpoint}/models`, {
-          headers,
-          signal: controller.signal,
-        })
-
-        clearTimeout(timeout)
-
-        if (response.ok) {
-          const data = await response.json() as { data?: Array<{ id: string }> }
-          const models = (data.data ?? []).map((m) => m.id)
-          return { valid: true, models }
-        }
-
-        // Fall back to a minimal chat completion
-        const chatResponse = await fetch(`${endpoint}/chat/completions`, {
-          method: 'POST',
-          headers: { ...headers, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: this.config.model,
-            messages: [{ role: 'user', content: 'hi' }],
-            max_tokens: 5,
-          }),
-          signal: AbortSignal.timeout(15_000),
-        })
-
-        if (chatResponse.ok) {
-          return { valid: true, models: [this.config.model] }
-        }
-
-        const errBody = await chatResponse.text()
-        return { valid: false, error: `HTTP ${chatResponse.status}: ${errBody.slice(0, 200)}` }
-      } catch (err) {
-        clearTimeout(timeout)
-        throw err
-      }
+      assertFreeOnlyConfig(this.config)
+      const apiKey = process.env.OPENROUTER_API_KEY
+      if (!apiKey) return { valid: false, error: 'OpenRouter is not configured on the server' }
+      const response = await fetch(`${resolveEndpoint(this.config)}/models`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(10_000),
+        redirect: 'error',
+      })
+      if (!response.ok) return { valid: false, error: `OpenRouter connection check failed (HTTP ${response.status})` }
+      return { valid: true, models: [OPENROUTER_FREE_MODEL] }
     } catch (err) {
       const aiError = normalizeError(err)
       return { valid: false, error: aiError.message }

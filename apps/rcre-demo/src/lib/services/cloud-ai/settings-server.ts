@@ -9,53 +9,10 @@
 
 import { cookies } from 'next/headers'
 import type { StoredAIConfig, ValidationResult } from './shared-types'
-import type { CloudProviderConfig } from './providers'
+import { assertFreeOnlyConfig, type CloudProviderConfig } from './providers'
 
 const COOKIE_NAME = 'rcre_ai_config'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30 // 30 days
-
-// ---------------------------------------------------------------------------
-// Encryption utilities
-// ---------------------------------------------------------------------------
-
-async function getDerivedKey(): Promise<CryptoKey> {
-  const encoder = new TextEncoder()
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode('rcre-ai-config-v1' + (process.env.RCRE_ENCRYPTION_SALT ?? 'local-dev-salt')),
-    'PBKDF2',
-    false,
-    ['deriveKey']
-  )
-  const salt = encoder.encode('rcre-ai-config-salt-v1')
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt']
-  )
-}
-
-async function encrypt(plaintext: string): Promise<string> {
-  const key = await getDerivedKey()
-  const encoder = new TextEncoder()
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(plaintext))
-  const combined = new Uint8Array(iv.length + ciphertext.byteLength)
-  combined.set(iv)
-  combined.set(new Uint8Array(ciphertext), iv.length)
-  return btoa(String.fromCharCode(...combined))
-}
-
-async function decrypt(encrypted: string): Promise<string> {
-  const key = await getDerivedKey()
-  const combined = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0))
-  const iv = combined.slice(0, 12)
-  const ciphertext = combined.slice(12)
-  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
-  return new TextDecoder().decode(plaintext)
-}
 
 // ---------------------------------------------------------------------------
 // Cookie operations
@@ -63,13 +20,8 @@ async function decrypt(encrypted: string): Promise<string> {
 
 export async function saveAIConfigToCookie(config: StoredAIConfig): Promise<void> {
   const cookieStore = await cookies()
-  const toStore: StoredAIConfig = {
-    ...config,
-    updatedAt: new Date().toISOString(),
-  }
-  if (toStore.cloud?.apiKey) {
-    toStore.cloud = { ...toStore.cloud, apiKey: await encrypt(toStore.cloud.apiKey) }
-  }
+  if (config.cloud) assertFreeOnlyConfig(config.cloud)
+  const toStore: StoredAIConfig = { ...config, cloud: config.cloud ? { ...config.cloud, apiKey: undefined } : undefined, updatedAt: new Date().toISOString() }
   cookieStore.set(COOKIE_NAME, JSON.stringify(toStore), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -85,12 +37,9 @@ export async function readAIConfigFromCookie(): Promise<StoredAIConfig | null> {
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw) as StoredAIConfig
-    if (parsed.cloud?.apiKey && !parsed.cloud.apiKey.startsWith('sk-')) {
-      try {
-        parsed.cloud = { ...parsed.cloud, apiKey: await decrypt(parsed.cloud.apiKey) }
-      } catch {
-        parsed.cloud = { ...parsed.cloud, apiKey: '' }
-      }
+    if (parsed.cloud) {
+      parsed.cloud = { ...parsed.cloud, apiKey: undefined }
+      assertFreeOnlyConfig(parsed.cloud)
     }
     return parsed
   } catch {
@@ -108,18 +57,12 @@ export async function clearAIConfigCookie(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function validateCloudConfig(config: CloudProviderConfig): Promise<ValidationResult> {
-  if (!config.apiKey && config.provider !== 'ollama-remote') {
-    return { valid: false, error: 'API key is required for this provider' }
-  }
-  if (!config.model) {
-    return { valid: false, error: 'Model is required' }
-  }
-  const { CloudTransport } = await import('./cloud-transport')
-  const transport = new CloudTransport(config, 20_000)
-  const result = await transport.validateCredentials()
-  if (result.valid) {
-    return { valid: true, models: result.models }
-  } else {
-    return { valid: false, error: result.error }
+  try {
+    assertFreeOnlyConfig(config)
+    if (!process.env.OPENROUTER_API_KEY) return { valid: false, error: 'OpenRouter is not configured on the server' }
+    const { CloudTransport } = await import('./cloud-transport')
+    return await new CloudTransport(config, 20_000).validateCredentials()
+  } catch (e) {
+    return { valid: false, error: e instanceof Error ? e.message : 'OpenRouter configuration rejected' }
   }
 }
