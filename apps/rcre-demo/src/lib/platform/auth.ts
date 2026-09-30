@@ -1,6 +1,6 @@
 import 'server-only'
 import { cookies } from 'next/headers'
-import { createHmac, createHash, timingSafeEqual } from 'node:crypto'
+import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { getRecord, putRecord, readRecords } from './store'
 
 export type PlatformRole = 'agent' | 'team_leader' | 'managing_broker' | 'broker_owner' | 'transaction_coordinator' | 'marketing_admin' | 'trainer'
@@ -68,14 +68,17 @@ export class AccessError extends Error {
 const SESSION_TTL_MS = 12 * 3600000
 const SESSION_VERSION = 'v1'
 
+let localSessionSecret: string | undefined
+
 function sessionSecret(): string {
-  return (
-    process.env.RCRE_SESSION_SECRET ||
-    // Stable per-deploy fallback. Not for production. Anyone with the source
-    // can forge a token — that is acceptable for the local review environment
-    // and is gated by demoEnabled() below.
-    'rcre-local-demo-secret-do-not-use-in-production-2026'
-  )
+  const configured = process.env.RCRE_SESSION_SECRET
+  if (configured && configured.length >= 32) return configured
+  if (process.env.NODE_ENV === 'production') {
+    throw new AccessError('Session signing is not configured', 503)
+  }
+  // Local development only. Generate a per-process key so no signing secret
+  // is checked in. Production builds must receive a private host secret.
+  return (localSessionSecret ??= randomBytes(32).toString('base64url'))
 }
 
 function b64url(buf: Buffer): string {

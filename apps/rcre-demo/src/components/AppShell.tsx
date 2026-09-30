@@ -99,7 +99,7 @@ export function AppShell({
 
       {open && (
         <div className="animate-slide-down border-b border-hair bg-ink-raised px-4 py-4 lg:hidden">
-          {navLinks}<div className="flex flex-wrap gap-4 py-4 text-sm"><Link href="/settings">Settings</Link><Link href="/workspace-search">Search workspace</Link><Link href="/notifications">Notifications</Link><Link href="/approvals">Approvals</Link>{['agent','team_leader','managing_broker','broker_owner','marketing_admin'].includes(role)&&<Link href="/calendar">Calendar</Link>}<Link href="/">Website</Link></div>
+          {navLinks}<div className="flex flex-wrap gap-4 py-4 text-sm">{['team_leader','managing_broker','broker_owner'].includes(role)&&<Link href="/admin/mls">MLS / IDX</Link>}<Link href="/settings">Settings</Link><Link href="/workspace-search">Search workspace</Link><Link href="/notifications">Notifications</Link><Link href="/approvals">Approvals</Link>{['agent','team_leader','managing_broker','broker_owner','marketing_admin'].includes(role)&&<Link href="/calendar">Calendar</Link>}<Link href="/">Website</Link></div>
           <div className="divider mt-4 space-y-3 pt-4">
             <ThemeToggle />
             <Link prefetch={false} href="/api/session" className="block text-[0.8125rem] text-chalk-muted hover:text-chalk">
@@ -122,7 +122,7 @@ export function AppShell({
               {['agent','broker_owner','managing_broker','team_leader'].includes(role)&&<>{['agent','team_leader','managing_broker','broker_owner','marketing_admin'].includes(role)&&<Link href="/calendar">Calendar</Link>}<Link href="/listings">Listings</Link></>}
               <Link href="/workspace-search">Search workspace</Link><Link href="/notifications">Notifications</Link><Link href="/approvals">Approvals</Link>
               <Link href="/settings">Settings</Link>
-              {role==='broker_owner'&&<><Link href="/integrations">Integrations</Link><Link href="/admin/website">Website studio</Link><Link href="/transactions">Transactions</Link><Link href="/admin/audit">Audit trail</Link></>}
+              {['team_leader','managing_broker','broker_owner'].includes(role)&&<Link href="/admin/mls">MLS / IDX</Link>}{role==='broker_owner'&&<><Link href="/integrations">Integrations</Link><Link href="/admin/website">Website studio</Link><Link href="/transactions">Transactions</Link><Link href="/admin/audit">Audit trail</Link></>}
               <Link href="/">Public website</Link>
             </nav>
           </div>
