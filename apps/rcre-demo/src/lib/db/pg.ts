@@ -3,7 +3,7 @@ import { Pool, type PoolClient } from 'pg'
 import { env } from '@/lib/config/env'
 import {
   DomainRecordConflictError, PermissionDeniedError, canSeeRecruiting, canSeeWholeBrokerage,
-  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type Repository, type TransactionDomainRecordInput,
+  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type DomainRecordQueryOptions, type Repository, type TransactionDomainRecordInput,
 } from './repository'
 import { withRlsSession } from './rls'
 import type {
@@ -313,6 +313,49 @@ export class PgRepository implements Repository {
         where organization_id = $1 and collection = $2
         order by updated_at desc, record_id asc limit $3 offset $4`,
       [actor.organizationId, collection, limit, offset])
+  }
+
+  async queryDomainRecords<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, options: DomainRecordQueryOptions,
+  ): Promise<{ records: DomainRecord<T>[]; total: number }> {
+    validateDomainKey(collection, 'query')
+    const limit = Math.max(1, Math.min(Math.trunc(options.limit ?? 50), 100))
+    const offset = Math.max(0, Math.trunc(options.offset ?? 0))
+    const search = String(options.search ?? '').trim().slice(0, 200).toLocaleLowerCase()
+    const stage = options.stage?.slice(0, 100) || null
+    const source = options.source?.slice(0, 200) || null
+    const ownerId = options.ownerId?.slice(0, 100) || null
+    const officeId = options.officeId?.slice(0, 100) || null
+    const sort = options.sort ?? 'newest'
+    const orderBy: Record<NonNullable<DomainRecordQueryOptions['sort']>, string> = {
+      newest: `data->>'receivedAt' desc nulls last, record_id asc`,
+      oldest: `data->>'receivedAt' asc nulls last, record_id asc`,
+      name: `lower(coalesce(data->>'firstName','')), lower(coalesce(data->>'lastName','')), record_id asc`,
+      stage: `lower(coalesce(data->>'stage','')), record_id asc`,
+      source: `lower(coalesce(data->>'source','')), record_id asc`,
+    }
+    const order = orderBy[sort] ?? orderBy.newest
+    const result = await this.q<{ total: number | string; records: DomainRecord<T>[] }>(actor,
+      `with filtered as materialized (
+         select ${this.domainRecordColumns}
+           from rcre_domain_records
+          where organization_id = $1 and collection = $2
+            and (
+              $3::text = ''
+              or position($3 in lower(concat_ws(' ', data->>'firstName', data->>'lastName', data->>'email', data->>'phone', data->>'source', data->>'location', data->>'stage'))) > 0
+              or exists (select 1 from jsonb_array_elements_text(
+                case when jsonb_typeof(data->'tags') = 'array' then data->'tags' else '[]'::jsonb end) tag where position($3 in lower(tag)) > 0)
+            )
+            and coalesce(data->>'sourceDeleted', 'false') <> 'true'
+            and ($4::text is null or data->>'stage' = $4)
+            and ($5::text is null or data->>'source' = $5)
+            and ($6::text is null or data->>'ownerId' = $6)
+            and ($7::text is null or data->>'officeId' = $7)
+       )
+       select (select count(*)::int from filtered) as total,
+              coalesce((select jsonb_agg(to_jsonb(page_row)) from (select * from filtered order by ${order} limit $8 offset $9) page_row), '[]'::jsonb) as records`,
+      [actor.organizationId, collection, search, stage, source, ownerId, officeId, limit, offset])
+    return { records: result[0]?.records ?? [], total: Number(result[0]?.total ?? 0) }
   }
 
   async putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(

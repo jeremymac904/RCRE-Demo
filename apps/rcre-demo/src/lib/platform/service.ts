@@ -98,6 +98,17 @@ export async function listContactsPage(a: PlatformActor, input: ContactQuery = {
   const page = Number.isFinite(pageValue) ? Math.max(1, Math.trunc(pageValue)) : 1
   const pageSize = Number.isFinite(sizeValue) ? Math.max(1, Math.min(100, Math.trunc(sizeValue))) : 50
   let rows: Contact[]
+  if (repository?.queryDomainRecords) {
+    const officeId = ['managing_broker', 'team_leader'].includes(a.role) ? a.officeId : undefined
+    const ownerId = a.role === 'agent' ? a.id : input.ownerId
+    const queried = await repository.queryDomainRecords<Record<string, unknown>>(contactDomainActor(a), 'crm_contacts', {
+      search: input.query, stage: input.stage, source: input.source, ownerId, officeId, sort: input.sort,
+      limit: pageSize, offset: (page - 1) * pageSize,
+    })
+    const scoped = queried.records.map(record => ({ ...record.data, id: record.recordId, version: record.version }) as unknown as Contact)
+      .filter(contact => contact.organizationId === a.organizationId && scopedOwner(a, contact.ownerId, contact.officeId))
+    return { rows: scoped, total: queried.total, page, pageSize, pageCount: Math.ceil(queried.total / pageSize) }
+  }
   if (repository) {
     const actor = contactDomainActor(a)
     const visible = await repository.listDomainRecords<Record<string, unknown>>(actor, 'crm_contacts', { limit: 200, offset: 0 })

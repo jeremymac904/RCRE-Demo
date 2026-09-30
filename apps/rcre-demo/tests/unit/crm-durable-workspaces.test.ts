@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { emptySeed, MemoryRepository } from '@/lib/db/repository'
 import type { PlatformActor } from '@/lib/platform/auth'
-import { createContactDurable } from '@/lib/platform/service'
+import { createContactDurable, listContactsPage } from '@/lib/platform/service'
 import {
   completeCrmTaskDurable, createCrmTaskDurable, listCrmTasksDurable, logCrmActivityDurable,
   reportCrmDurable, saveCrmAppointmentDurable, saveCrmDealDurable, saveCrmSavedViewDurable, updateCrmContactDurable,
@@ -25,6 +25,19 @@ function repository() {
 }
 
 describe('durable CRM workspace actions', () => {
+
+  it('uses the durable repository query for server-side People filters, counts, sorting and paging', async () => {
+    const contact = { id: 'contact-1', organizationId: org, ownerId: agentId, officeId: 'fl', firstName: 'Avery', lastName: 'Sample', email: 'avery@example.test', phone: '', source: 'Referral', location: 'Jacksonville', stage: 'New Lead', tags: ['open house'], receivedAt: '2026-09-30T12:00:00.000Z', sourceDeleted: false }
+    const calls: Record<string, unknown>[] = []
+    const queryDomainRecords = async (_actor: unknown, _collection: string, options: Record<string, unknown>) => { calls.push(options); return ({
+      records: [{ organizationId: org, collection: 'crm_contacts', recordId: 'contact-1', ownerUserId: agentId, data: contact, version: 3, createdAt: contact.receivedAt, updatedAt: contact.receivedAt }],
+      total: 41,
+    }) }
+    const repository = { queryDomainRecords, listDomainRecords: async () => { throw new Error('unbounded list must not run') } } as any
+    const result = await listContactsPage(agent, { query: 'avery', stage: 'New Lead', source: 'Referral', sort: 'name', page: 2, pageSize: 20 }, repository)
+    expect(result).toMatchObject({ total: 41, page: 2, pageSize: 20, pageCount: 3, rows: [{ id: 'contact-1', version: 3 }] })
+    expect(calls).toEqual([{ search: 'avery', stage: 'New Lead', source: 'Referral', ownerId: agentId, officeId: undefined, sort: 'name', limit: 20, offset: 20 }])
+  })
   it('persists local tasks and prevents a user from completing imported source tasks', async () => {
     const repo = repository()
     const contact = await createContactDurable(agent, { firstName: 'River', lastName: 'Client' }, repo)

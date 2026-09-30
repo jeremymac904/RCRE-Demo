@@ -76,6 +76,15 @@ export interface DomainRecordListOptions {
   offset?: number
 }
 
+export interface DomainRecordQueryOptions extends DomainRecordListOptions {
+  search?: string
+  stage?: string
+  source?: string
+  ownerId?: string
+  officeId?: string
+  sort?: 'newest' | 'oldest' | 'name' | 'stage' | 'source'
+}
+
 export interface Repository {
   getOrganization(actor: Actor, id: string): Promise<Organization | null>
   getUser(actor: Actor, id: string): Promise<User | null>
@@ -101,6 +110,10 @@ export interface Repository {
   listDomainRecords<T extends Record<string, unknown> = Record<string, unknown>>(
     actor: Actor, collection: string, options?: DomainRecordListOptions,
   ): Promise<DomainRecord<T>[]>
+  /** Database-side filtering/count/paging for operational collections; optional for legacy test adapters. */
+  queryDomainRecords?<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, options: DomainRecordQueryOptions,
+  ): Promise<{ records: DomainRecord<T>[]; total: number }>
   putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
     actor: Actor, input: DomainRecordInput<T>,
   ): Promise<DomainRecord<T>>
@@ -117,7 +130,7 @@ export interface Repository {
 
 export class DomainRecordConflictError extends Error {
   constructor(readonly collection: string, readonly recordId: string) {
-    super('Domain record changed or already exists')
+    super('Domain record version conflict or create-only collision')
     this.name = 'DomainRecordConflictError'
   }
 }
