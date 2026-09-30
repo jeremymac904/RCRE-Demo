@@ -31,9 +31,11 @@ export const dynamic = 'force-dynamic'
  * resume block, which read this browser's record — so pressing Back from a
  * lesson shows the row already ticked.
  */
-export default async function CoursePage({
-  params,
-}: { params: Promise<{ courseId: string }> }) {
+import { academyPersistenceAvailable } from '@/lib/academy-service'
+import { DurableModuleUnavailable } from '@/components/DurableModuleUnavailable'
+
+export default async function CoursePage({ params }: { params: Promise<{ courseId: string }> }) {
+  if (!academyPersistenceAvailable()) return <DurableModuleUnavailable title="Classroom" detail="Course access and learner progress require durable production storage. No progress changes have been saved." />
   const user = await currentUser()
   if (!user) redirect('/login')
 

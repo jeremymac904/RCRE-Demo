@@ -37,9 +37,11 @@ export const dynamic = 'force-dynamic'
  * so a mismatched pair 404s rather than rendering a lesson under a course it
  * does not belong to and offering the wrong neighbours.
  */
-export default async function LessonPage({
-  params,
-}: { params: Promise<{ courseId: string; lessonId: string }> }) {
+import { academyPersistenceAvailable } from '@/lib/academy-service'
+import { DurableModuleUnavailable } from '@/components/DurableModuleUnavailable'
+
+export default async function LessonPage({ params }: { params: Promise<{ courseId: string; lessonId: string }> }) {
+  if (!academyPersistenceAvailable()) return <DurableModuleUnavailable title="Classroom" detail="Course access and learner progress require durable production storage. No progress changes have been saved." />
   const user = await currentUser()
   if (!user) redirect('/login')
 

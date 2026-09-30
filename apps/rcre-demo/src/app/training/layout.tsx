@@ -1,5 +1,5 @@
 import { actorOrNull } from '@/lib/platform/auth'
-import { progressFor } from '@/lib/academy-service'
+import { academyPersistenceAvailable, progressFor } from '@/lib/academy-service'
 import { AcademyProgressProvider } from '@/components/AcademyProgressProvider'
 import { ACADEMY_PROGRESS, allLessonsInOrder, courses } from '@/lib/academy'
 
@@ -29,6 +29,7 @@ import { ACADEMY_PROGRESS, allLessonsInOrder, courses } from '@/lib/academy'
  * the same rule the server list pages follow.
  */
 export default async function TrainingLayout({ children }: { children: React.ReactNode }) {
+  if (!academyPersistenceAvailable()) return <>{children}</>
   const actor = await actorOrNull()
   const progress = actor ? progressFor(actor) : { completedLessonIds: [] }
   const curriculum = {

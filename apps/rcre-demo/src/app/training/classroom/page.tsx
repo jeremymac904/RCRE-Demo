@@ -37,7 +37,12 @@ const LEVELS: { level: AcademyCourse['level']; caption: string }[] = [
   { level: 'Advanced',     caption: 'Specialist work, and knowing where an assistant has to stop.' },
 ]
 
+import { academyPersistenceAvailable } from '@/lib/academy-service'
+import { DurableModuleUnavailable } from '@/components/DurableModuleUnavailable'
+
 export default async function ClassroomPage() {
+  if (!academyPersistenceAvailable()) return <DurableModuleUnavailable title={'Classroom'} detail={'Course access and learner progress require durable production storage. The training library will be available again when the database is connected.'} />
+
   const user = await currentUser()
   if (!user) redirect('/login')
 

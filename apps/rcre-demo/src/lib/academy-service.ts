@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { getRecord, putRecord, readRecords } from './platform/store'
-import { PERSONAS,directory, type PlatformActor } from './platform/auth'
+import { directory, can, type PlatformActor } from './platform/auth'
 import { getSetting } from './platform/service'
 import { academy } from '@/data/academy'
+import { isLocalStoreAllowed } from './platform/storage-mode'
 import type { AcademyProgress } from '@/data/academy-types'
-export const academyManager = (a: PlatformActor) => ['trainer','broker_owner'].includes(a.role)
+export const academyManager = (a: PlatformActor) => can(a, 'academy.manage')
+/** The current app store is SQLite-only and intentionally unavailable in production runtime. */
+export const academyPersistenceAvailable = () => isLocalStoreAllowed(process.env.NODE_ENV, process.env.NEXT_PHASE)
 export type CoursePolicy = {id:string;organizationId:string;roles:string[];publicPreview:boolean}
 export function courseAllowed(a:PlatformActor, courseId:string) {
  const p=getRecord<CoursePolicy>('academy_policy', `${a.organizationId}:${courseId}`)

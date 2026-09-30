@@ -38,7 +38,12 @@ export const dynamic = 'force-dynamic'
 
 /** Grouping gives the catalog a shape — foundation, then practice, then the
  *  advanced work — without building a curriculum engine to derive it. */
+import { academyPersistenceAvailable } from '@/lib/academy-service'
+import { DurableModuleUnavailable } from '@/components/DurableModuleUnavailable'
+
 export default async function TrainingPage() {
+  if (!academyPersistenceAvailable()) return <DurableModuleUnavailable title={'Training'} detail={'Training progress is paused until the production database is connected. The imported curriculum remains in the codebase, but this deployment cannot safely save progress or community activity yet.'} />
+
   const user = await currentUser()
   if (!user) redirect('/login')
 
