@@ -16,7 +16,7 @@ This ledger records implementation evidence, not prior completion claims. Findin
 | P2 | 6 | Important production quality, trust, accessibility, operations, or verification work. |
 | P3 | 0 | No separately tracked post-launch-only item at this audit stage; unrequested enhancements are excluded. |
 
-**Current disposition: PRODUCTION NO GO.** The 562-test baseline and successful local build do not establish production authentication, persistence, service integrations, or hosted authorization.
+**Current disposition: PRODUCTION NO GO.** The 562-test baseline and successful local build do not establish production authentication, persistence, service integrations, or hosted authorization. See the repair snapshot below for current dispositions.
 
 ## Deduplicated P0 findings
 
@@ -109,3 +109,39 @@ These dependencies block live activation/verification only. Code hardening, fail
 | Independent verification team | All repaired P0/P1, after repair pass | New auditors who did not implement the repairs will attempt to falsify production readiness. Not started. |
 
 Once the current repair owners report, additional specialist repair assignments will be made for each remaining P1 surface; this table will be updated with named owners and evidence. Production go remains prohibited until independent verification finds zero P0/P1, or a finding is fully blocked by a named external dependency and the user receives an explicit no-go report.
+
+## Repair and independent verification snapshot — 2026-09-30
+
+The independent auth/AI, data/lead, and operations reviewers did not author the repair commits and attempted to falsify the changed paths. Their focused suites passed (23 tests / 2 files; 26 tests / 5 files; 60 tests / 8 files respectively). The completed transaction repair added 37 focused tests across five files. Findings below are based on source inspection and local tests only; none represent a live provider or hosted-database test.
+
+### Current P0 status
+
+| ID | Current result | Evidence and limit |
+|---|---|---|
+| P0-01 | **Mitigated by fail-closed production authentication** | Production disables demo personas; both `/api/session` and `createSession` reject persona-based sign-in. Google OIDC is not yet present, so production users cannot sign in. Independent auth tests passed. |
+| P0-02 | **Mitigated by fail-closed storage** | Production runtime never resolves a SQLite path and throws `DURABLE_STORE_UNAVAILABLE` before opening SQLite. No temporary persistent brokerage state is written. PostgreSQL is not wired to the product service layer, so production workflows remain unavailable. |
+| P0-03 | **Closed for web/portal inference routing** | Portal transport pins `openrouter/free`, prohibits provider/model/endpoint overrides and paid fallback, and caps prompt/completion prices at zero. Public chat now uses deterministic retrieval only; its separate Ollama request path was removed. No live OpenRouter call was made because no key was available. |
+
+These changes remove the audited immediate unsafe paths. They do **not** establish a production-ready operating platform.
+
+### P1 disposition
+
+Twenty production-readiness clusters remain open. P1-06 (Taquilla’s managing-broker permission to administer her own office) is repaired and focused role-scope tests pass; this capability is still unusable in production while authentication and durable storage are off. The remaining clusters are blocked or incomplete: Google sign-in/invitations (01), durable production sessions (02), connecting PostgreSQL to service repositories (03), executing migrations and RLS tests on a real PostgreSQL project (04), private object storage and restore drill (05), full canonical onboarding/lifecycle (07), production lead intake/outbox (08), server-side CRM query/paging (09), durable/public agent-site publishing (10), brokerage knowledge retrieval (11), optional Google services (12), desktop supported subscription login (13), production transaction persistence/storage/signing (14), durable Training (15), durable Community and production video ingestion (16), production Marketing provider execution (17), durable Brand Resources and approved jurisdiction copy (18), durable Recruiting and invitation flow (19), durable notifications/operational logging (20), and deployment secret/config/fixture verification (21).
+
+Independent review confirmed: current lead forms return 503 before any production write; CRM service routes remain SQLite-backed; `getRepository()` has no production callers; live migrations 0001–0004, backup/restore, and private object storage are unverified; agent-site pages cannot load canonical profile/config without the missing store; onboarding photo and profile data are not joined to canonical agent records. MLS migration 0004 remains unapplied.
+
+### Additional repair from independent review
+
+- A production agent-site profile lookup that could throw outside its `notFound()` boundary is now contained by that boundary.
+- Public chat can no longer call local Ollama or another alternate inference provider. It displays and returns the deterministic published-page guide until it shares the exact free-only server boundary.
+- A bounded request-body reader now enforces upload size while streaming, before multipart parsing; this addresses the operations reviewer’s P2 memory-amplification finding. The targeted tests cover a chunked oversized body, a valid multipart body, and a declared oversized length.
+- The eight-template agent previews remain local/development-only. Production property search returns no fixture inventory when no provider is connected.
+- Swag navigation now appears in desktop and mobile workspace tools; demo-state notice is suppressed in production.
+
+### Verification boundary
+
+Current local verification after the repair set: 640 tests passed across 54 files; TypeScript passed; ESLint passed with 0 errors and 76 pre-existing warnings; production build passed. The production build initially exposed a client import of a `server-only` profile service from the brand-resource component. The data/types were split into a client-safe module and the final production build passed. Upload byte limits are enforced before multipart parsing and have bounded-stream tests. No rendered browser inspection was available in this session. Hosted OAuth, OpenRouter, Google services, Netlify production runtime, PostgreSQL, migrations, backup/restore, and live feature journeys remain unverified.
+
+**Current counts:** initial P0 3 → current unresolved P0 0 (all three unsafe paths are closed by fail-closed controls); initial P1 21 → current open P1 20 (Taquilla scoped administration is repaired in local authorization tests); initial P2 6 → current open P2 3 (browser QA, shared production search rate limiting, and optional FUB configuration cleanup remain).
+
+**Current production decision: NO GO.** The repository is safer to host in an unavailable state, but cannot yet provide the production workflows specified in the mandate.

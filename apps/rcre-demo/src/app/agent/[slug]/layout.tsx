@@ -8,8 +8,8 @@ import { agentProfileFor } from '@/lib/platform/agent-profiles'
 export default async function AgentWebsiteGate({ children, params }: { children: React.ReactNode; params: Promise<{ slug: string }> }) {
   const { slug } = await params
   if (process.env.NODE_ENV === 'production') {
-    if (!publicAgents.some(agent => agent.slug === slug) || !agentProfileFor(slug)?.publicVisible) notFound()
     try {
+      if (!publicAgents.some(agent => agent.slug === slug) || !agentProfileFor(slug)?.publicVisible) notFound()
       const config = getWebsiteConfig(slug)
       if (!config?.published) notFound()
     } catch { notFound() }

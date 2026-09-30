@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useMemo, useState } from 'react'
-import type { BrandAgent, BrandState } from '@/lib/brand-resources'
-import { BRAND_ITEMS, brandComplianceReadiness, licenseForState } from '@/lib/brand-resources'
+import type { BrandAgent, BrandState } from '@/lib/brand-resources/shared'
+import { BRAND_ITEMS, brandComplianceReadiness, licenseForState } from '@/lib/brand-resources/shared'
 
 type PageMode = 'catalog' | 'cards' | 'signatures'
 const panel = 'border border-hair bg-ink-raised rounded-panel'
