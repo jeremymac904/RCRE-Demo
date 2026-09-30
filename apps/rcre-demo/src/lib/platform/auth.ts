@@ -220,12 +220,12 @@ export async function revokeSession() {
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return
-  cookieStore.delete(SESSION_COOKIE)
   if (!demoEnabled()) {
-    try {
-      const { getAuthPersistence, hashSecret } = await import('@/lib/auth/persistence')
-      await (await getAuthPersistence()).revokeSession(hashSecret(token))
-    } catch { /* the response still clears the browser cookie */ }
+    // Do not report logout as successful if the durable revocation write failed.
+    // A copied bearer cookie must stop working before the browser cookie is cleared.
+    const { getAuthPersistence, hashSecret } = await import('@/lib/auth/persistence')
+    await (await getAuthPersistence()).revokeSession(hashSecret(token))
+    cookieStore.delete(SESSION_COOKIE)
     return
   }
   // Server-side revocation is checked by actorOrNull on every authenticated request.
@@ -234,8 +234,9 @@ export async function revokeSession() {
     const s = payload ? getRecord<{ id: string; revoked: boolean }>('sessions', payload.sessionId) : getRecord<{ id: string; revoked: boolean }>('sessions', legacyHashToken(token) ?? '')
     if (s) putRecord('sessions', { ...s, revoked: true })
   } catch {
-    // The cookie is deleted; server-side state remains the authority for acceptance.
+    // Server-side state remains the authority for acceptance.
   }
+  cookieStore.delete(SESSION_COOKIE)
 }
 
 /** Issue an opaque, hashed-at-rest PostgreSQL session after verified OIDC. */

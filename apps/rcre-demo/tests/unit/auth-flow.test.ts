@@ -99,5 +99,22 @@ describe('Google invitation and durable-session behavior via local auth test dou
     expect((await store.validateSession(secondHash))?.role).toBe('team_leader')
     await store.updateMember(leader,'user-1',{role:'team_leader',officeId:'fl',teamId:'fl',market:'Florida',active:false})
     expect(await store.validateSession(secondHash)).toBeNull()
+    // Reactivation must not revive a session revoked at deactivation.
+    await store.updateMember(leader,'user-1',{role:'team_leader',officeId:'fl',teamId:'fl',market:'Florida',active:true})
+    expect(await store.validateSession(secondHash)).toBeNull()
+  })
+
+  it('revokes every device token while a role change is reflected on the next validation', async () => {
+    const store=new TestAuthStore();store.addActive({id:'user-2',org:'org-1',email:'b@example.com',name:'Agent',role:'agent'})
+    store.identities.set('google-subject-5678','user-2')
+    const firstHash=hashSecret('device-one'),secondHash=hashSecret('device-two')
+    await store.issueSession({userId:'user-2',tokenHash:firstHash,expiresAt:new Date(Date.now()+60_000)})
+    await store.issueSession({userId:'user-2',tokenHash:secondHash,expiresAt:new Date(Date.now()+60_000)})
+    await store.updateMember(leader,'user-2',{role:'team_leader',officeId:'fl',teamId:'fl',market:'Florida',active:true})
+    expect((await store.validateSession(firstHash))?.role).toBe('team_leader')
+    expect((await store.validateSession(secondHash))?.role).toBe('team_leader')
+    expect(await store.revokeUserSessions(leader,'user-2')).toBe(2)
+    expect(await store.validateSession(firstHash)).toBeNull()
+    expect(await store.validateSession(secondHash)).toBeNull()
   })
 })

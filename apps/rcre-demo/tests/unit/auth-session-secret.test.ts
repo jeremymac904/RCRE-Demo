@@ -9,13 +9,14 @@ vi.mock('@/lib/platform/store',()=>({
  readRecords:(kind:string)=>Array.from(state.records.get(kind)?.values()??[]),
 }))
 import {recover,invite,redeem} from '@/lib/platform/access'
+import {configureAuthPersistenceForTests} from '@/lib/auth/persistence'
 import {AccessError,actorOrNull,authorizeMemberChange,can,createSession,demoEnabled,revokeSession,sessionCookieOptions,type PlatformActor} from '@/lib/platform/auth'
 
 const broker:PlatformActor={id:'u-taquilla',userId:'u-taquilla',organizationId:'rcre-local',role:'managing_broker',name:'Taquilla Allen',market:'Alabama',officeId:'al',teamId:'al'}
 const agent:PlatformActor={id:'u-vito',userId:'u-vito',organizationId:'rcre-local',role:'agent',name:'Jordan Ellis',market:'Alabama',officeId:'al',teamId:'al'}
 const florida:PlatformActor={...agent,id:'u-sarah',userId:'u-sarah',name:'Alex Morgan',market:'Florida',officeId:'fl',teamId:'fl'}
 
-afterEach(()=>{vi.unstubAllEnvs();state.records.clear();state.cookie='';state.deleted=false})
+afterEach(()=>{configureAuthPersistenceForTests(null);vi.unstubAllEnvs();state.records.clear();state.cookie='';state.deleted=false})
 
 describe('production authentication boundary',()=>{
  it('does not enable local persona login from a production demo flag',()=>{
@@ -44,6 +45,18 @@ describe('production authentication boundary',()=>{
   await revokeSession()
   expect(state.deleted).toBe(true)
   expect(await actorOrNull()).toBeNull()
+  // Clearing the browser cookie is not the security boundary: a copied token
+  // must remain unusable after logout as well.
+  state.cookie=token
+  expect(await actorOrNull()).toBeNull()
+ })
+ it('does not clear a production cookie or claim logout when durable revocation fails',async()=>{
+  vi.stubEnv('NODE_ENV','production');vi.stubEnv('RCRE_SESSION_SECRET','s'.repeat(48))
+  state.cookie='opaque-production-token'
+  configureAuthPersistenceForTests({revokeSession:async()=>{throw new Error('database unavailable')}} as any)
+  await expect(revokeSession()).rejects.toThrow('database unavailable')
+  expect(state.deleted).toBe(false)
+  expect(state.cookie).toBe('opaque-production-token')
  })
  it('denies expired or disabled users even when the signed cookie is valid',async()=>{
   vi.stubEnv('NODE_ENV','test');vi.stubEnv('RCRE_SESSION_SECRET','s'.repeat(48))

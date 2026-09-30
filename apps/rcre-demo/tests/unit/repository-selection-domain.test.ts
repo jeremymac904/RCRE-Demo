@@ -89,6 +89,9 @@ describe('durable repository bridge contract', () => {
       '0001_rcre_mvp_core.sql', '0002_reporting_and_routing.sql',
       '0003_row_level_security.sql', '0004_mls_property_search.sql',
     ])
+    expect(names).toContain('0005_identity_sessions_invitations.sql')
+    expect(names).toContain('0010_agent_website_lifecycle.sql')
+    expect(names.at(-1)).toBe('0011_fix_session_rotation.sql')
     const runner = readFileSync(join(process.cwd(), 'src/lib/db/migrate.mjs'), 'utf8')
     expect(runner).toMatch(/sha256/)
     expect(runner).toMatch(/pg_advisory_lock/)
