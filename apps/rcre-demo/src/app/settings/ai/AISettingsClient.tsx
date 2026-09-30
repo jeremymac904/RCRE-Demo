@@ -132,9 +132,10 @@ export function AISettingsClient({ actor }: Props) {
           <p className="eyebrow text-brass">RCRE Platform</p>
           <h1 className="font-display text-h1 mt-2">AI Preferences</h1>
         </div>
-        <Link href="/assistant" className={button}>
-          Open Assistant →
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {['broker_owner', 'managing_broker'].includes(actor.role) && <Link href="/settings/ai/knowledge" className={button}>Knowledge Library</Link>}
+          <Link href="/assistant" className={button}>Open Assistant →</Link>
+        </div>
       </div>
 
       <p className="text-chalk-muted mb-8 max-w-2xl">
