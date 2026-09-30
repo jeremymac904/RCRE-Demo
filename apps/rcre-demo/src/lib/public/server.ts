@@ -1,5 +1,6 @@
 import {getRecord,readRecords} from '@/lib/platform/store'
 import {lenderDefaults,publicAgents,type Lender,type PublicContent} from './content'
+import {agentProfileFor} from '@/lib/platform/agent-profiles'
 export async function getPublicRecord(path:string){const record=await getRecord<PublicContent>('public_content',path);return record&&(!record.organizationId||record.organizationId==='rcre-local')?record:undefined}
 export async function getPublished(path:string){const record=await getPublicRecord(path);return record?.status==='archived'?undefined:record?.published}
 export async function publishedPages(){return (await readRecords<PublicContent>('public_content')).filter(r=>(!r.organizationId||r.organizationId==='rcre-local')&&r.status!=='archived'&&r.published)}
@@ -9,4 +10,4 @@ export async function getBrokerage(){const s=await getRecord<{id:string;value?:{
 
 export async function archivedPublicPaths(){return readRecords<PublicContent>('public_content').filter(r=>(!r.organizationId||r.organizationId==='rcre-local')&&r.status==='archived').map(r=>r.id)}
 
-export function resolvePublicProfile(path:string){const original=publicAgents.find(a=>path==='/agent/'+a.slug);if(!original)return undefined;const record=getRecord<PublicContent>('public_content',path);if(record?.organizationId&&record.organizationId!=='rcre-local'||record?.status==='archived')return undefined;const p=record?.published;return {...original,...p?.profile,name:p?.title||original.name,bio:p?.body||original.bio,image:p?.image?p.image.src:original.image}}
+export function resolvePublicProfile(path:string){const original=publicAgents.find(a=>path==='/agent/'+a.slug);if(!original)return undefined;const managed=agentProfileFor(original.slug);if(!managed?.publicVisible)return undefined;const record=getRecord<PublicContent>('public_content',path);if(record?.organizationId&&record.organizationId!=='rcre-local'||record?.status==='archived')return undefined;const p=record?.published;return {...original,phone:managed.phone,email:managed.email,license:managed.license,market:managed.market,role:managed.publicTitle,...p?.profile,name:p?.title||original.name,bio:p?.body||managed.bio,image:p?.image?p.image.src:original.image}}

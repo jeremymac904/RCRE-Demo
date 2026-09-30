@@ -7,6 +7,7 @@
  */
 
 import { readRecords } from '@/lib/platform/store'
+import { agentProfileFor } from '@/lib/platform/agent-profiles'
 import { getSetting } from '@/lib/platform/service'
 import type {
   AgentProfile,
@@ -31,8 +32,11 @@ export function getAgentProfile(slug: string): AgentProfile | null {
 
   // Merge website customization on top
   const websiteConfig = getWebsiteConfig(slug)
+  const managed = agentProfileFor(slug)
+  if (managed && !managed.publicVisible) return null
   return {
     ...agent,
+    ...(managed ? { title: managed.publicTitle, phone: managed.phone, email: managed.email, license: managed.license, market: managed.market, markets: managed.market.split(' & '), bio: managed.bio, specialties: managed.specialties, socialLinks: managed.socialLinks } : {}),
     website: websiteConfig ?? undefined,
   }
 }
@@ -57,8 +61,11 @@ export function getWebsiteConfig(slug: string): AgentWebsiteConfig | null {
   const stored = configs.find((c) => slug in c)?.[slug]
   if (stored) return stored
 
-  // Default config for agents without a saved website
-  return defaultWebsiteConfig(slug)
+  // A canonical roster selection sets the starting theme until an agent saves a website configuration.
+  const defaults=defaultWebsiteConfig(slug)
+  const templateThemes={signature:'rcre-signature',luxury:'rcre-luxury','rural-land':'rcre-rural',investor:'rcre-investor','urban-modern':'rcre-urban','suburban-family':'rcre-suburban','new-construction':'rcre-new-construction','historic-heritage':'rcre-historic'} as const
+  const template=agentProfileFor(slug)?.websiteTemplate as keyof typeof templateThemes|undefined
+  return template ? {...defaults,theme:templateThemes[template]} : defaults
 }
 
 export function getWebsiteState(slug: string): AgentWebsiteState | null {
