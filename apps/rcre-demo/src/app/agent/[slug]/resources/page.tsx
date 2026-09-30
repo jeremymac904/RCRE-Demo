@@ -6,7 +6,8 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getAgentProfile, getWebsiteConfig, getExampleAgent } from '@/lib/agent-website/agent-service'
+import { getExampleAgent } from '@/lib/agent-website/agent-service'
+import { resolveAgentWebsite } from '@/lib/agent-website/lifecycle'
 import { buildResourcesSEO } from '@/lib/agent-website/seo'
 import { AgentWebsiteThemeProvider } from '@/components/agent-website/theme-context'
 import { AgentWebsiteLayout } from '@/components/agent-website/AgentWebsiteLayout'
@@ -19,9 +20,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const agent = getAgentProfile(slug) || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
+  const website = await resolveAgentWebsite(slug)
+  const agent = website?.profile || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
   if (!agent) return { title: 'Agent Not Found' }
-  const config = getWebsiteConfig(slug)
+  const config = website?.config
   if (!config) return { title: 'Agent Not Found' }
   const seo = buildResourcesSEO(agent as Parameters<typeof buildResourcesSEO>[0], config)
   return { title: seo.title, description: seo.description }
@@ -97,14 +99,11 @@ export default async function AgentResourcesPage({
 }) {
   const { slug } = await params
 
-  let agent = getAgentProfile(slug)
-  if (!agent) {
-    // @ts-expect-error - dynamic key
-    agent = getExampleAgent(slug) || null
-  }
+  const website = await resolveAgentWebsite(slug)
+  const agent = website?.profile || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
   if (!agent) notFound()
 
-  const config = getWebsiteConfig(slug)
+  const config = website?.config
   if (!config) notFound()
 
   const seo = buildResourcesSEO(agent, config)

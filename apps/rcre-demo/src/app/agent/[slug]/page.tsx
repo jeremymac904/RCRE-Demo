@@ -9,7 +9,8 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getAgentProfile, getWebsiteConfig, getExampleAgent } from '@/lib/agent-website/agent-service'
+import { getExampleAgent } from '@/lib/agent-website/agent-service'
+import { resolveAgentWebsite } from '@/lib/agent-website/lifecycle'
 import { buildHomeSEO } from '@/lib/agent-website/seo'
 import { AgentWebsiteThemeProvider } from '@/components/agent-website/theme-context'
 import { AgentWebsiteLayout } from '@/components/agent-website/AgentWebsiteLayout'
@@ -26,9 +27,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const agent = getAgentProfile(slug) || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
+  const website = await resolveAgentWebsite(slug)
+  const agent = website?.profile || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
   if (!agent) return { title: 'Agent Not Found' }
-  const config = getWebsiteConfig(slug)
+  const config = website?.config
   if (!config) return { title: 'Agent Not Found' }
   const seo = buildHomeSEO(agent as Parameters<typeof buildHomeSEO>[0], config)
   return {
@@ -44,56 +46,6 @@ export async function generateMetadata({
 }
 
 // ---------------------------------------------------------------------------
-// Placeholder listings
-// ---------------------------------------------------------------------------
-
-const PLACEHOLDER_LISTINGS = [
-  {
-    id: 'l1',
-    address: '4821 Colonial Ave, Jacksonville, FL 32210',
-    price: 485000,
-    beds: 4,
-    baths: 3,
-    sqft: 2410,
-    status: 'Active' as const,
-    image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&q=80',
-  },
-  {
-    id: 'l2',
-    address: '1204 Magnolia St, Birmingham, AL 35216',
-    price: 395000,
-    beds: 3,
-    baths: 2,
-    sqft: 1920,
-    status: 'Active' as const,
-    image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=600&q=80',
-  },
-  {
-    id: 'l3',
-    address: '8703 Shore Dr, Ponte Vedra Beach, FL 32082',
-    price: 725000,
-    beds: 5,
-    baths: 3.5,
-    sqft: 3180,
-    status: 'Pending' as const,
-    image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80',
-  },
-]
-
-// ---------------------------------------------------------------------------
-// Derived stats (deterministic from slug)
-// ---------------------------------------------------------------------------
-
-function getAgentStats(slug: string) {
-  const hash = slug.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  return {
-    years: 5 + (hash % 15),
-    transactions: 35 + (hash % 120),
-    clients: 60 + (hash % 200),
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -105,19 +57,15 @@ export default async function AgentHomePage({
   const { slug } = await params
 
   // Try profile first, fall back to example agents
-  let agent = getAgentProfile(slug)
-  if (!agent) {
-    // @ts-expect-error - dynamic key lookup on EXAMPLE_AGENTS
-    agent = getExampleAgent(slug) || null
-  }
+  const website = await resolveAgentWebsite(slug)
+  const agent = website?.profile || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
 
   if (!agent) notFound()
 
-  const config = getWebsiteConfig(slug)
+  const config = website?.config
   if (!config) notFound()
 
   const seo = buildHomeSEO(agent, config)
-  const stats = getAgentStats(slug)
   const heroImage = config.heroImage || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1600&q=80'
   const markets = config.markets?.length ? config.markets : agent.markets || [agent.market]
 
@@ -166,94 +114,13 @@ export default async function AgentHomePage({
           </div>
         </section>
 
-        {/* 2. Quick Stats */}
-        <section className="agent-stats">
-          <div className="agent-stats-inner">
-            <div>
-              <p className="agent-stat-number">{stats.years}+</p>
-              <p className="agent-stat-label">Years Experience</p>
-            </div>
-            <div>
-              <p className="agent-stat-number">{stats.transactions}+</p>
-              <p className="agent-stat-label">Transactions Closed</p>
-            </div>
-            <div>
-              <p className="agent-stat-number">{stats.clients}+</p>
-              <p className="agent-stat-label">Clients Served</p>
-            </div>
-          </div>
-        </section>
-
-        {/* 3. Featured Listings */}
-        <section className="agent-section" style={{ backgroundColor: 'var(--color-bg, #faf8f5)' }}>
-          <div className="agent-wrap">
-            <p className="agent-section-label">Active Listings</p>
-            <h2 className="agent-section-title">Featured Properties</h2>
-            <p className="agent-section-sub" style={{ marginBottom: '2.5rem' }}>
-              A selection of current listings represented by {agent.name}.
-            </p>
-
-            <div className="agent-grid-3">
-              {PLACEHOLDER_LISTINGS.map((listing) => (
-                <article key={listing.id} className="agent-card">
-                  <div style={{ position: 'relative' }}>
-                    <img
-                      src={listing.image}
-                      alt={listing.address}
-                      className="agent-listing-card-image"
-                      loading="lazy"
-                    />
-                    {listing.status === 'Pending' && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: '0.75rem',
-                          left: '0.75rem',
-                          backgroundColor: 'rgba(234,179,8,0.9)',
-                          color: '#ffffff',
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '99px',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                        }}
-                      >
-                        Pending
-                      </span>
-                    )}
-                  </div>
-                  <div className="agent-listing-card-body">
-                    <p className="agent-listing-price">
-                      ${listing.price.toLocaleString()}
-                    </p>
-                    <p className="agent-listing-address">{listing.address}</p>
-                    <p className="agent-listing-meta">
-                      {listing.beds} bd · {listing.baths} ba · {listing.sqft.toLocaleString()} sqft
-                    </p>
-                    <Link
-                      href={`/agent/${agent.slug}/listings`}
-                      style={{
-                        display: 'inline-block',
-                        marginTop: '0.75rem',
-                        fontSize: '0.85rem',
-                        color: 'var(--color-accent, #c9a84c)',
-                        fontWeight: 600,
-                        textDecoration: 'none',
-                      }}
-                    >
-                      View details →
-                    </Link>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-              <Link href={`/agent/${agent.slug}/listings`} className="agent-btn-outline">
-                View All Listings
-              </Link>
-            </div>
+        {/* Shared RCRE property search keeps listing facts and broker attribution authoritative. */}
+        <section className="agent-section-sm" style={{ backgroundColor: 'var(--color-surface, #ffffff)' }}>
+          <div className="agent-wrap" style={{ textAlign: 'center' }}>
+            <p className="agent-section-label">Property Search</p>
+            <h2 className="agent-section-title">Explore homes across {agent.market}</h2>
+            <p className="agent-section-sub">Search current properties through RCRE&apos;s shared property search.</p>
+            <Link href={`/homes?agent=${encodeURIComponent(agent.slug)}`} className="agent-btn-primary">Search Homes</Link>
           </div>
         </section>
 

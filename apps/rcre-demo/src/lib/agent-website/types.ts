@@ -270,6 +270,7 @@ export interface AgentProfile {
 }
 
 export interface AgentWebsiteConfig {
+  slug?: string
   theme: AgentWebsiteTheme
   // Profile
   tagline?: string

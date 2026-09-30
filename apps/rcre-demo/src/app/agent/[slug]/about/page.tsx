@@ -6,7 +6,8 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getAgentProfile, getWebsiteConfig, getExampleAgent } from '@/lib/agent-website/agent-service'
+import { getExampleAgent } from '@/lib/agent-website/agent-service'
+import { resolveAgentWebsite } from '@/lib/agent-website/lifecycle'
 import { buildAboutSEO } from '@/lib/agent-website/seo'
 import { AgentWebsiteThemeProvider } from '@/components/agent-website/theme-context'
 import { AgentWebsiteLayout } from '@/components/agent-website/AgentWebsiteLayout'
@@ -19,9 +20,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const agent = getAgentProfile(slug) || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
+  const website = await resolveAgentWebsite(slug)
+  const agent = website?.profile || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
   if (!agent) return { title: 'Agent Not Found' }
-  const config = getWebsiteConfig(slug)
+  const config = website?.config
   if (!config) return { title: 'Agent Not Found' }
   const seo = buildAboutSEO(agent as Parameters<typeof buildAboutSEO>[0], config)
   return {
@@ -38,19 +40,17 @@ export default async function AgentAboutPage({
 }) {
   const { slug } = await params
 
-  let agent = getAgentProfile(slug)
-  if (!agent) {
-    // @ts-expect-error - dynamic key
-    agent = getExampleAgent(slug) || null
-  }
+  const website = await resolveAgentWebsite(slug)
+  const agent = website?.profile || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
   if (!agent) notFound()
 
-  const config = getWebsiteConfig(slug)
+  const config = website?.config
   if (!config) notFound()
 
   const seo = buildAboutSEO(agent, config)
   const markets = config.markets?.length ? config.markets : agent.markets || [agent.market]
   const specialties = config.specialties?.length ? config.specialties : agent.specialties || []
+  const socialLinks = (agent.socialLinks ?? {}) as import('@/lib/agent-website/types').AgentProfile['socialLinks']
 
   return (
     <AgentWebsiteThemeProvider
@@ -218,9 +218,9 @@ export default async function AgentAboutPage({
                       Connect
                     </h3>
                     <div style={{ display: 'flex', gap: '1rem' }}>
-                      {agent.socialLinks.linkedin && (
+                      {socialLinks?.linkedin && (
                         <a
-                          href={agent.socialLinks.linkedin}
+                          href={socialLinks?.linkedin}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: 'var(--color-primary, #1a2e4a)', fontSize: '0.875rem', textDecoration: 'none', fontWeight: 500 }}
@@ -228,9 +228,9 @@ export default async function AgentAboutPage({
                           LinkedIn ↗
                         </a>
                       )}
-                      {agent.socialLinks.instagram && (
+                      {socialLinks?.instagram && (
                         <a
-                          href={agent.socialLinks.instagram}
+                          href={socialLinks?.instagram}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: 'var(--color-primary, #1a2e4a)', fontSize: '0.875rem', textDecoration: 'none', fontWeight: 500 }}
@@ -238,9 +238,9 @@ export default async function AgentAboutPage({
                           Instagram ↗
                         </a>
                       )}
-                      {agent.socialLinks.facebook && (
+                      {socialLinks?.facebook && (
                         <a
-                          href={agent.socialLinks.facebook}
+                          href={socialLinks?.facebook}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: 'var(--color-primary, #1a2e4a)', fontSize: '0.875rem', textDecoration: 'none', fontWeight: 500 }}

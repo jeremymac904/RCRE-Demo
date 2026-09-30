@@ -1,17 +1,14 @@
 import { notFound } from 'next/navigation'
-import { publicAgents } from '@/lib/public/content'
-import { getWebsiteConfig } from '@/lib/agent-website/agent-service'
-import { agentProfileFor } from '@/lib/platform/agent-profiles'
+import { resolveAgentWebsite } from '@/lib/agent-website/lifecycle'
 
-/** Public personal sites require a canonical public agent and an explicitly
- * published website configuration. Drafts and demo identities stay private. */
+/** Public personal sites require an active canonical member, public visibility,
+ * and an explicitly published configuration. Drafts and demo identities stay private. */
 export default async function AgentWebsiteGate({ children, params }: { children: React.ReactNode; params: Promise<{ slug: string }> }) {
   const { slug } = await params
   if (process.env.NODE_ENV === 'production') {
     try {
-      if (!publicAgents.some(agent => agent.slug === slug) || !agentProfileFor(slug)?.publicVisible) notFound()
-      const config = getWebsiteConfig(slug)
-      if (!config?.published) notFound()
+      const website = await resolveAgentWebsite(slug)
+      if (!website || website.profile.slug !== slug) notFound()
     } catch { notFound() }
   }
   return children
