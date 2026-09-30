@@ -36,10 +36,29 @@ function validMagic(type: string, bytes: Buffer): boolean {
   if (type === 'text/plain') return !bytes.includes(0)
   return false
 }
+const storageCategories = new Set<StorageCategory>(['agent-headshot', 'transaction-document', 'training-resource', 'community-attachment', 'marketing-asset', 'knowledge-file'])
+
 function safeFilename(value: string): string {
   const name = value.normalize('NFKC').replace(/[\\/\r\n\x00-\x1f\x7f]/g, '_').trim().slice(0, 180)
   if (!name || name === '.' || name === '..') throw new StorageError('A valid file name is required')
   return name
+}
+
+function validManifest(value: unknown, provider: ObjectDriver['name']): value is StorageAsset {
+  if (!value || typeof value !== 'object') return false
+  const asset = value as Partial<StorageAsset>
+  if (typeof asset.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(asset.id)) return false
+  if (typeof asset.organizationId !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(asset.organizationId)) return false
+  if (typeof asset.ownerId !== 'string' || !asset.ownerId || asset.ownerId.length > 200) return false
+  if (!asset.category || !storageCategories.has(asset.category)) return false
+  if (asset.visibility !== 'private' && asset.visibility !== 'public') return false
+  if (typeof asset.filename !== 'string' || !asset.filename) return false
+  try { if (safeFilename(asset.filename) !== asset.filename) return false } catch { return false }
+  if (typeof asset.contentType !== 'string' || !mimeByCategory[asset.category].has(asset.contentType)) return false
+  if (!Number.isSafeInteger(asset.size) || (asset.size ?? 0) < 1 || (asset.size ?? Infinity) > maxBytes[asset.category]) return false
+  if (typeof asset.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(asset.sha256)) return false
+  if (typeof asset.createdAt !== 'string' || !Number.isFinite(Date.parse(asset.createdAt))) return false
+  return asset.provider === provider
 }
 
 export class StorageService {
@@ -51,6 +70,7 @@ export class StorageService {
   ) {}
 
   private async authorize(actor: StorageUpload['actor'], action: StorageAction, asset: StorageAsset): Promise<void> {
+    if (!actor || typeof actor.id !== 'string' || !actor.id || typeof actor.organizationId !== 'string' || !actor.organizationId || typeof actor.role !== 'string' || !actor.role) throw new StorageAuthorizationError()
     if (!await this.authorization.authorize(actor, action, asset)) throw new StorageAuthorizationError()
   }
 
@@ -88,7 +108,7 @@ export class StorageService {
   async metadata(actor: StorageUpload['actor'], id: string): Promise<StorageAsset> {
     const asset = await this.driver.getMetadata(id)
     if (!asset) throw new StorageError('File not found', 404, 'STORAGE_NOT_FOUND')
-    if (asset.id !== id || asset.provider !== this.driver.name || !maxBytes[asset.category]) throw new StorageUnavailableError('Stored file manifest is invalid')
+    if (asset.id !== id || !validManifest(asset, this.driver.name)) throw new StorageUnavailableError('Stored file manifest is invalid')
     await this.authorize(actor, 'download', asset)
     return asset
   }

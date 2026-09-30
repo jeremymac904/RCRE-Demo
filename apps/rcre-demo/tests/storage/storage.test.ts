@@ -54,6 +54,21 @@ describe('storage service', () => {
     await expect(service.metadata(actor, asset.id)).rejects.toMatchObject({ status: 404 })
   })
 
+  it('rejects corrupt or cross-provider manifests before authorization or object access', async () => {
+    const driver = new MemoryDriver()
+    let authorizationCalls = 0
+    const service = new StorageService(driver, { authorize: () => { authorizationCalls++; return true } }, undefined, false)
+    const asset = await service.upload(upload())
+    driver.records.set(asset.id, { asset: { ...asset, organizationId: '../other-org' } as StorageAsset, bytes: jpeg })
+    authorizationCalls = 0
+    await expect(service.signedUrl(actor, asset.id)).rejects.toMatchObject({ status: 503 })
+    expect(authorizationCalls).toBe(0)
+    driver.records.set(asset.id, { asset: { ...asset, category: 'constructor' } as unknown as StorageAsset, bytes: jpeg })
+    await expect(service.metadata(actor, asset.id)).rejects.toMatchObject({ status: 503 })
+    driver.records.set(asset.id, { asset: { ...asset, provider: 'supabase' } as StorageAsset, bytes: jpeg })
+    await expect(service.download(actor, asset.id)).rejects.toMatchObject({ status: 503 })
+  })
+
   it('fails closed on production uploads without a malware scanner and on failed scans', async () => {
     const service = new StorageService(new MemoryDriver(), allow, undefined, true)
     await expect(service.upload(upload())).rejects.toMatchObject({ status: 503 })
@@ -96,6 +111,16 @@ describe('storage service', () => {
       expect(calls.every(call => (call.init?.headers as Record<string, string>).apikey === 'server-only-test-secret')).toBe(true)
       expect(calls.some(call => call.url.includes('/rcre-private/org-rcre/agent-headshot/'))).toBe(true)
       expect(calls.some(call => call.url.includes('.rcre-metadata/'))).toBe(true)
+    } finally { globalThis.fetch = originalFetch }
+  })
+
+  it('rejects signed URLs that escape the configured Supabase origin', async () => {
+    const driver = new SupabaseObjectDriver({ NODE_ENV: 'test', SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'server-only-test-secret', RCRE_STORAGE_BUCKET: 'rcre-private', RCRE_STORAGE_BUCKET_PRIVATE: 'true' })
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async () => new Response(JSON.stringify({ signedURL: 'https://attacker.example/collect?token=secret' }), { status: 200 })) as typeof fetch
+    try {
+      const asset: StorageAsset = { id: '00000000-0000-0000-0000-000000000001', organizationId: 'org-rcre', ownerId: actor.id, category: 'agent-headshot', visibility: 'private', filename: 'photo.jpg', contentType: 'image/jpeg', size: jpeg.length, sha256: 'a'.repeat(64), createdAt: new Date().toISOString(), provider: 'supabase' }
+      await expect(driver.sign(asset, Date.now() + 60_000)).rejects.toThrow(/unexpected host/)
     } finally { globalThis.fetch = originalFetch }
   })
 

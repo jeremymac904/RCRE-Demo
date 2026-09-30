@@ -14,7 +14,11 @@ export interface ObjectDriver {
 }
 
 const metadataJSON = (asset: StorageAsset) => Buffer.from(JSON.stringify(asset), 'utf8')
-const objectPath = (asset: StorageAsset) => `${segment(asset.organizationId)}/${asset.category}/${asset.id}`
+const validCategory = (value: string) => ['agent-headshot', 'transaction-document', 'training-resource', 'community-attachment', 'marketing-asset', 'knowledge-file'].includes(value)
+const objectPath = (asset: StorageAsset) => {
+  if (!validCategory(asset.category) || !/^[a-f0-9-]{36}$/i.test(asset.id)) throw new StorageUnavailableError('Invalid storage object identity')
+  return `${segment(asset.organizationId)}/${asset.category}/${asset.id}`
+}
 const metadataPath = (asset: StorageAsset) => `.rcre-metadata/${asset.id}.json`
 function segment(value: string): string {
   if (!/^[a-zA-Z0-9_-]{1,100}$/.test(value)) throw new Error('Invalid storage path segment')
@@ -170,7 +174,9 @@ export class SupabaseObjectDriver implements ObjectDriver {
     if (!response.ok) throw new StorageUnavailableError(`Supabase signed URL request failed (${response.status})`)
     const body = await response.json() as { signedURL?: string }
     if (!body.signedURL) throw new StorageUnavailableError('Supabase did not return a signed URL')
-    return new URL(body.signedURL, this.url).toString()
+    const signed = new URL(body.signedURL, this.url)
+    if (signed.origin !== new URL(this.url).origin) throw new StorageUnavailableError('Supabase returned a signed URL for an unexpected host')
+    return signed.toString()
   }
 }
 
