@@ -1,10 +1,10 @@
 import {NextRequest,NextResponse} from 'next/server'
 import {randomBytes} from 'node:crypto'
-import {askPublicChat,clearPublicChat,publicChatConfig,publicChatHistory} from '@/lib/services/public-chat'
+import {askPublicChat,clearPublicChat,publicChatConfig,publicChatCookieSecure,publicChatHistory} from '@/lib/services/public-chat'
 export const runtime='nodejs'
 const cookie='rcre-public-chat'
 function visitor(req:NextRequest){const id=req.cookies.get(cookie)?.value;return id&&/^[a-f0-9]{64}$/.test(id)?id:randomBytes(32).toString('hex')}
-function reply(id:string,data:unknown,status=200){const r=NextResponse.json(data,{status});r.headers.set('Cache-Control','no-store');r.cookies.set(cookie,id,{httpOnly:true,sameSite:'strict',path:'/api/public/chat',maxAge:30*86400,secure:process.env.RCRE_MODE==='production'});return r}
+function reply(id:string,data:unknown,status=200){const r=NextResponse.json(data,{status});r.headers.set('Cache-Control','no-store');r.cookies.set(cookie,id,{httpOnly:true,sameSite:'strict',path:'/api/public/chat',maxAge:30*86400,secure:publicChatCookieSecure()});return r}
 function safe(req:NextRequest){return !req.headers.get('origin')||req.headers.get('origin')===req.nextUrl.origin}
 export async function GET(req:NextRequest){const id=visitor(req);return reply(id,{...publicChatHistory(id),providerConfigured:publicChatConfig().enabled})}
 export async function DELETE(req:NextRequest){if(!safe(req))return NextResponse.json({error:'Cross-origin request denied'},{status:403});const id=visitor(req);return reply(id,{...clearPublicChat(id),providerConfigured:publicChatConfig().enabled})}
