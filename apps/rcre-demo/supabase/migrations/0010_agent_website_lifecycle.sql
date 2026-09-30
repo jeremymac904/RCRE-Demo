@@ -49,7 +49,7 @@ as $$
   where mp.organization_id = p_organization_id
     and mp.collection = 'member_profiles'
     and mp.data->>'websiteSlug' = p_slug
-    and mp.data->>'verifiedPersonId' = p_slug
+    and nullif(mp.data->>'verifiedPersonId', '') is not null
     and mp.data->'publicVisible' = 'true'::jsonb
     and site.data->>'published' = 'true'
     and site.data->>'slug' = p_slug

@@ -61,10 +61,22 @@ describe('durable agent website lifecycle', () => {
       expect(config.theme).toBe(theme)
     }
   })
+  it('supports a public URL slug distinct from the canonical person key', async () => {
+    installAuth()
+    const repo = repository()
+    const context = { userId: actor.id, organizationId: actor.organizationId, role: 'agent' as const }
+    await repo.putDomainRecord(context, { collection: 'member_profiles', recordId: actor.id, ownerUserId: actor.id, data: { ...profile(), websiteSlug: '' } })
+    const site = await saveAgentWebsite(actor, { ...payload(), slug: 'sarah-northeast-florida', version: 0 }, repo)
+    const storedProfile = await repo.getDomainRecord<any>(context, 'member_profiles', actor.id)
+    expect(site.slug).toBe('sarah-northeast-florida')
+    expect(storedProfile?.data.websiteSlug).toBe(site.slug)
+    expect(storedProfile?.data.verifiedPersonId).toBe('sarah-brockner')
+    expect((await setAgentWebsitePublication(actor, actor.id, true, site.version, repo)).published).toBe(true)
+  })
   it('publishes a tenant-scoped projection only for active, visible, verified members', () => {
     const sql = readFileSync('supabase/migrations/0010_agent_website_lifecycle.sql', 'utf8')
     expect(sql).toMatch(/organization_id = p_organization_id/)
-    expect(sql).toMatch(/data->>'verifiedPersonId' = p_slug/)
+    expect(sql).toMatch(/nullif\(mp\.data->>'verifiedPersonId', ''\) is not null/)
     expect(sql).toMatch(/data->'publicVisible' = 'true'/)
     expect(sql).toMatch(/u\.is_active = true/)
     expect(sql).toMatch(/site\.data->>'published' = 'true'/)

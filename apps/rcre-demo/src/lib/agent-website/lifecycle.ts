@@ -127,7 +127,7 @@ export async function getPublishedAgentWebsite(slug: string): Promise<AgentWebsi
   const site = result.rows[0]?.site
   if (!site) return null
   const canonical = publicAgents.find(person => person.slug === site.personSlug)
-  if (!canonical || canonical.slug !== slug) return null
+  if (!canonical) return null
   const profileData = site.profile
   const configData = site.website
   const profile: AgentProfile = {
@@ -143,7 +143,7 @@ export async function getPublishedAgentWebsite(slug: string): Promise<AgentWebsi
     bio: String(profileData.biography ?? ''),
     website: configData,
   }
-  return { profile, config: configData as unknown as AgentWebsiteConfig, verifiedPersonId: site.personSlug }
+  return { profile: { ...profile, slug }, config: configData as unknown as AgentWebsiteConfig, verifiedPersonId: site.personSlug }
 }
 
 /** Shared renderer resolver: published PostgreSQL records in production; existing local fixture engine elsewhere. */
@@ -159,7 +159,7 @@ export async function resolveAgentWebsite(slug: string): Promise<AgentWebsiteRen
     if (!data || data.slug !== slug || !canonical || !draft.member?.active) return null
     const profile: Record<string, unknown> = draft.profile ?? {}
     const agent: AgentProfile = { ...canonical, name: draft.member.name, title: String(profile.professionalTitle ?? canonical.role ?? 'REALTOR®'), email: draft.member.email, phone: String(profile.phone ?? ''), license: Array.isArray(profile.licenses) ? (profile.licenses as Array<{state?:string;number?:string}>).map(item => `${item.number ?? ''}${item.state ? ` (${item.state})` : ''}`).filter(Boolean).join(' · ') : '', market: Array.isArray(profile.markets) ? (profile.markets as string[]).join(' · ') : canonical.market, markets: Array.isArray(profile.markets) ? profile.markets as string[] : [], specialties: Array.isArray(profile.specialties) ? profile.specialties as string[] : [], bio: String(profile.biography ?? ''), website: data }
-    return { profile: agent, config: data as unknown as AgentWebsiteConfig, verifiedPersonId: canonical.slug }
+    return { profile: { ...agent, slug }, config: data as unknown as AgentWebsiteConfig, verifiedPersonId: canonical.slug }
   }
   const service = await import('./agent-service')
   const profile = service.getAgentProfile(slug)
