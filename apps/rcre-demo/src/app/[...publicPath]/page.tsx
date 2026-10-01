@@ -10,8 +10,7 @@ import {InquiryForm,AgentDirectory,ConsentPreferences} from '@/components/public
 import {PropertySearch} from '@/components/public/PropertySearch'
 import {ListingVisual} from '@/components/ListingVisual'
 import {guides,communities,articles,publicAgents} from '@/lib/public/content'
-import {agentProfileFor} from '@/lib/platform/agent-profiles'
-import {getPublished,publishedPages,getPublicRecord,getBrokerage,archivedPublicPaths} from '@/lib/public/server'
+import {publicAgentProfileFor,publicAgentProfiles,getPublished,publishedPages,getPublicRecord,getBrokerage,archivedPublicPaths} from '@/lib/public/server'
 import {validatePublicRedirect} from '@/lib/public/redirects'
 import {properties} from '@/lib/public/properties'
 import legacyProperties from '@/lib/public/legacy-properties.json'
@@ -145,9 +144,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const edited = await getPublished('/' + path)
   const originalAgent = publicAgents.find(a => path === 'agent/' + a.slug)
-  const managedAgent = originalAgent ? agentProfileFor(originalAgent.slug) : undefined
+  const managedAgent = originalAgent ? await publicAgentProfileFor(originalAgent.slug) : undefined
   const agent = originalAgent && managedAgent?.publicVisible
-    ? { ...originalAgent, phone: managedAgent.phone, email: managedAgent.email, license: managedAgent.license, market: managedAgent.market, role: managedAgent.publicTitle, bio: managedAgent.bio, ...edited?.profile, name: edited?.title ?? originalAgent.name, image: edited?.image ? edited.image.src : originalAgent.image }
+    ? { ...originalAgent, phone: managedAgent.phone, email: managedAgent.email, license: managedAgent.license, market: managedAgent.market, role: managedAgent.role, bio: managedAgent.bio, ...edited?.profile, name: edited?.title ?? originalAgent.name, image: edited?.image ? edited.image.src : originalAgent.image }
     : undefined
   const community = communities.find(c => path === 'neighborhoods/' + c.slug)
   const article = [...articles, ...metroArticles].find(a => path === 'blog/' + a.slug)
@@ -233,19 +232,19 @@ export default async function PublicPage({ params }: Props) {
     permanentRedirect(edited.redirectTo)
   }
 
-  const displayedAgents = publicAgents
-    .filter(a => !archived.includes('/agent/' + a.slug) && agentProfileFor(a.slug)?.publicVisible)
-    .map(a => {
-      const p = published.find(p => p.id === '/agent/' + a.slug)?.published
-      const managed = agentProfileFor(a.slug)!
-      return { ...a, phone: managed.phone, email: managed.email, license: managed.license, market: managed.market, role: managed.publicTitle, bio: managed.bio, ...(p ? { ...p.profile, name: p.title, bio: p.body, image: p.image ? p.image.src : a.image } : {}) }
+  const liveAgentProfiles = await publicAgentProfiles()
+  const displayedAgents = liveAgentProfiles
+    .filter(agent => !archived.includes('/agent/' + agent.slug))
+    .map(agent => {
+      const p = published.find(p => p.id === '/agent/' + agent.slug)?.published
+      return { ...agent, ...(p ? { ...p.profile, name: p.title, bio: p.body, image: p.image ? p.image.src : agent.image } : {}) }
     })
 
   const guide = guides.find(g => g.slug === path)
   const originalAgent = publicAgents.find(a => path === 'agent/' + a.slug)
-  const managedAgent = originalAgent ? agentProfileFor(originalAgent.slug) : undefined
+  const managedAgent = originalAgent ? await publicAgentProfileFor(originalAgent.slug) : undefined
   const agent = originalAgent && managedAgent?.publicVisible
-    ? { ...originalAgent, phone: managedAgent.phone, email: managedAgent.email, license: managedAgent.license, market: managedAgent.market, role: managedAgent.publicTitle, bio: managedAgent.bio, ...edited?.profile, name: edited?.title ?? originalAgent.name, image: edited?.image ? edited.image.src : originalAgent.image }
+    ? { ...originalAgent, phone: managedAgent.phone, email: managedAgent.email, license: managedAgent.license, market: managedAgent.market, role: managedAgent.role, bio: managedAgent.bio, ...edited?.profile, name: edited?.title ?? originalAgent.name, image: edited?.image ? edited.image.src : originalAgent.image }
     : undefined
   const community = communities.find(c => path === 'neighborhoods/' + c.slug)
   const article = [...articles, ...metroArticles].find(a => path === 'blog/' + a.slug)

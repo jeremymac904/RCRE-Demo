@@ -9,7 +9,7 @@ describe('forward-only session rotation repair', () => {
   it('ships after the existing auth migration without rewriting applied history', () => {
     const names = readdirSync(migrations).filter(name => /^\d{4}_[a-z0-9_]+\.sql$/.test(name)).sort()
     expect(names).toContain('0011_fix_session_rotation.sql')
-    expect(names.at(-1)).toBe('0022_public_content_projection.sql')
+    expect(names.at(-1)).toBe('0023_public_agent_roster_projection.sql')
     expect(fix).toMatch(/create or replace function rcre_auth_rotate_session\(p_old_hash char\(64\)/)
     expect(fix).toMatch(/language plpgsql security definer set search_path=public,pg_temp/)
   })

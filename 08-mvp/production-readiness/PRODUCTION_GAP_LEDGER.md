@@ -297,3 +297,42 @@ This snapshot supersedes the P1 counts and verification numbers immediately abov
 **Code-incomplete P1: 2 (P1-03 and P1-20).** P1-03 still requires a complete selector/page audit of the broad platform catchall and production server-rendered data, plus durable replacements for the four now-disabled endpoints. P1-20 now persists authenticated platform 5xx and notification-worker failures, but other route-local caught failures are not universally recorded; alert delivery and aggregation are unconfigured. The 18 external/source/live-proof gates and locally closed P1-06 remain as stated in the preceding snapshot.
 
 No live PostgreSQL/RLS, migrations, backups, browser-rendered QA, external services, or production deployment were performed. The PR remains open, draft, and unmerged.
+
+## Continued implementation snapshot — 2026-09-30
+
+This snapshot supersedes the route-boundary counts and verification numbers above. PR #2 remains unmerged and this branch remains the implementation candidate.
+
+### Current implementation disposition
+
+- **Code-incomplete P1: 4** — P1-03, P1-07, P1-10, P1-20.
+  - **P1-03:** several remaining production operational routes still require migration to the unified PostgreSQL boundary. `/api/day-plan` now reads and writes durable CRM task/appointment records; `/api/agent-inspector` is explicitly unavailable in live mode rather than displaying synthetic SQLite metrics. That reporting workflow still needs a durable implementation.
+  - **P1-07:** onboarding profile, license, market, photo, and progress persistence is implemented. The invitation flow still lacks a safe, audited way to establish an additional canonical agent identity beyond the approved current roster for a newly invited Realtor.
+  - **P1-10:** existing verified agents have durable website configuration and publication checks. A newly invited Realtor cannot yet complete the full canonical identity-to-public-site path without a corresponding canonical-person workflow.
+  - **P1-20:** request IDs, redacted structured logs, best-effort durable records for many authenticated 5xx paths, notification job error records, and readiness surfaces are implemented. Route-local failures are not universally captured, and an operator alert destination is not connected.
+- **Activation-only / source / live-proof gates: 16** — P1-01, P1-02, P1-04, P1-05, P1-08, P1-09, P1-11, P1-12, P1-13, P1-14, P1-15, P1-16, P1-17, P1-18, P1-19, P1-21. These represent tested local architecture whose production activation or verification depends on the grouped external inputs in `EXTERNAL_ACTIVATION_PACKET.md`; P1-13 is specifically blocked from desktop-runtime implementation by the missing authorized source repository.
+- **Closed locally: 1** — P1-06, Managing Broker scope and negative permission tests.
+
+The prior “18 activation pending” label is retired because P1-07 and P1-10 have a remaining code-side canonical identity/site lifecycle gap. No credential is being used to disguise that gap as activation-only.
+
+### Repairs and verification added in this pass
+
+- Marketing Library production list, upload, download, campaign attachment, and archive now use PostgreSQL domain records plus the private-storage service boundary. No production upload writes local filesystem content.
+- Public Team/profile/sitemap reads now use the restricted PostgreSQL active/public projection; local SQLite remains fixture-only. The public projection SQL had an incorrect tautological user join discovered by the independent review. It is corrected to `u.id::text = mp.record_id`; the agent-website projection now uses the same non-casting join. Static regression assertions reject the old tautology and unsafe UUID cast.
+- The public chat production endpoint is a stateless deterministic site guide and does not claim live AI inference or persist visitor history.
+- `/api/day-plan` now uses durable CRM tasks, appointments, settings, and contact queries in live mode; proposed blocks are persisted as RCRE appointments. Existing commitments and timezone conversion are preserved. Fixture mode continues to use the development adapter.
+- `/api/agent-inspector` now fails closed with a generic 503 in live mode, preventing production display of synthetic SQLite Command detail. Its full durable reporting implementation remains P1-03 work.
+- Safe 5xx responses and best-effort route failure records were extended across Library, Academy, Community, Admin invitations/agents, knowledge, transactions, recruiting, workspace search, profile uploads, and public projection routes.
+- Independent re-review of the roster SQL confirmed the source correction and regression assertions. The reviewer still requires real PostgreSQL execution to verify active/inactive filtering, cardinality, migration behavior, and RLS. It found no additional P0/P1 in the bounded day-plan, Library storage, public chat, and transaction telemetry paths.
+
+### Final local verification for this snapshot
+
+- Full app tests: **956 passed, 2 skipped, 122 test files**. The two skipped tests require explicit local PostgreSQL integration URLs.
+- TypeScript: passed.
+- ESLint: passed with `--quiet` (zero errors; the build still prints existing warning-only `<img>` and hook-dependency notices).
+- Production build: passed; Next.js generated 79/79 static pages.
+- Focused current tests: day-plan durability (2), SQL regression and migration checks (8), agent-inspector live guard (1), plus related route/storage tests all passed in the full suite.
+- `git diff --check`: passed before this ledger update.
+- No `psql`, `postgres`, Docker, or Podman executable is available in this session. No migrations, RLS, tenant isolation, concurrency, private Supabase Storage, ClamAV daemon, backup/restore drill, real Google callback, external mail delivery, or deployed runtime was exercised. The independent reviewer did not claim these verifications.
+- The desktop runtime repository remains an exact external source dependency; no second desktop application was created.
+
+**Status: implementation is materially advanced, but not ready for production activation.** The code-side P1 work queue is now four items rather than treating missing credentials as implementation work. External activation inputs remain consolidated in `EXTERNAL_ACTIVATION_PACKET.md`. PR #2 is not merged.

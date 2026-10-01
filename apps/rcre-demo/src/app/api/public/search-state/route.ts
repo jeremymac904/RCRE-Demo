@@ -6,6 +6,7 @@ import { getRecord, putRecord } from '@/lib/platform/store'
 import { assertSameOriginMutation } from '@/lib/auth/request-origin'
 import { rateLimitRequest, SharedRateLimitUnavailableError } from '@/lib/services/rate-limit'
 import { hashPublicVisitorToken, publicSearchStateSchema, readPublicSearchState, replacePublicSearchState, type PublicSearchState } from '@/lib/property/public-search-state'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 
 export const runtime = 'nodejs'
 const FIXTURE_STATE = z.object({
@@ -64,8 +65,9 @@ export async function GET(req: NextRequest) {
     const state = stored ? FIXTURE_STATE.parse(stored) : { favorites: [], searches: [] }
     return response(token, state)
   } catch (error) {
-    if (error instanceof SharedRateLimitUnavailableError) return NextResponse.json({ error: 'Saved homes are temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
-    return NextResponse.json({ error: 'Saved homes are temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+    const response = NextResponse.json({ error: 'Saved homes are temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+    await recordCaughtRouteFailure(req, '/api/public/search-state', null, response.status, error)
+    return response
   }
 }
 
@@ -91,9 +93,15 @@ export async function PUT(req: NextRequest) {
     await putRecord('public_search', row)
     return response(token, state)
   } catch (error) {
-    if (error instanceof SharedRateLimitUnavailableError) return NextResponse.json({ error: 'Saved homes are temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+    if (error instanceof SharedRateLimitUnavailableError) {
+      const response = NextResponse.json({ error: 'Saved homes are temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+      await recordCaughtRouteFailure(req, '/api/public/search-state', null, response.status, error)
+      return response
+    }
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid saved search. Use a name, supported filters, and fewer than 50 saved searches.' }, { status: 400 })
     const status = error instanceof Error && 'status' in error && typeof error.status === 'number' ? error.status : 503
-    return NextResponse.json({ error: status === 403 ? 'Cross-origin write denied.' : 'Saved homes are temporarily unavailable.' }, { status, headers: { 'Cache-Control': 'no-store' } })
+    const response = NextResponse.json({ error: status === 403 ? 'Cross-origin write denied.' : 'Saved homes are temporarily unavailable.' }, { status, headers: { 'Cache-Control': 'no-store' } })
+    await recordCaughtRouteFailure(req, '/api/public/search-state', null, response.status, error)
+    return response
   }
 }

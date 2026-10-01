@@ -2,11 +2,13 @@ import { actorOrNull } from '@/lib/platform/auth'
 import { downloadAcademyAsset } from '@/lib/academy-durable'
 import { byteRange } from '@/lib/academy-media'
 import { StorageError } from '@/lib/storage'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const actor = await actorOrNull()
-  if (!actor) return Response.json({ error: 'Sign in required' }, { status: 401 })
+  let actor: import('@/lib/platform/auth').PlatformActor | null = null
   try {
+    actor = await actorOrNull()
+    if (!actor) return Response.json({ error: 'Sign in required' }, { status: 401 })
     const { asset, bytes } = await downloadAcademyAsset(actor, (await params).id, 'training-resource')
     let range: ReturnType<typeof byteRange>
     try { range = byteRange(request.headers.get('range'), bytes.length) }
@@ -16,7 +18,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (range) headers['Content-Range'] = `bytes ${range.start}-${range.end}/${bytes.length}`
     return new Response(range ? Uint8Array.from(bytes.subarray(range.start, range.end + 1)) : Uint8Array.from(bytes), { status: range ? 206 : 200, headers })
   } catch (error) {
-    const status = error instanceof StorageError ? error.status : 404
-    return Response.json({ error: error instanceof Error ? error.message : 'Resource unavailable' }, { status })
+    const status = error instanceof StorageError ? error.status : 500
+    const response = Response.json({ error: status >= 500 ? 'File service is temporarily unavailable.' : error instanceof Error ? error.message : 'Resource unavailable' }, { status })
+    await recordCaughtRouteFailure(request, '/api/academy/uploads/[id]', actor, status, error)
+    return response
   }
 }

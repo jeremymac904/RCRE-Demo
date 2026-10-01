@@ -32,7 +32,7 @@ describe('Community video automation safety', () => {
     vi.stubEnv('NEXT_PHASE', '')
     resetRepositoryCache()
     const authSpy = vi.spyOn(auth, 'actorOrNull').mockResolvedValue(actor)
-    const response = await communityRouteGet()
+    const response = await communityRouteGet(new Request('https://rcre.test/api/community/youtube'))
     expect(response.status).toBe(503)
     expect(await response.json()).toMatchObject({ error: 'Community video workflow is temporarily unavailable.' })
     expect(authSpy).toHaveBeenCalledOnce()
@@ -47,9 +47,9 @@ describe('Community video automation safety', () => {
     const authSpy = vi.spyOn(auth, 'actorOrNull').mockResolvedValue(actor)
     const makeUpload = (url: string) => { const data = new FormData(); data.set('file', new Blob(['%PDF-1.7\nfixture'], { type: 'application/pdf' }), 'fixture.pdf'); return new Request(url, { method: 'POST', body: data }) }
     const results = await Promise.all([
-      academyManageGet(),
+      academyManageGet(new Request('https://rcre.test/api/academy/manage')),
       academyProgressPost(new Request('https://rcre.test/api/academy/progress', { method: 'POST', body: '{}' })),
-      communityGet(),
+      communityGet(new Request('https://rcre.test/api/community')),
       academyUploadPost(makeUpload('https://rcre.test/api/academy/uploads')),
       communityAttachmentPost(makeUpload('https://rcre.test/api/community/attachments')),
     ])

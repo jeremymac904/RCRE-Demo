@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getProperty, fixturesEnabled } from '@/lib/property/service'
 import { assertIntakeAllowed, IntakeError, persistIntake } from '@/lib/public/intake'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 
 export const runtime = 'nodejs'
 
@@ -56,6 +57,8 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     if (error instanceof IntakeError) return fail(error.message, error.status)
     if (error instanceof z.ZodError) return fail('Complete the required contact fields and consent to be contacted.', 400)
-    return fail('We cannot receive requests right now. Please try again later.', 503)
+    const response = fail('We cannot receive requests right now. Please try again later.', 503)
+    await recordCaughtRouteFailure(req, '/api/property-inquiries', null, response.status, error)
+    return response
   }
 }

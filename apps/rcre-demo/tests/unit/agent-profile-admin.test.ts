@@ -30,14 +30,14 @@ describe('canonical public agent administration',()=>{
   expect(agentProfileFor('margie-olsen-alvarez')?.publicTitle).toBe('REALTOR®')
   expect(PERSONAS.find(p=>p.id==='u-tc')?.role).toBe('transaction_coordinator')
  })
- it('persists public profile fields while keeping identity and operating role separate',()=>{
+ it('persists public profile fields while keeping identity and operating role separate',async()=>{
   const p=listAdminAgentProfiles(owner).find(x=>x.id==='sarah-brockner')!
   const saved=saveAdminAgentProfile(owner,p.id,complete(p,{version:p.version,publicTitle:'REALTOR®',market:'Florida',bio:'Verified review bio.',publicVisible:false}))
   expect(saved.bio).toBe('Verified review bio.')
   expect(saved.publicVisible).toBe(false)
   expect(getRecord<any>('members','u-sarah')?.role).not.toBe('REALTOR®')
   expect(visiblePublicAgentSlugs(owner.organizationId)).not.toContain('sarah-brockner')
-  expect(resolvePublicProfile('/agent/sarah-brockner')).toBeUndefined()
+  expect(await resolvePublicProfile('/agent/sarah-brockner')).toBeUndefined()
  })
  it('prevents managing broker from editing Florida-only, self, and leadership public identities',()=>{
   const target=listAdminAgentProfiles(owner).find(x=>x.id==='urban-garrett')!

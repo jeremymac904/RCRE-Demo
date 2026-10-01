@@ -1,6 +1,8 @@
 import 'server-only'
 import { z } from 'zod'
 import { getRepository } from '@/lib/db'
+import { isProduction } from '@/lib/config/env'
+import { getRecord } from '@/lib/platform/store'
 import type { Repository } from '@/lib/db/repository'
 import { assertCapability, AccessError, type PlatformActor } from '@/lib/platform/auth'
 import { repositoryActor } from '@/lib/platform/onboarding'
@@ -34,6 +36,15 @@ async function allCmsRows(actor: PlatformActor, repository: Repository) {
 export async function listPublicContentForAdmin(actor: PlatformActor, repository?: Repository): Promise<PublicContent[]> {
   assertCapability(actor, 'cms')
   return allCmsRows(actor, repository ?? await getRepository())
+}
+
+/** Read a saved draft for the private preview surface without consulting ephemeral storage in production. */
+export async function getPublicContentPreview(actor: PlatformActor, path: string, repository?: Repository): Promise<PublicContent | null> {
+  assertCapability(actor, 'cms')
+  if (!path.startsWith('/') || path.length > 240) return null
+  if (isProduction) return (await listPublicContentForAdmin(actor, repository)).find(row => row.id === path) ?? null
+  const row = getRecord<PublicContent>('public_content', path)
+  return row && (!row.organizationId || row.organizationId === actor.organizationId) ? row : null
 }
 
 export async function savePublicContent(actor: PlatformActor, value: PublicContentMutation, repository?: Repository): Promise<PublicContent> {

@@ -21,7 +21,26 @@ describe('production readiness repair migrations', () => {
       '0020_unique_member_canonical_person.sql',
       '0021_managing_broker_academy_assignment_guard.sql',
       '0022_public_content_projection.sql',
+      '0023_public_agent_roster_projection.sql',
     ])
+  })
+
+
+  it('limits anonymous roster reads to active public canonical profiles and returns only profile-safe fields', () => {
+    const sql = read('0023_public_agent_roster_projection.sql')
+    expect(sql).toMatch(/security\s+definer/i)
+    expect(sql).toMatch(/set\s+search_path\s*=\s*public,\s*pg_temp/i)
+    expect(sql).toMatch(/u\.id::text\s*=\s*mp\.record_id/i)
+    expect(sql).not.toMatch(/u\.id\s*=\s*u\.id/i)
+    expect(sql).toMatch(/u\.is_active\s*=\s*true/i)
+    expect(sql).toMatch(/u\.onboarding_status\s*=\s*'active'/i)
+    expect(sql).toMatch(/mp\.data->>'publicVisible'\s*=\s*'true'/i)
+    expect(sql).toMatch(/u\.platform_role\s+in\s*\('agent',\s*'team_leader',\s*'managing_broker',\s*'broker_owner'\)/i)
+    expect(sql).toMatch(/revoke\s+all\s+on\s+function/i)
+    expect(sql).not.toMatch(/email|phone\s*,\s*email/i)
+    const website = read('0010_agent_website_lifecycle.sql')
+    expect(website).toMatch(/u\.id::text\s*=\s*mp\.record_id/i)
+    expect(website).not.toMatch(/mp\.record_id::uuid/i)
   })
 
   it('guards Managing Broker Academy assignment targets in PostgreSQL as well as the service', () => {

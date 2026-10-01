@@ -50,6 +50,11 @@ export interface PublicContentProjection {
   published?: Record<string, unknown>
 }
 
+export interface PublicAgentProfileProjection {
+  verifiedPersonId: string
+  profile: Record<string, unknown>
+}
+
 export interface DomainRecord<T extends Record<string, unknown> = Record<string, unknown>> {
   organizationId: string
   collection: string
@@ -98,6 +103,8 @@ export interface Repository {
   /** Narrow anonymous-read projection: returns only public published content and archived path tombstones. */
   getPublicContentProjection(organizationId: string, path: string): Promise<PublicContentProjection | null>
   listPublicContentProjections(organizationId: string): Promise<PublicContentProjection[]>
+  /** Narrow anonymous projection of active, public canonical agent profiles. */
+  listPublicAgentProfiles?(organizationId: string): Promise<PublicAgentProfileProjection[]>
 
   getOrganization(actor: Actor, id: string): Promise<Organization | null>
   getUser(actor: Actor, id: string): Promise<User | null>
@@ -215,6 +222,19 @@ export class MemoryRepository implements Repository {
     return [...this.domainRecords.values()].filter(row => row.organizationId === organizationId && row.collection === 'public_content' && ['published', 'archived'].includes(String(row.data.status)))
       .map(row => ({ id: row.recordId, status: row.data.status as 'published' | 'archived', revision: Number(row.data.revision) || 0,
         ...(row.data.status === 'published' && row.data.published && typeof row.data.published === 'object' ? { published: structuredClone(row.data.published) as Record<string, unknown> } : {}) }))
+  }
+
+  async listPublicAgentProfiles(organizationId: string): Promise<PublicAgentProfileProjection[]> {
+    if (!organizationId) return []
+    const out: PublicAgentProfileProjection[] = []
+    for (const row of this.domainRecords.values()) {
+      if (row.organizationId !== organizationId || row.collection !== 'member_profiles' || row.data.publicVisible !== true) continue
+      const user = this.seed.users.find(member => member.id === row.recordId && member.organizationId === organizationId)
+      const slug = row.data.verifiedPersonId
+      if (!user || !user.isActive || typeof slug !== 'string' || !slug) continue
+      out.push({ verifiedPersonId: slug, profile: structuredClone(row.data) })
+    }
+    return out
   }
 
   async getOrganization(actor: Actor, id: string) {

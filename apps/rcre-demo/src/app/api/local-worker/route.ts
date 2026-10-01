@@ -7,6 +7,7 @@ import { putRecord } from '@/lib/platform/store'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
+  if (process.env.NODE_ENV === 'production') return Response.json({ error: 'Local worker is disabled in production.' }, { status: 404 })
   const expected = process.env.RCRE_LOCAL_WORKER_KEY
   const provided = request.headers.get('authorization')?.replace(/^Bearer /, '')
   if (process.env.RCRE_APP_MODE !== 'local' || !expected || !provided || Buffer.byteLength(expected) !== Buffer.byteLength(provided) || !timingSafeEqual(Buffer.from(expected), Buffer.from(provided))) {

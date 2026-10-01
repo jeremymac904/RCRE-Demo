@@ -43,7 +43,7 @@ as $$
     )
   )
   from rcre_domain_records mp
-  join users u on u.organization_id = mp.organization_id and u.id = mp.record_id::uuid
+  join users u on u.organization_id = mp.organization_id and u.id::text = mp.record_id
   join rcre_domain_records site on site.organization_id = u.organization_id
        and site.collection = 'agent_websites' and site.record_id = u.id::text and site.owner_user_id = u.id
   where mp.organization_id = p_organization_id

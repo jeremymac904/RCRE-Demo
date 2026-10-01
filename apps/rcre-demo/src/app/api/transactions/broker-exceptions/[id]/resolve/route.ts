@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { requireActor } from '@/lib/platform/auth'
+import { requireActor, AccessError } from '@/lib/platform/auth'
 import { resolveTransactionException, durableTransactionExceptions } from '@/lib/services/transaction-exceptions'
 import { dataMode } from '@/lib/config/env'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 
 const bodySchema = z.object({ note: z.string().trim().min(1).max(2000) }).strict()
 
@@ -10,8 +11,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let actor: Awaited<ReturnType<typeof requireActor>> | null = null
   try {
-    const actor = await requireActor()
+    actor = await requireActor()
     const origin = request.headers.get('origin')
     const host = request.headers.get('host')
     if (origin && (!host || new URL(origin).host !== host)) {
@@ -30,7 +32,9 @@ export async function POST(
     return NextResponse.json(result)
   } catch (e) {
     const error = e as Error & { status?: number }
-    const status = typeof error.status === 'number' ? error.status : /denied/i.test(error.message) ? 403 : /not found/i.test(error.message) ? 404 : 400
-    return NextResponse.json({ error: error.message || 'Request failed' }, { status })
+    const status = e instanceof AccessError ? e.status : e instanceof z.ZodError ? 400 : Number.isInteger(error.status) && Number(error.status) >= 400 && Number(error.status) <= 599 ? Number(error.status) : /resolution note/i.test(error.message ?? '') ? 400 : /already resolved/i.test(error.message ?? '') ? 409 : /not found/i.test(error.message ?? '') ? 404 : 503
+    const response = NextResponse.json({ error: status >= 500 ? 'Transaction review is temporarily unavailable.' : error.message || 'Request failed' }, { status, headers: { 'Cache-Control': 'private, no-store' } })
+    await recordCaughtRouteFailure(request, '/api/transactions/broker-exceptions/[id]/resolve', actor, status, e)
+    return response
   }
 }

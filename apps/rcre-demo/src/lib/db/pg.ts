@@ -3,7 +3,7 @@ import { Pool, type PoolClient } from 'pg'
 import { env } from '@/lib/config/env'
 import {
   DomainRecordConflictError, PermissionDeniedError, canSeeRecruiting, canSeeWholeBrokerage,
-  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type DomainRecordQueryOptions, type PublicContentProjection, type Repository, type TransactionDomainRecordInput,
+  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type DomainRecordQueryOptions, type PublicContentProjection, type PublicAgentProfileProjection, type Repository, type TransactionDomainRecordInput,
 } from './repository'
 import { withRlsSession } from './rls'
 import type {
@@ -126,6 +126,14 @@ export class PgRepository implements Repository {
       `select id, status, revision, published from rcre_public_content_projection($1::uuid, null::text)`,
       [organizationId],
     ) as { rows?: PublicContentProjection[] }).rows ?? []
+  }
+
+  async listPublicAgentProfiles(organizationId: string): Promise<PublicAgentProfileProjection[]> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId)) return []
+    return (await getPgPool().query(
+      `select verified_person_id as "verifiedPersonId", profile from rcre_public_agent_profiles($1::uuid)`,
+      [organizationId],
+    ) as { rows?: PublicAgentProfileProjection[] }).rows ?? []
   }
 
   async getOrganization(actor: Actor, id: string): Promise<Organization | null> {

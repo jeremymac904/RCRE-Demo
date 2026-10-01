@@ -20,7 +20,7 @@ const schema = z.object({
 }).strict()
 const batchInput = z.object({ title: z.string().trim().min(1).max(200), ids: z.array(z.string().min(1).max(200)).min(1).max(30) }).strict()
 
-type Campaign = z.infer<typeof schema> & { organizationId: string; ownerId: string; officeId: string; approvedBy: string | null; approvedVersion: number | null; updatedAt: string }
+type Campaign = Omit<z.infer<typeof schema>, 'id'> & { id: string; organizationId: string; ownerId: string; officeId: string; approvedBy: string | null; approvedVersion: number | null; updatedAt: string }
 const repoActor = (actor: PlatformActor): Actor => ({ userId: actor.id, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role), officeId: actor.officeId })
 const logEvent = (actor: Actor, action: string, target: string): AuditEvent => ({ organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'user', action, targetType: 'marketing_campaign', targetId: target, effect: 'write', allowed: true })
 const batchEvent = (actor: Actor, action: string, target: string): AuditEvent => ({ organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'user', action, targetType: 'marketing_batch', targetId: target, effect: 'write', allowed: true })
