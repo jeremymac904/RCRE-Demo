@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  BRAND_ITEMS, brandComplianceReadiness, canAccessBrandResources, isBrandAdmin, licenseForState,
+  BRAND_ITEMS, brandComplianceReadiness, canAccessBrandResources, isBrandAdmin, licenseForState, supportedBrandStates,
   type BrandAgent,
 } from '@/lib/brand-resources'
 
@@ -23,14 +23,21 @@ describe('Brand Resources role and data guards', () => {
   })
 
   it('does not map a multi-state license string onto either state without evidence', () => {
-    expect(licenseForState(profile('Florida'), 'Florida')).toBe('public-license-value')
-    expect(licenseForState(profile('Alabama'), 'Alabama')).toBe('public-license-value')
+    expect(licenseForState(profile('Florida'), 'Florida')).toBeNull()
+    expect(licenseForState(profile('Alabama'), 'Alabama')).toBeNull()
     expect(licenseForState(profile('Alabama & Florida', 'license-a, license-b'), 'Florida')).toBeNull()
     expect(licenseForState(profile('Alabama & Florida', 'license-a, license-b'), 'Alabama')).toBeNull()
     expect(licenseForState({ license: '', market: 'Jacksonville, Birmingham', licenses: [{ state: 'Florida', number: 'FL-verified' }, { state: 'Alabama', number: 'AL-verified' }] }, 'Florida')).toBe('FL-verified')
     expect(licenseForState({ license: '', market: 'Jacksonville, Birmingham', licenses: [{ state: 'Florida', number: 'FL-verified' }, { state: 'Alabama', number: 'AL-verified' }] }, 'Alabama')).toBe('AL-verified')
     expect(licenseForState({ license: '', market: 'Jacksonville', licenses: [{ state: 'Florida', number: 'FL-verified' }, { state: 'Florida', number: 'FL-other' }] }, 'Florida')).toBeNull()
     expect(licenseForState(profile('Florida', ''), 'Florida')).toBeNull()
+    expect(licenseForState({ license: 'legacy-unmapped', market: 'Florida', licenses: [] }, 'Florida')).toBeNull()
+  })
+
+  it('only offers state-specific collateral for an explicit market or license relationship', () => {
+    expect(supportedBrandStates({ market:'Alabama', license:'unmapped', socialLinks:{instagram:'',facebook:'',linkedin:''} } as BrandAgent)).toEqual(['Alabama'])
+    expect(supportedBrandStates({ market:'Jacksonville', markets:['Jacksonville'], license:'', socialLinks:{instagram:'',facebook:'',linkedin:''} } as BrandAgent)).toEqual([])
+    expect(supportedBrandStates({ market:'Central Markets', markets:['Jacksonville'], licenses:[{state:'Florida',number:'FL-verified'}], license:'' } as BrandAgent)).toEqual(['Florida'])
   })
 
   it('fails the print compliance gate closed while exact state copy is unapproved', () => {

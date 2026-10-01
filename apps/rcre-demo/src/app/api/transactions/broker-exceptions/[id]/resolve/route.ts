@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireActor } from '@/lib/platform/auth'
-import { resolveTransactionException } from '@/lib/services/transaction-exceptions'
+import { resolveTransactionException, durableTransactionExceptions } from '@/lib/services/transaction-exceptions'
+import { dataMode } from '@/lib/config/env'
 
 const bodySchema = z.object({ note: z.string().trim().min(1).max(2000) }).strict()
 
@@ -23,7 +24,9 @@ export async function POST(
     if (!size || size > 8192) return NextResponse.json({ error: 'Resolution request must be between 1 byte and 8 KB' }, { status: 400 })
     const body = bodySchema.parse(await request.json())
     const { id } = await params
-    const result = resolveTransactionException(actor, id, body.note)
+    const result = dataMode() === 'live'
+      ? await durableTransactionExceptions().resolve(actor, id, body.note)
+      : resolveTransactionException(actor, id, body.note)
     return NextResponse.json(result)
   } catch (e) {
     const error = e as Error & { status?: number }

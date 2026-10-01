@@ -33,13 +33,14 @@ export interface DurableTransactionDependencies {
   listMembers?: (actor: PlatformActor) => Promise<MemberSummary[]>
 }
 
-export function durableTransactionActor(actor: { userId: string; organizationId: string; role: string; teamId?: string }): TransactionFileActor {
-  return { userId: actor.userId, organizationId: actor.organizationId, role: actor.role, teamId: actor.teamId }
+export function durableTransactionActor(actor: { userId: string; organizationId: string; role: string; teamId?: string; officeId?: string }): TransactionFileActor {
+  return { userId: actor.userId, organizationId: actor.organizationId, role: actor.role, teamId: actor.teamId, officeId: actor.officeId }
 }
 
 function access(actor: TransactionFileActor, tx: DurableTransaction): boolean {
   if (tx.organizationId !== actor.organizationId) return false
-  if (['owner', 'broker_owner', 'broker', 'managing_broker'].includes(actor.role)) return true
+  if (['owner', 'broker_owner', 'broker'].includes(actor.role)) return true
+  if (actor.role === 'managing_broker') return Boolean(actor.officeId) && tx.officeId === actor.officeId
   if (tx.ownerId === actor.userId || tx.tcId === actor.userId) return true
   return ['team_lead', 'team_leader'].includes(actor.role) && Boolean(actor.teamId) && tx.teamId === actor.teamId
 }

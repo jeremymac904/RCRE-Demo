@@ -27,6 +27,7 @@ export interface TransactionFileActor {
   organizationId: string
   role: string
   teamId?: string
+  officeId?: string
 }
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -35,17 +36,18 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export function transactionRepositoryActor(actor: TransactionFileActor): Actor {
   if (!uuid.test(actor.userId) || !uuid.test(actor.organizationId)) throw new StorageAuthorizationError()
   const roles: Record<string, Actor['role']> = {
-    owner: 'owner', broker_owner: 'owner', broker: 'broker', managing_broker: 'broker',
+    owner: 'owner', broker_owner: 'owner', broker: 'broker', managing_broker: 'managing_broker',
     team_lead: 'team_lead', team_leader: 'team_lead', agent: 'agent', transaction_coordinator: 'transaction_coordinator',
   }
   const role = roles[actor.role]
   if (!role) throw new StorageAuthorizationError()
-  return { userId: actor.userId, organizationId: actor.organizationId, role, ...(actor.teamId ? { teamIds: [actor.teamId] } : {}) }
+  return { userId: actor.userId, organizationId: actor.organizationId, role, ...(actor.officeId ? { officeId: actor.officeId } : {}), ...(actor.teamId ? { teamIds: [actor.teamId] } : {}) }
 }
 
 function hasTransactionAccess(actor: TransactionFileActor, transaction: Record<string, unknown>): boolean {
   if (transaction.organizationId !== actor.organizationId) return false
-  if (['owner', 'broker', 'broker_owner', 'managing_broker'].includes(actor.role)) return true
+  if (['owner', 'broker', 'broker_owner'].includes(actor.role)) return true
+  if (actor.role === 'managing_broker') return Boolean(actor.officeId) && transaction.officeId === actor.officeId
   if (transaction.ownerId === actor.userId || transaction.tcId === actor.userId) return true
   return ['team_lead', 'team_leader'].includes(actor.role) && typeof actor.teamId === 'string' && transaction.teamId === actor.teamId
 }

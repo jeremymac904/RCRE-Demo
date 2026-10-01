@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { getRepository } from '@/lib/db'
 import { getPgPool } from '@/lib/db/pg'
 import type { Repository } from '@/lib/db/repository'
-import { getAuthPersistence } from '@/lib/auth/persistence'
+import { getAuthPersistence, type MemberSummary } from '@/lib/auth/persistence'
 import { publicAgents } from '@/lib/public/content'
 import { AccessError, actorOrNull, assertCapability, type PlatformActor } from '@/lib/platform/auth'
 import { repositoryActor, type OnboardingRecord } from '@/lib/platform/onboarding'
@@ -31,10 +31,18 @@ type WebsiteData = z.infer<typeof saveSchema> & { ownerUserId: string; organizat
 
 export type AgentWebsiteRenderData = { profile: AgentProfile; config: AgentWebsiteConfig; verifiedPersonId: string }
 
-function verifiedPersonByEmail(email: string) {
-  const normalized = email.trim().toLowerCase()
-  const matches = publicAgents.filter(person => person.email.trim().toLowerCase() === normalized)
-  return matches.length === 1 ? matches[0] : null
+function managingBrokerWebsiteTargetAllowed(actor: PlatformActor, member: MemberSummary) {
+  if (actor.organizationId !== member.organizationId || member.userId === actor.id || member.officeId !== actor.officeId) return false
+  if (!['agent', 'team_leader', 'transaction_coordinator'].includes(member.platformRole)) return false
+  const officeState = actor.officeId.toLowerCase() === 'al' ? 'Alabama' : actor.officeId.toLowerCase() === 'fl' ? 'Florida' : null
+  const actorState = actor.market === 'Alabama' || actor.market === 'Florida' ? actor.market : null
+  if (officeState && actorState && officeState !== actorState) return false
+  const state = officeState ?? actorState
+  if (!state) return false
+  const other = state === 'Alabama' ? 'Florida' : 'Alabama'
+  const matchesState = new RegExp(`(^|[^a-z])${state}($|[^a-z])`, 'i').test(member.market)
+  const matchesOtherState = new RegExp(`(^|[^a-z])${other}($|[^a-z])`, 'i').test(member.market)
+  return matchesState && !matchesOtherState
 }
 
 const templates: Record<string, AgentWebsiteTheme> = {
@@ -54,7 +62,7 @@ export async function loadAgentWebsite(actor: PlatformActor, repository?: Reposi
   const site = siteRow?.data
   const member = (await getAuthPersistence()).listMembers(actor).then(rows => rows.find(row => row.userId === actor.id))
   const identity = await member
-  const verified = profile?.verifiedPersonId ? publicAgents.find(person => person.slug === profile.verifiedPersonId) : identity ? verifiedPersonByEmail(identity.email) ?? undefined : undefined
+  const verified = profile?.verifiedPersonId ? publicAgents.find(person => person.slug === profile.verifiedPersonId) : undefined
   return {
     profile: profile ?? null,
     canonical: verified ? { slug: verified.slug, name: verified.name, image: verified.image } : null,
@@ -82,7 +90,7 @@ export async function saveAgentWebsite(actor: PlatformActor, raw: unknown, repos
   const savedAt = new Date().toISOString()
   const { biography, socialLinks, ...siteInput } = input
   const website: WebsiteData = { ...siteInput, ownerUserId: actor.id, organizationId: actor.organizationId, updatedAt: savedAt, published: current?.data.published ?? false }
-  const verifiedSlug = typeof priorProfile?.verifiedPersonId === 'string' ? priorProfile.verifiedPersonId : verifiedPersonByEmail(self.email)?.slug ?? null
+  const verifiedSlug = typeof priorProfile?.verifiedPersonId === 'string' ? priorProfile.verifiedPersonId : null
   const nextProfile = { ...(priorProfile ?? {}), ...(biography !== undefined ? { biography } : {}), ...(socialLinks ? { socialLinks } : {}), ...(verifiedSlug ? { verifiedPersonId: verifiedSlug } : {}), id: actor.id, memberId: actor.id, organizationId: actor.organizationId, websiteSlug: input.slug, websiteTemplate: Object.entries(templates).find(([, value]) => value === input.theme)?.[0] ?? 'signature', version: (profileRow?.version ?? 0) + 1, savedAt }
   await repo.putDomainRecordsAtomic(context, [
     { collection: 'agent_websites', recordId: actor.id, ownerUserId: actor.id, data: website as unknown as Record<string, unknown>, ...(current ? { expectedVersion: current.version } : {}) },
@@ -99,7 +107,7 @@ export async function setAgentWebsitePublication(actor: PlatformActor, userId: s
   const members = await auth.listMembers(actor)
   const member = members.find(row => row.userId === userId)
   if (!member || !member.active) throw new AccessError('Active RCRE membership required.', 404)
-  if (admin && actor.role === 'managing_broker' && (!member.market.includes('Alabama') || member.officeId !== actor.officeId || member.userId === actor.id)) throw new AccessError('This agent is outside your authorized scope.', 403)
+  if (admin && actor.role === 'managing_broker' && !managingBrokerWebsiteTargetAllowed(actor, member)) throw new AccessError('This agent is outside your authorized scope.', 403)
   const repo = repository ?? await getRepository()
   const context = repositoryActor(actor)
   const profileRow = await repo.getDomainRecord<OnboardingRecord & Record<string, unknown>>(context, 'member_profiles', userId)
@@ -133,6 +141,7 @@ export async function getPublishedAgentWebsite(slug: string): Promise<AgentWebsi
   const profile: AgentProfile = {
     ...canonical,
     name: canonical.name,
+    headshot: typeof profileData.headshotAssetId === 'string' && profileData.headshotAssetId ? `/api/public/agent-photo/${encodeURIComponent(slug)}` : canonical.image || undefined,
     title: String(profileData.professionalTitle || canonical.role || 'REALTOR®'),
     phone: site.phone,
     email: site.email,

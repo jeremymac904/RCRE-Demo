@@ -91,12 +91,103 @@ describe('durable notifications', () => {
     expect(JSON.stringify(failed)).not.toContain('raw')
   })
 
-  it('records provider acceptance without claiming delivery', async () => {
+  it('requires a live worker claim and provider transport before recording acceptance', async () => {
+    const seed = emptySeed()
+    seed.organizations.push({ id: agent.organizationId, name: 'RCRE', slug: 'rcre' })
+    seed.users.push({ id: agent.userId, organizationId: agent.organizationId, email: 'agent@example.test', fullName: 'Agent', role: 'agent', fubUserId: null, isActive: true })
+    repository = new MemoryRepository(seed)
+    service = new DurableNotificationService(repository, () => new Date(clock))
+    await service.updatePreferences(agent, { inAppEnabled: true, emailEnabled: true, eventTypes: {} })
     const saved = await service.enqueue(agent, { ...event, channel: 'email' })
-    const accepted = await service.recordProviderAccepted(agent, saved.outbox.id, 'provider-job-123')
+    await expect(service.recordProviderAccepted(agent, saved.outbox.id, 'unverified-provider-job'))
+      .rejects.toThrow(/delivery claim is stale/i)
+    const transport = { send: async () => ({ providerMessageId: 'provider-job-123' }) }
+    const processed = await service.processEmailBatch(agent, transport)
+    expect(processed).toMatchObject({ processed: 1, accepted: 1 })
+    const accepted = (await service.listOutbox(agent)).find(row => row.id === saved.outbox.id)!
     expect(accepted.state).toBe('accepted_by_provider')
     expect(accepted.providerReceipt).toBe('provider-job-123')
     expect(accepted.state).not.toBe('delivered')
+  })
+
+
+
+  it('claims email once with an expiring lease and rejects a stale worker receipt', async () => {
+    const seed = emptySeed()
+    seed.organizations.push({ id: agent.organizationId, name: 'RCRE', slug: 'rcre' })
+    seed.users.push({ id: agent.userId, organizationId: agent.organizationId, email: 'agent@example.test', fullName: 'Agent', role: 'agent', fubUserId: null, isActive: true })
+    repository = new MemoryRepository(seed)
+    service = new DurableNotificationService(repository, () => new Date(clock))
+    await service.updatePreferences(agent, { inAppEnabled: true, emailEnabled: true, eventTypes: {} })
+    const saved = await service.enqueue(agent, { ...event, channel: 'email' })
+    const [first, competing] = await Promise.all([service.claimEmailOutbox(agent), service.claimEmailOutbox(agent)])
+    expect(first).toHaveLength(1)
+    expect(competing).toHaveLength(0)
+    expect(first[0].outbox.state).toBe('sending')
+    expect(first[0].outbox.attempts).toBe(1)
+    clock = new Date(clock.getTime() + 121_000)
+    const recovered = await service.claimEmailOutbox(agent)
+    expect(recovered).toHaveLength(1)
+    expect(recovered[0].outbox.attempts).toBe(2)
+    expect(recovered[0].claimToken).not.toBe(first[0].claimToken)
+    await expect(service.recordProviderAccepted(agent, saved.outbox.id, 'stale-receipt', first[0].claimToken)).rejects.toThrow(/stale/i)
+  })
+
+  it('processes due email through an injected mock transport with stable idempotency and honest receipt state', async () => {
+    const seed = emptySeed()
+    seed.organizations.push({ id: agent.organizationId, name: 'RCRE', slug: 'rcre' })
+    seed.users.push({ id: agent.userId, organizationId: agent.organizationId, email: 'agent@example.test', fullName: 'Agent', role: 'agent', fubUserId: null, isActive: true })
+    repository = new MemoryRepository(seed)
+    service = new DurableNotificationService(repository, () => new Date(clock))
+    await service.updatePreferences(agent, { inAppEnabled: true, emailEnabled: true, eventTypes: {} })
+    const saved = await service.enqueue(agent, { ...event, channel: 'email', href: '/crm?lead=42' })
+    const sent: Array<{ to: string; subject: string; text: string; html?: string; idempotencyKey: string }> = []
+    const transport = { send: async (message: typeof sent[number]) => { sent.push(message); return { providerMessageId: 'mock-receipt-1' } } }
+    const result = await service.processEmailBatch(agent, transport)
+    expect(result).toEqual({ processed: 1, accepted: 1, retried: 0, failed: 0, receiptPending: 0 })
+    expect(sent[0].to).toBe('agent@example.test')
+    expect(sent[0].idempotencyKey).toBe(`rcre-notification:${saved.outbox.id}`)
+    expect(sent[0].html).not.toContain('rcre.example')
+    expect(sent[0].html).not.toContain('Open RCRE')
+    const outbox = await service.listOutbox(agent)
+    expect(outbox[0]).toMatchObject({ state: 'accepted_by_provider', providerReceipt: 'mock-receipt-1', attempts: 1, claimToken: null, leaseUntil: null })
+    expect(JSON.stringify(result)).not.toContain('agent@example.test')
+  })
+
+  it('schedules a safe retry after a provider error, then completes with provider acceptance', async () => {
+    const seed = emptySeed()
+    seed.organizations.push({ id: agent.organizationId, name: 'RCRE', slug: 'rcre' })
+    seed.users.push({ id: agent.userId, organizationId: agent.organizationId, email: 'agent@example.test', fullName: 'Agent', role: 'agent', fubUserId: null, isActive: true })
+    repository = new MemoryRepository(seed)
+    service = new DurableNotificationService(repository, () => new Date(clock))
+    await service.updatePreferences(agent, { inAppEnabled: true, emailEnabled: true, eventTypes: {} })
+    const saved = await service.enqueue(agent, { ...event, channel: 'email' })
+    const failing = { send: async () => { throw Object.assign(new Error('private provider response text'), { code: 'smtp_timeout' }) } }
+    expect(await service.processEmailBatch(agent, failing)).toEqual({ processed: 1, accepted: 0, retried: 1, failed: 0, receiptPending: 0 })
+    let outbox = (await service.listOutbox(agent))[0]
+    expect(outbox).toMatchObject({ state: 'retry_wait', attempts: 1, lastFailureCode: 'smtp_timeout', providerReceipt: null })
+    expect(JSON.stringify(outbox)).not.toContain('private provider response text')
+    clock = new Date(Date.parse(outbox.nextAttemptAt) + 1)
+    const recovered = { send: async () => ({ providerMessageId: 'mock-receipt-retry' }) }
+    expect(await service.processEmailBatch(agent, recovered)).toEqual({ processed: 1, accepted: 1, retried: 0, failed: 0, receiptPending: 0 })
+    outbox = (await service.listOutbox(agent))[0]
+    expect(outbox).toMatchObject({ state: 'accepted_by_provider', attempts: 2, providerReceipt: 'mock-receipt-retry' })
+    expect(saved.outbox.id).toBe(outbox.id)
+  })
+
+  it('suppresses queued email if preferences are disabled before a delivery claim', async () => {
+    const seed = emptySeed()
+    seed.organizations.push({ id: agent.organizationId, name: 'RCRE', slug: 'rcre' })
+    seed.users.push({ id: agent.userId, organizationId: agent.organizationId, email: 'agent@example.test', fullName: 'Agent', role: 'agent', fubUserId: null, isActive: true })
+    repository = new MemoryRepository(seed)
+    service = new DurableNotificationService(repository, () => new Date(clock))
+    await service.updatePreferences(agent, { inAppEnabled: true, emailEnabled: true, eventTypes: {} })
+    const saved = await service.enqueue(agent, { ...event, channel: 'email' })
+    await service.updatePreferences(agent, { inAppEnabled: true, emailEnabled: false, eventTypes: {} })
+    expect(await service.claimEmailOutbox(agent)).toEqual([])
+    expect((await service.listOutbox(agent))[0].state).toBe('suppressed')
+    expect((await service.list(agent))[0].deliveryState).toBe('suppressed')
+    expect(saved.outbox.id).toBe((await service.listOutbox(agent))[0].id)
   })
 
   it('allows brokerage administrators to manage another user but blocks agent escalation', async () => {

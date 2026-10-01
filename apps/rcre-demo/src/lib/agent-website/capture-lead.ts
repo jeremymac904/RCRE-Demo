@@ -21,7 +21,7 @@ export interface CreateLeadInput {
   honeypot?: string
 }
 
-export interface CapturedLead { referenceId: string; accepted: boolean; persistence?: 'local_review_only'; error?: string }
+export interface CapturedLead { referenceId: string; accepted: boolean; persistence?: 'local_review_only' | 'postgres'; error?: string }
 const pending = new Map<string, string>()
 
 export async function captureLead(input: CreateLeadInput): Promise<CapturedLead> {
@@ -51,11 +51,13 @@ export async function captureLead(input: CreateLeadInput): Promise<CapturedLead>
   })
   let result: { id?: string; status?: string; persistence?: string; error?: string }
   try { result = await response.json() } catch { throw new Error('Your request could not be confirmed. Please try again.') }
-  if (!response.ok || result.status !== 'saved_locally' || result.persistence !== 'local_review_only' || !result.id) {
+  const confirmedPersistence = result.persistence === 'local_review_only' || result.persistence === 'postgres'
+  const confirmedStatus = result.status === 'saved_locally' || result.status === 'saved'
+  if (!response.ok || !confirmedStatus || !confirmedPersistence || !result.id) {
     throw new Error(result.error || 'Your request could not be saved. Please try again later.')
   }
   pending.delete(key)
-  return { referenceId: result.id, accepted: true, persistence: 'local_review_only' }
+  return { referenceId: result.id, accepted: true, persistence: result.persistence as 'local_review_only' | 'postgres' }
   } catch (error) {
     return { referenceId: '', accepted: false, error: error instanceof Error ? error.message : 'Your request could not be saved. Please try again.' }
   }

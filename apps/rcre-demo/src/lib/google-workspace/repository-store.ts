@@ -6,7 +6,7 @@ import { repositoryRoleForPlatform } from '@/lib/auth/role-mapping'
 import type { StoredGoogleGrant, WorkspaceGrantStore, WorkspaceService } from './types'
 
 function dbActor(actor: PlatformActor): Actor {
-  return { userId: actor.userId, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role) }
+  return { userId: actor.userId, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role), officeId: actor.officeId }
 }
 
 export class RepositoryGoogleGrantStore implements WorkspaceGrantStore {

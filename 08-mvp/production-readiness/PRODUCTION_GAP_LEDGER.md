@@ -149,3 +149,130 @@ Current local verification after the repair set: 641 tests passed across 54 file
 ### Additional independent public/Workspace/desktop audit
 
 A fourth independent reviewer found no alternate paid web AI path. It confirmed there is no Google OIDC callback, no Gmail/Calendar/Drive OAuth adapter, and no desktop client/provider-auth implementation; those are real open P1 items, not just missing credentials. Public lead acceptance and agent-site publishing remain unavailable in production until the durable store is connected. The production pages for Swag/card/signature explicitly state that no output was produced when storage is unavailable. Public hash links are in-page anchors; no `href="#"` dead links remain. The reviewer also flagged public chat’s cookie `Secure` attribute depending on an unset `RCRE_MODE`; this has now been changed to depend on `NODE_ENV==='production'` and covered by a regression test.
+
+## Production implementation continuation — 2026-09-30
+
+This update replaces the stale “20 open P1” implementation snapshot above. It records what changed in the current PR branch after that snapshot. Status is based on source review, automated tests, TypeScript, lint, and a production build; no hosted or live provider was activated.
+
+### P1 queue after the repair pass
+
+| Disposition | Count | IDs | Evidence / remaining boundary |
+|---|---:|---|---|
+| **Code incomplete** | **3** | P1-03, P1-13, P1-20 | The PostgreSQL adapter is now called from durable API paths, but the legacy platform store still serves remaining production workflows; the existing desktop runtime repository was not present; notification workflow code is durable, but production operational error/alert observability is not complete. |
+| **Implementation complete; activation or live operational proof pending** | **17** | P1-01, P1-02, P1-04, P1-05, P1-07–P1-12, P1-14–P1-19, P1-21 | Local adapters, OAuth/invitation flows, durable domain paths, provider mocks, or fail-closed configuration are implemented and covered by automated tests. Live Google, PostgreSQL/RLS, storage/backup, mail, OpenRouter, provider delivery, approved policy content and runtime configuration still require external activation and verification. These are not described as live or production-verified. |
+| **Closed locally** | **1** | P1-06 | Managing Broker member-management scope now has role/office checks and persistence tests; production use still depends on authentication and PostgreSQL activation. |
+
+The number of **code-incomplete** P1s is down from 20 in the stale snapshot to 3. The 17 activation/operational gates remain production go gates, but they no longer represent missing code work. See `EXTERNAL_ACTIVATION_PACKET.md` for the consolidated exact inputs.
+
+### Implementation completed in this pass
+
+- Added server-only Google OIDC authorization and callback handling with state/nonce/PKCE, verified-email and invited-member checks, identity linking, session rotation and logout tests. Sign-in remains separate from Gmail, Calendar and Drive scopes.
+- Persisted invitation and agent lifecycle records through the PostgreSQL repository, with hashed single-use expiry-bound invitation tokens, audit events, invitation outbox delivery boundary, full onboarding profile fields, canonical identity selection from the verified roster, duplicate-link prevention and session revocation after deactivation.
+- Routed core production CRM reads/writes, server paging, saved views, task/calendar/deal records and reporting through durable repository services. Public intake uses server validation, attribution, deterministic duplicate contact identity, idempotency and atomic commit before success; notification enqueue is separate from lead persistence.
+- Added per-user Google Workspace OAuth lifecycle, encrypted refresh-token persistence and mocked callback tests; no real mailbox, calendar or Drive operation was performed.
+- Added durable AI settings/audit state and a server-only knowledge retrieval boundary. Existing exact free-only model restrictions remain; no live inference ran in this pass.
+- Moved transaction file operations onto the storage service boundary, added private/public metadata and validation tests, and retained unavailable states for unconfigured signing/scanning dependencies.
+- Extended durable Marketing, Recruiting, Training, Community, Brand Resources and notification workflows. Notification producers queue idempotent in-app events and preference-gated email outbox events for overdue tasks, upcoming appointments, transaction dates, and pending approvals; they never send directly.
+- Added published canonical-agent headshot delivery through a server projection bound to the active, visible, published member and the member’s exact headshot asset. Leadership now links only an existing verified canonical identity; saving a personal site no longer infers identity from email.
+- Added database-side Managing Broker restrictions for Academy assignments and two-person publication of reviewed Academy courses/lessons. Service validation, database authorization and regression assertions align; SQL execution is still pending a PostgreSQL runtime.
+- Added shared public property-search state persistence while preserving the production no-fixture inventory boundary.
+- Documented a production external activation packet and the local PostgreSQL compose/migration runner. The available environment has no `psql`, `pg_ctl`, `postgres`, Docker or Podman executable, so migrations and RLS cannot be executed here.
+
+### Verification for this continuation
+
+- Full unit suite: **900 passed, 1 skipped, 99 files**. The skipped test requires a PostgreSQL integration URL not available in this session.
+- Focused Managing Broker, Academy, canonical identity, headshot and migration guard tests: **35 passed** in the latest focused run.
+- TypeScript: passed.
+- ESLint: passed with `--quiet` (zero errors; non-quiet lint/build continue to report existing image and React dependency warnings).
+- Production build: passed. Next.js reports existing `<img>` LCP warnings; no build failure.
+- `git diff --check`: pending final staged diff check.
+- Rendered browser/accessibility QA: not run. No permitted built-in browser automation is exposed in this session; no visual QA is claimed.
+- PostgreSQL migration/RLS, backup/restore, Google, OpenRouter, Resend, Supabase Storage, desktop authentication, and Netlify deployment: not run or changed.
+
+### Remaining P1s by exact reason
+
+**Code work still required:**
+
+- **P1-03:** migrate the remaining legacy production workspace/platform routes and service operations to the single PostgreSQL repository boundary; current durable API coverage is substantial but not universal.
+- **P1-13:** continue desktop provider settings/authentication only after Jeremy supplies the authorized existing RCRE desktop/Hermes source repository. Do not copy provider credentials or create a disconnected desktop app.
+- **P1-20:** complete production-safe operational error records/alerting and admin health coverage. Durable notification generation/outbox is implemented, but it does not replace error monitoring or an operations response path.
+
+**Activation/operational proof only, with implementation present:**
+
+- **P1-01/02/07:** Google OAuth client, approved test identities, durable database migration and invitation email provider must be configured; real callback, invite delivery and revoke-after-restart journeys then require live verification.
+- **P1-04/05:** run migrations/RLS and restart/concurrency tests against local or hosted PostgreSQL, configure private object storage and malware scanning, and execute a backup/restore drill. Code and docs are ready; the local runtime is absent.
+- **P1-08/09/10/11/12/14/15/16/17/18/19:** connect PostgreSQL and approved provider services/content to exercise durable public leads, CRM, agent websites, AI, Workspace, transactions, LMS, Community automation, marketing delivery, regulated card/signature exports and prospect-to-invite end to end. No fake delivery or compliance approval is represented.
+- **P1-21:** install reviewed server secrets and production configuration in the existing hosting project, then independently verify production fixture exclusion and readiness. No deployment change was made.
+
+The external values and ownership/action details are centralized in `EXTERNAL_ACTIVATION_PACKET.md`; no secret values belong in Git.
+
+**Status:** implementation is materially advanced, but **not production go**. Production use remains disabled until the three code-incomplete items are repaired and all applicable activation/live-verification gates pass. PR #2 remains unmerged.
+
+## Latest implementation and verification snapshot — 2026-09-30
+
+This snapshot supersedes the earlier continuation counts above.
+
+### Current P1 disposition
+
+| Disposition | Count | IDs | Evidence / remaining boundary |
+|---|---:|---|---|
+| **Code incomplete** | **2** | P1-03, P1-20 | P1-03 still has production routes outside the unified PostgreSQL repository. P1-20 has structured request IDs, redacted uncaught-route logging, and liveness/readiness endpoints, but handled errors are not comprehensively recorded and no operational alert destination is configured. |
+| **Implementation present; external source, activation, or live verification pending** | **18** | P1-01–P1-05, P1-07–P1-19, P1-21 | Local architecture/tests exist for these flows. Hosted PostgreSQL/RLS, storage and restore, Google login, mail delivery, OpenRouter, optional Workspace, approved compliance material, external providers, production secrets/runtime, or live verification remain dependencies. P1-13 specifically needs the authorized existing desktop runtime repository; the shared provider contract is present in this repo. |
+| **Closed locally** | **1** | P1-06 | Managing Broker scope restrictions are implemented and tested; real production use still depends on auth and database activation. |
+
+This reduces the code-incomplete queue from 20 to **2**, rather than treating missing credentials as missing implementation. The 18 externally gated items are not reported as live or production verified. PR #2 remains unmerged.
+
+### Additional code completed
+
+- Transaction broker-exception queues now read durable transaction records and resolutions through PostgreSQL in production. Resolution is scoped to its parent transaction, create-only/idempotent, version checked, and audited. Fixture behavior remains for development. Focused transaction tests passed 11/11.
+- Added per-request opaque IDs, response correlation headers, sanitized structured logs for uncaught request failures, and `/api/health/live` and `/api/health/ready`. Readiness probes PostgreSQL without exposing configuration values. Request log fields use an allowlist; exception messages are not logged.
+- Added an optional real-PostgreSQL Academy RLS integration test for forged submitter rejection and distinct reviewer publication. It is skipped unless both local loopback integration URLs are configured; no PostgreSQL runtime was available here.
+- Reclassified P1-13: the web repository contains the safe shared desktop-provider contract; only the authorized existing desktop/Hermes runtime source is absent. No disconnected desktop app was created.
+
+### Final local verification
+
+- Full test suite: **905 passed, 2 skipped, 101 test files**. Skips include optional real-PostgreSQL coverage requiring configured local integration URLs.
+- TypeScript: passed when run after the Next build completed. An initial concurrent `tsc`/`next build` invocation raced over generated `.next/types` files; rerunning sequentially passed.
+- ESLint: passed with `--quiet` (zero errors; existing warning-only `img` and hook-dependency notices remain).
+- Production build: passed. Existing image and hook warnings remain non-fatal.
+- `git diff --check`: passed before final documentation/commit.
+- Local PostgreSQL/RLS execution, migrations, backup/restore, hosted providers, browser-rendered QA, and deployed runtime were not verified. This environment has no PostgreSQL client/server or Docker/Podman runtime, and no approved production service credentials were activated.
+
+### Exact remaining implementation versus activation
+
+- **P1-03 code still incomplete:** continue routing remaining production workspace/platform operations away from the legacy SQLite store into the single PostgreSQL repository. The transaction-exception path is now durable, but this does not prove universal repository coverage. A real Postgres runtime is additionally required for migration, RLS, concurrency, and restore evidence.
+- **P1-20 code still incomplete:** extend safe error capture to handled route failures and complete operator-facing alert/action coverage. Local structured logging and liveness/readiness now exist. A selected external monitoring/alert provider and credentials are separately required to verify delivery.
+- **P1-13 external source dependency:** Jeremy must provide the authorized repository URL and branch/commit for the existing RCRE desktop runtime if it is in scope. The web provider contract is implemented; no runtime binary/source is present here.
+- **Activation-only inputs:** the exact service values, owners, destinations, cost caveats, and launch impact are in `EXTERNAL_ACTIVATION_PACKET.md`. No further credentials are requested in this ledger.
+
+**Status: not Production Go.** Code-side P1 work has been reduced to two concrete areas; the outstanding third issue is an external desktop source dependency. Hosted database/provider activation, independent final verification, and the stated production gates remain outstanding.
+
+## Follow-up implementation snapshot — 2026-09-30
+
+This snapshot supersedes the P1 counts and verification numbers immediately above.
+
+### P1 status after this implementation pass
+
+- **Code-incomplete P1: 2 (P1-03, P1-20).** P1-03 remains because some production routes still require a comprehensive route-by-route proof that they use the unified PostgreSQL repository rather than legacy platform services. P1-20 remains because durable sanitized error records currently cover notification-job failures, not every handled route/dependency failure; external alert delivery is also not configured.
+- **External activation, source, or live-verification gates: 18.** These include hosted PostgreSQL and live RLS/migration proof, private storage/restore, Google identity and invitation delivery, provider activation, approved state content, production secrets, desktop runtime source, and real end-to-end journeys. Missing credentials are not being counted as missing architecture.
+- **Closed locally: 1 (P1-06).** Managing Broker office-scoped permissions remain locally tested.
+
+### Completed in this pass
+
+- Added durable PostgreSQL-backed CMS listing and save behavior in production, with same-origin mutation checks; legacy local invitation redemption, recovery, onboarding, and member paths are explicitly rejected in production.
+- Added production FUB proposal listing and local discard through the durable repository. Discard is tenant/office/owner scoped, pending-state checked, optimistic-version guarded, and atomically audited. It never calls Follow Up Boss; no source write is enabled.
+- Added a bounded ClamAV INSTREAM scanner adapter. Production uploads fail closed without a configured scanner; infected, malformed, timed-out, and unavailable scanner paths reject uploads. Readiness reports scanner state without exposing configuration values.
+- Expanded redacted route-failure handling so 5xx responses do not return dependency detail and logs use allowlisted request fields.
+- Independent review of the FUB proposal path found no evidence-backed authorization, race, audit, or source-write defect. The review used the in-memory repository; live PostgreSQL/RLS remains unverified.
+
+### Verification
+
+- Full test suite: **924 passed, 2 skipped, 104 files**. Skips require PostgreSQL integration URLs.
+- Focused CRM durable/FUB proposal tests: **20 passed**.
+- TypeScript: passed.
+- ESLint: passed with `--quiet` (zero errors; advisory build warnings remain).
+- Production build: passed; existing image and hook warnings remain non-fatal.
+- `git diff --check`: passed.
+- No live PostgreSQL, migrations/RLS, backup restore, ClamAV daemon, production provider, deployed Netlify, or rendered browser session was available or exercised. No live integration is claimed.
+
+**Status remains: NO GO for production activation.** Local implementation has reduced the code-incomplete P1 work queue from 20 to 2. PR #2 remains unmerged. The repository branch still needs the verified changes committed and pushed; the current shell cannot resolve GitHub DNS, so remote publication must be retried when connectivity is available.

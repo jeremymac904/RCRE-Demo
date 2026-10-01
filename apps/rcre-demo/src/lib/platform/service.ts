@@ -50,7 +50,7 @@ export function discardProposedFubChange(a:PlatformActor,id:string){return trans
 // Production CRM records live in the shared tenant-scoped PostgreSQL repository.
 // The legacy platform store remains the fixture adapter used by local review.
 function repositoryActor(a: PlatformActor): RepositoryActor {
-  return { userId: a.id, organizationId: a.organizationId, role: repositoryRoleForPlatform(a.role) }
+  return { userId: a.id, organizationId: a.organizationId, role: repositoryRoleForPlatform(a.role), officeId: a.officeId }
 }
 
 function contactDomainActor(a: PlatformActor): RepositoryActor {

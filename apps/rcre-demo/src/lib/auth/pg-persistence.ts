@@ -153,11 +153,22 @@ export class PgAuthPersistence implements AuthPersistence {
     const dbActor: Actor = { userId: actor.id, organizationId: actor.organizationId, role: dbRole(actor.role) }
     const client: PoolClient = await this.pool.connect()
     try {
-      const result = await withRlsSession(client, dbActor, async scoped => await scoped.query('select * from rcre_auth_list_members()', []) as { rows: Array<Record<string, unknown>> })
-      return result.rows.map(row => ({ userId: String(row.user_id), organizationId: String(row.organization_id), canonicalPersonId: null,
-        email: String(row.email), name: String(row.full_name ?? ''), platformRole: String(row.platform_role) as PlatformRole,
-        active: Boolean(row.is_active), accountStatus: String(row.onboarding_status), officeId: String(row.office_id ?? ''), teamId: String(row.team_id ?? ''),
-        market: String(row.market ?? ''), lastLoginAt: row.last_login_at ? new Date(String(row.last_login_at)).toISOString() : null }))
+      return await withRlsSession(client, dbActor, async scoped => {
+        const members = await scoped.query('select * from rcre_auth_list_members()', []) as { rows: Array<Record<string, unknown>> }
+        const ids = members.rows.map(row => String(row.user_id))
+        const profiles = ids.length ? await scoped.query(
+          `select record_id, data->>'verifiedPersonId' as canonical_person_id
+             from rcre_domain_records
+            where organization_id = $1::uuid and collection = 'member_profiles'
+              and record_id = any($2::text[])`,
+          [actor.organizationId, ids],
+        ) as { rows: Array<{ record_id: string; canonical_person_id: string | null }> } : { rows: [] }
+        const canonicalByUser = new Map(profiles.rows.map(row => [String(row.record_id), row.canonical_person_id]))
+        return members.rows.map(row => ({ userId: String(row.user_id), organizationId: String(row.organization_id), canonicalPersonId: canonicalByUser.get(String(row.user_id)) ?? null,
+          email: String(row.email), name: String(row.full_name ?? ''), platformRole: String(row.platform_role) as PlatformRole,
+          active: Boolean(row.is_active), accountStatus: String(row.onboarding_status), officeId: String(row.office_id ?? ''), teamId: String(row.team_id ?? ''),
+          market: String(row.market ?? ''), lastLoginAt: row.last_login_at ? new Date(String(row.last_login_at)).toISOString() : null }))
+      })
     } finally { client.release() }
   }
 

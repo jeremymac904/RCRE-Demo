@@ -22,6 +22,14 @@ describe('agent website lead submission', () => {
     expect(fetch).toHaveBeenCalledOnce()
   })
 
+  it('accepts the production response only after the API confirms its PostgreSQL commit', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ id: 'inq-pg-1', status: 'saved', persistence: 'postgres', duplicate: false }, { status: 201 })))
+    vi.stubGlobal('window', { location: { search: '', pathname: '/agent/sarah-brockner/contact' } })
+    vi.stubGlobal('document', { referrer: '' })
+    await expect(captureLead({ agentSlug: 'sarah-brockner', type: 'buyer', name: 'Demo User', email: 'demo@example.net' }))
+      .resolves.toMatchObject({ accepted: true, referenceId: 'inq-pg-1', persistence: 'postgres' })
+  })
+
   it('does not claim success when the server returns unavailable or malformed data', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: 'Requests are temporarily unavailable.' }, { status: 503 })))
     vi.stubGlobal('window', { location: { search: '', pathname: '/agent/urban/contact' } })

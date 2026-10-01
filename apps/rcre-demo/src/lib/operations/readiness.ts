@@ -6,11 +6,14 @@ export interface DependencyCheck { state: DependencyState; note: string }
 
 /** Reports only dependency state; never returns secret values or secret names. */
 export function dependencyReadiness(source: NodeJS.ProcessEnv = process.env) {
-  const storage = source.RCRE_OBJECT_STORAGE_PROVIDER === 'local' && source.NODE_ENV !== 'production'
+  const localStorage = source.RCRE_OBJECT_STORAGE_PROVIDER === 'local' && source.NODE_ENV !== 'production'
+  const objectStorageConfigured = Boolean(source.SUPABASE_URL && source.SUPABASE_SERVICE_ROLE_KEY && source.RCRE_STORAGE_BUCKET && source.RCRE_STORAGE_BUCKET_PRIVATE === 'true')
+  const malwareScannerConfigured = Boolean(source.RCRE_CLAMAV_HOST && /^\d{1,5}$/.test(source.RCRE_CLAMAV_PORT ?? '3310') && Number(source.RCRE_CLAMAV_PORT ?? '3310') > 0 && Number(source.RCRE_CLAMAV_PORT ?? '3310') <= 65535)
+  const storage = localStorage
     ? { state: 'configured' as const, note: 'Project-local development storage' }
-    : source.SUPABASE_URL && source.SUPABASE_SERVICE_ROLE_KEY && source.RCRE_STORAGE_BUCKET && source.RCRE_STORAGE_BUCKET_PRIVATE === 'true'
-      ? { state: 'needs_verification' as const, note: 'Credentials and private-bucket assertion are present; verify bucket policy and scanner' }
-      : { state: 'not_configured' as const, note: 'Private object storage is required for production uploads' }
+    : objectStorageConfigured && malwareScannerConfigured
+      ? { state: 'needs_verification' as const, note: 'Private object storage and ClamAV scanner are configured; verify upload and clean/infected scan paths' }
+      : { state: 'not_configured' as const, note: objectStorageConfigured ? 'Production uploads remain disabled until a private ClamAV scanner endpoint is configured' : 'Private object storage is required for production uploads' }
   const mail = source.RESEND_API_KEY
     ? { state: 'needs_verification' as const, note: 'Delivery provider is configured; deliverability has not been tested' }
     : { state: 'not_configured' as const, note: 'Invitation and notification email will remain queued' }
@@ -27,6 +30,7 @@ export function dependencyReadiness(source: NodeJS.ProcessEnv = process.env) {
     },
     optional: {
       email: mail,
+      malwareScanning: malwareScannerConfigured ? { state: 'needs_verification' as const, note: 'Private ClamAV endpoint configured; clean and infected test files must be verified' } : { state: 'not_configured' as const, note: 'No malware scanner endpoint is configured; production uploads fail closed' },
       openRouterFree: source.OPENROUTER_API_KEY
         ? { state: 'needs_verification' as const, note: 'Free-only server route can be smoke-tested; no model is selected from environment' }
         : { state: 'not_configured' as const, note: 'Deterministic local assistant remains available' },

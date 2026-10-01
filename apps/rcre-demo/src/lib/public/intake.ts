@@ -117,6 +117,16 @@ function deterministicUuid(value: string) {
   return `${raw.slice(0,8)}-${raw.slice(8,12)}-${raw.slice(12,16)}-${raw.slice(16,20)}-${raw.slice(20)}`
 }
 
+function leadAttribution(input: IntakeFields, source: string, inquiryId: string, capturedAt: string) {
+  return {
+    id: inquiryId, source, kind: input.kind, agentWebsiteSlug: input.agentSlug,
+    listingId: input.listingId, providerId: input.providerId, mlsListingId: input.mlsListingId,
+    propertyAddress: input.propertyAddress, landingPage: input.landingPage, referrer: input.referrer,
+    utmSource: input.utmSource, utmMedium: input.utmMedium, utmCampaign: input.utmCampaign,
+    utmContent: input.utmContent, utmTerm: input.utmTerm, capturedAt,
+  }
+}
+
 function publicIntakeActor(): Actor {
   const organizationId = process.env.RCRE_ORGANIZATION_ID ?? ''
   const userId = process.env.RCRE_PUBLIC_INTAKE_ACTOR_ID ?? ''
@@ -193,7 +203,7 @@ async function durableOwner(input: IntakeFields, repository: Repository, actor: 
 }
 
 /** Durable public intake. A request is successful only after its inquiry and CRM lead are committed to the shared repository. */
-export async function persistIntakeDurable(input: IntakeFields, repository: Repository, actor: Actor = publicIntakeActor()) {
+export async function persistIntakeDurable(input: IntakeFields, repository: Repository, actor: Actor = publicIntakeActor(), retry = 0) {
   if (input.honeypot?.trim()) throw new IntakeError('Request could not be accepted.', 400)
   const { owner, profile, rosterMatch } = await durableOwner(input, repository, actor)
   const bodyHash = digest(JSON.stringify({ ...input, email: input.email.trim().toLowerCase() }))
@@ -225,27 +235,32 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
   if (email) {
     for (let offset = 0; ; offset += 200) {
       const page = await repository.listDomainRecords<Record<string, any>>(actor, 'crm_contacts', { limit: 200, offset })
-      existing = page.find(record => String(record.data.email ?? '').trim().toLowerCase() === email && record.data.ownerId === owner.id)
+      existing = page.find(record => String(record.data.email ?? '').trim().toLowerCase() === email)
       if (existing || page.length < 200) break
     }
   }
-  const contactId = existing?.recordId ?? deterministicUuid(`rcre-public-contact:${actor.organizationId}:${input.submissionId}`)
-  const contact = existing ? { ...existing.data, version: existing.version + 1 } : {
-    id: contactId, organizationId: actor.organizationId, officeId: profile.officeId, ownerId: owner.id,
+  const contactId = existing?.recordId ?? deterministicUuid(`rcre-public-contact:${actor.organizationId}:${email}`)
+  const contactOwnerId = String(existing?.data.ownerId ?? owner.id)
+  const contactOfficeId = String(existing?.data.officeId ?? profile.officeId)
+  const contact: Record<string, any> = existing ? existing.data : {
+    id: contactId, organizationId: actor.organizationId, officeId: contactOfficeId, ownerId: contactOwnerId,
     version: 1, firstName: input.name.trim().split(/\s+/)[0], lastName: input.name.trim().split(/\s+/).slice(1).join(' '),
     initials: input.name.trim().split(/\s+/).map(part => part[0] ?? '').join('').slice(0, 2),
     stage: 'New Lead', source, email, phone: inquiry.phone, location: inquiry.market,
     receivedAt: now, stageEnteredAt: now, firstTouchAt: null, lastTouchAt: null, lastInboundAt: now,
     lastOutboundAt: null, timeline: [], priority: null, reasons: [], tags: [], consent: inquiry.consent,
   }
+  const attribution = leadAttribution(input, source, inquiryId, now)
   const event = { id: `inquiry:${inquiryId}`, at: now, kind: 'inquiry', direction: 'inbound', label: `New ${source} inquiry`, source: 'RCRE' }
   const priorTimeline = Array.isArray(contact.timeline) ? contact.timeline : []
-  const nextContact = { ...contact, lastInboundAt: now, timeline: [...priorTimeline.filter((item: any) => item.id !== event.id), event], propertyAttribution: input.listingId ? {
-    listingId: input.listingId, providerId: input.providerId, mlsListingId: input.mlsListingId, source,
-    agentWebsiteSlug: input.agentSlug, landingPage: input.landingPage, referrer: input.referrer,
-    utmSource: input.utmSource, utmMedium: input.utmMedium, utmCampaign: input.utmCampaign,
-    utmContent: input.utmContent, utmTerm: input.utmTerm, receivedAt: now,
-  } : undefined }
+  const priorTouches = Array.isArray(contact.leadAttribution?.touches) ? contact.leadAttribution.touches : []
+  const touches = [...priorTouches.filter((item: any) => item.id !== inquiryId), attribution].slice(-50)
+  const nextContact = {
+    ...contact, lastInboundAt: now,
+    timeline: [...priorTimeline.filter((item: any) => item.id !== event.id), event],
+    leadAttribution: { firstTouch: contact.leadAttribution?.firstTouch ?? attribution, latestTouch: attribution, touches },
+    ...(input.listingId ? { propertyAttribution: attribution } : {}),
+  }
   // Keep public lead alerts on the same durable notification contract used by
   // the portal. These IDs deliberately match DurableNotificationService's
   // stable IDs so retries and later service reads resolve to the same records.
@@ -262,28 +277,28 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
     && preferenceData?.inAppEnabled !== false && personalSettings?.data.inAppNotifications !== false
   const notificationState = notificationEnabled ? 'queued' : 'suppressed'
   const notification = {
-    id: notificationId, organizationId: actor.organizationId, ownerUserId: owner.id,
+    id: notificationId, organizationId: actor.organizationId, ownerUserId: contactOwnerId,
     eventType: 'website_lead', channel: 'in_app', title: 'New website lead received',
     href: `/crm/${contactId}`, source: 'RCRE', createdAt: now, readAt: null,
     deliveryState: notificationState, idempotencyKeyHash,
   }
   const notificationOutbox = {
-    id: outboxId, organizationId: actor.organizationId, ownerUserId: owner.id,
+    id: outboxId, organizationId: actor.organizationId, ownerUserId: contactOwnerId,
     notificationId, eventType: 'website_lead', channel: 'in_app', state: notificationState,
     attempts: 0, maxAttempts: 5, nextAttemptAt: now, lastFailureCode: null,
     providerReceipt: null, createdAt: now, updatedAt: now,
   }
   try {
     await repository.putDomainRecordsAtomic(actor, [
-      { collection: 'public_inquiries', recordId: inquiryId, ownerUserId: owner.id,
-        data: { ...inquiry, bodyHash }, ...(priorInquiry ? { expectedVersion: priorInquiry.version } : { createOnly: true }) },
-      { collection: 'crm_contacts', recordId: contactId, ownerUserId: owner.id,
+      { collection: 'public_inquiries', recordId: inquiryId, ownerUserId: contactOwnerId,
+        data: { ...inquiry, ownerId: contactOwnerId, officeId: contactOfficeId, bodyHash }, ...(priorInquiry ? { expectedVersion: priorInquiry.version } : { createOnly: true }) },
+      { collection: 'crm_contacts', recordId: contactId, ownerUserId: contactOwnerId,
         data: nextContact, ...(existing ? { expectedVersion: existing.version } : { createOnly: true }) },
-      { collection: 'notification_inbox', recordId: notificationId, ownerUserId: owner.id,
+      { collection: 'notification_inbox', recordId: notificationId, ownerUserId: contactOwnerId,
         data: notification, createOnly: true },
-      { collection: 'notification_outbox', recordId: outboxId, ownerUserId: owner.id,
+      { collection: 'notification_outbox', recordId: outboxId, ownerUserId: contactOwnerId,
         data: notificationOutbox, createOnly: true },
-      { collection: 'public_intake_idempotency', recordId: idempotencyKey, ownerUserId: owner.id,
+      { collection: 'public_intake_idempotency', recordId: idempotencyKey, ownerUserId: contactOwnerId,
         data: { inquiryId, contactId, bodyHash, createdAt: now }, createOnly: true },
     ], [
       { organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'system', action: 'public.lead_received', targetType: 'contact', targetId: contactId, effect: 'write', allowed: true, detail: { source, inquiryId } },
@@ -292,8 +307,17 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
   } catch (error) {
     if (!(error instanceof DomainRecordConflictError)) throw error
     const winner = await repository.getDomainRecord<Record<string, any>>(actor, 'public_intake_idempotency', idempotencyKey)
-    if (winner?.data.bodyHash !== bodyHash) throw new IntakeError('This submission ID was already used for different information.', 409)
-    return { id: String(winner.data.inquiryId), status: 'saved' as const, persistence: 'postgres' as const, duplicate: true }
+    if (winner) {
+      if (winner.data.bodyHash !== bodyHash) throw new IntakeError('This submission ID was already used for different information.', 409)
+      return { id: String(winner.data.inquiryId), contactId: String(winner.data.contactId ?? contactId), status: 'saved' as const, persistence: 'postgres' as const, duplicate: true }
+    }
+    // Another distinct request with this exact email may have created or
+    // updated the deterministic contact between the lookup and commit. Retry
+    // from the latest version a bounded number of times so neither inquiry is
+    // lost and no duplicate contact is created.
+    const contactWinner = await repository.getDomainRecord<Record<string, any>>(actor, 'crm_contacts', contactId)
+    if (contactWinner && retry < 2) return persistIntakeDurable(input, repository, actor, retry + 1)
+    throw error
   }
   return { id: inquiryId, contactId, status: 'saved' as const, persistence: 'postgres' as const, duplicate: false }
 }

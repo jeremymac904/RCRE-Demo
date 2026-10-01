@@ -12,7 +12,16 @@ const outsider: Actor = { userId: otherId, organizationId: org, role: 'agent' }
 let repo: MemoryRepository
 let service: DurableTransactionService
 
-beforeEach(() => { repo = new MemoryRepository(emptySeed()); service = new DurableTransactionService({ repository: repo }) })
+beforeEach(() => {
+  const seed = emptySeed()
+  seed.users.push(
+    { id: ownerId, organizationId: org, email: 'agent@example.test', fullName: 'Agent', role: 'agent', fubUserId: null, isActive: true, officeId: 'fl' },
+    { id: otherId, organizationId: org, email: 'tc@example.test', fullName: 'Coordinator', role: 'transaction_coordinator', fubUserId: null, isActive: true, officeId: 'fl' },
+    { id: '55555555-5555-4555-8555-555555555555', organizationId: org, email: 'manager@example.test', fullName: 'Managing Broker', role: 'managing_broker', fubUserId: null, isActive: true, officeId: 'fl' },
+  )
+  repo = new MemoryRepository(seed)
+  service = new DurableTransactionService({ repository: repo })
+})
 
 it('persists transaction, checklist, dates, note, version history and audit through the shared repository', async () => {
   const created = await service.create(actor, { address: '100 Example Way', client: 'Demo Client', closingDate: '2026-10-15' })
@@ -94,4 +103,15 @@ it('keeps a live-route managing-broker create in the authenticated office so it 
   expect(created).toMatchObject({ officeId: 'fl', teamId: 'fl', ownerId: managingBroker.userId })
   const assigned = await durable.assign(managingBroker, created.id, created.version, ownerId)
   expect(assigned).toMatchObject({ officeId: 'fl', teamId: 'fl', ownerId, version: 2 })
+})
+
+
+it('keeps durable transaction reads office-scoped for managing brokers', async () => {
+  const fl = await service.create({ ...actor, officeId: 'fl', teamId: 'fl' }, { address: '100 Florida Way', client: 'Client A' })
+  const al = await service.create({ ...actor, officeId: 'al', teamId: 'al' }, { address: '200 Alabama Way', client: 'Client B' })
+  const managingBroker = { userId: otherId, organizationId: org, role: 'managing_broker', officeId: 'fl', teamId: 'fl' }
+  const scopedService = new DurableTransactionService({ repository: repo })
+  expect((await scopedService.list(managingBroker)).map(row => row.id)).toContain(fl.id)
+  expect((await scopedService.list(managingBroker)).map(row => row.id)).not.toContain(al.id)
+  await expect(scopedService.get(managingBroker, al.id)).rejects.toThrow(/denied/i)
 })

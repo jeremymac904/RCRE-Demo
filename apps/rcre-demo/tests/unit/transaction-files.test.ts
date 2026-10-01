@@ -43,6 +43,11 @@ describe('transaction private file boundary', () => {
     expect(() => transactionRepositoryActor({ userId: 'u-agent', organizationId: org, role: 'agent' })).toThrow(StorageAuthorizationError)
   })
 
+  it('preserves managing-broker role and verified office scope for database authorization', () => {
+    const mapped = transactionRepositoryActor({ userId: agentId, organizationId: org, role: 'managing_broker', officeId: 'office-al' })
+    expect(mapped).toMatchObject({ role: 'managing_broker', officeId: 'office-al' })
+  })
+
   it('stores file bytes privately and persists metadata separately', async () => {
     const file = await service.upload({ ...agent, role: 'agent' }, txId, '../../contract.pdf', 'application/pdf', pdf)
     expect(file.filename).toBe('.._.._contract.pdf')

@@ -1,7 +1,7 @@
 import 'server-only'
 import { AccessError } from '@/lib/platform/auth'
 
-type OriginRequest = { nextUrl: URL; headers: Headers }
+type OriginRequest = { url: string; headers: Headers }
 
 /** Require an explicit same-origin signal for cookie-authenticated mutations. */
 export function assertSameOriginMutation(request: OriginRequest): void {
@@ -14,7 +14,13 @@ export function assertSameOriginMutation(request: OriginRequest): void {
   } catch {
     submittedOrigin = null
   }
-  if (!submittedOrigin || submittedOrigin !== request.nextUrl.origin) {
+  let requestOrigin: string | null = null
+  try {
+    requestOrigin = new URL(request.url).origin
+  } catch {
+    requestOrigin = null
+  }
+  if (!submittedOrigin || !requestOrigin || submittedOrigin !== requestOrigin) {
     throw new AccessError('Cross-origin request denied.', 403)
   }
 }

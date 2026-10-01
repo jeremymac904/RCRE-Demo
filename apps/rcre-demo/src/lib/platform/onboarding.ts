@@ -24,7 +24,7 @@ export type OnboardingProfile = z.infer<typeof onboardingInput> & { verifiedPers
 export type OnboardingRecord = OnboardingProfile & { id: string; organizationId: string; memberId: string; savedAt: string; headshotAssetId?: string; publicVisible?: boolean }
 
 export function repositoryActor(actor: PlatformActor): Actor {
-  return { userId: actor.id, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role) }
+  return { userId: actor.id, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role), officeId: actor.officeId }
 }
 
 function emptyProfile(): OnboardingProfile {

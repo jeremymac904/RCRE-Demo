@@ -6,6 +6,8 @@ import { getSetting } from '@/lib/platform/service'
 import { isProduction } from '@/lib/config/env'
 import { dependencyReadiness } from '@/lib/operations/readiness'
 import { getPgPool } from '@/lib/db/pg'
+import { getRepository } from '@/lib/db'
+import { productionHealthSnapshot } from '@/lib/operations/production-health'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,13 +28,23 @@ export async function GET() {
           database = { status: 'unavailable', healthy: false }
         }
       }
+      let operations: Awaited<ReturnType<typeof productionHealthSnapshot>> | null = null
+      if (database.healthy) {
+        try { operations = await productionHealthSnapshot(actor, await getRepository()) }
+        catch { /* Health reporting must not leak exception details or make unsupported claims. */ }
+      }
+      const operationalView = operations ?? {
+        worker: { status: 'not_configured', lastRun: null, fresh: false, note: 'No durable scheduled-worker heartbeat is registered.' },
+        notifications: { inApp: { status: 'unavailable', visibleRecords: 0, scope: 'actor-visible, latest 200' }, email: { status: 'unavailable', queued: 0, failed: 0, acceptedByProvider: 0, scope: 'actor-visible, latest 200', deliveryVerified: false } },
+        auditPolicy: { status: 'unavailable', reviewDays: null, version: 0, retentionExecution: 'not_verified' },
+        backups: { status: 'not_verified', source: 'database-provider operations', note: 'Backup and restore health are not exposed by the application database.' },
+        operationalErrors: { visibleRecords: 0, scope: 'actor-visible, latest 25', records: [] as unknown[] },
+      }
       return Response.json({
         mode: 'production', checkedAt: new Date().toISOString(), externalWritesEnabled: false,
         database, dependencies,
         databaseParity: database.healthy ? 'PostgreSQL connectivity was verified. Schema, backups, and restore status require separate operational checks.' : 'PostgreSQL is not healthy; brokerage workflows remain unavailable.',
-        counts: null, worker: { status: 'unknown', fresh: false, lastRun: null },
-        notifications: { inApp: 'database-backed status not yet verified', email: dependencies.optional.email.state },
-        auditPolicy: null, backups: null,
+        counts: null, ...operationalView,
       }, { headers: { 'Cache-Control': 'no-store' } })
     }
     if (!storageRoot) throw new DurableStoreUnavailableError()

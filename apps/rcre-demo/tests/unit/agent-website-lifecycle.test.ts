@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { THEME_CATALOG } from '@/lib/agent-website/types'
+import { publicAgents } from '@/lib/public/content'
 import { MemoryRepository, emptySeed } from '@/lib/db/repository'
+import { repositoryActor } from '@/lib/platform/onboarding'
 import { configureAuthPersistenceForTests, type AuthPersistence, type MemberSummary } from '@/lib/auth/persistence'
 import type { PlatformActor } from '@/lib/platform/auth'
 import { saveAgentWebsite, setAgentWebsitePublication } from '@/lib/agent-website/lifecycle'
@@ -61,6 +63,19 @@ describe('durable agent website lifecycle', () => {
       expect(config.theme).toBe(theme)
     }
   })
+  it('does not self-link canonical identity from email while saving a website', async () => {
+    const canonicalEmail = publicAgents.find(person => person.slug === 'sarah-brockner')?.email
+    expect(canonicalEmail).toBeTruthy()
+    installAuth([{ ...member, canonicalPersonId: null, email: canonicalEmail! }])
+    const repo = repository()
+    const context = { userId: actor.id, organizationId: actor.organizationId, role: 'agent' as const }
+    const unlinkedProfile = { ...profile(), verifiedPersonId: undefined }
+    await repo.putDomainRecord(context, { collection: 'member_profiles', recordId: actor.id, ownerUserId: actor.id, data: unlinkedProfile })
+    await saveAgentWebsite(actor, payload(), repo)
+    const saved = await repo.getDomainRecord<any>(context, 'member_profiles', actor.id)
+    expect(saved?.data.verifiedPersonId).toBeUndefined()
+  })
+
   it('supports a public URL slug distinct from the canonical person key', async () => {
     installAuth()
     const repo = repository()
@@ -85,6 +100,28 @@ describe('durable agent website lifecycle', () => {
   it('blocks a Realtor from publishing or managing another member site', async () => {
     installAuth([{ ...member, userId: 'other-agent' }])
     await expect(setAgentWebsitePublication(actor, 'other-agent', true, 0, repository())).rejects.toThrow(/access denied/i)
+  })
+
+  it('lets a Florida Managing Broker publish an agent website in the same verified office and state', async () => {
+    const manager: PlatformActor = { id: 'manager-fl', userId: 'manager-fl', organizationId: 'org-1', name: 'Managing Broker', role: 'managing_broker', officeId: 'fl', teamId: 'fl', market: 'Florida' }
+    const target: MemberSummary = { ...member, userId: 'agent-2', canonicalPersonId: 'sarah-brockner', email: 'sarah@example.test', platformRole: 'agent', officeId: 'fl', teamId: 'fl', market: 'Florida' }
+    installAuth([{ ...member, userId: manager.id, platformRole: 'managing_broker', officeId: 'fl', teamId: 'fl', market: 'Florida' }, target])
+    const seed = emptySeed()
+    seed.users.push({ id: manager.id, organizationId: manager.organizationId, email: 'manager@example.test', fullName: manager.name, role: 'managing_broker', fubUserId: null, isActive: true, officeId: 'fl' }, { id: target.userId, organizationId: target.organizationId, email: target.email, fullName: target.name, role: 'agent', fubUserId: null, isActive: true, officeId: 'fl' })
+    const repo = new MemoryRepository(seed)
+    const targetContext = { userId: target.userId, organizationId: target.organizationId, role: 'agent' as const }
+    await repo.putDomainRecord(targetContext, { collection: 'member_profiles', recordId: target.userId, ownerUserId: target.userId, data: { ...profile(), id: target.userId, memberId: target.userId, organizationId: target.organizationId } })
+    await repo.putDomainRecord(targetContext, { collection: 'agent_websites', recordId: target.userId, ownerUserId: target.userId, data: { ...payload(), published: false, ownerUserId: target.userId, organizationId: target.organizationId, updatedAt: new Date().toISOString() } })
+    const row = await repo.getDomainRecord<any>(repositoryActor(manager), 'agent_websites', target.userId)
+    const result = await setAgentWebsitePublication(manager, target.userId, true, row!.version, repo)
+    expect(result.published).toBe(true)
+  })
+
+  it('denies a Managing Broker publication across state or office scope', async () => {
+    const manager: PlatformActor = { id: 'manager-al', userId: 'manager-al', organizationId: 'org-1', name: 'Managing Broker', role: 'managing_broker', officeId: 'al', teamId: 'al', market: 'Alabama' }
+    const target: MemberSummary = { ...member, userId: 'agent-2', canonicalPersonId: 'sarah-brockner', email: 'sarah@example.test', platformRole: 'agent', officeId: 'fl', teamId: 'fl', market: 'Florida' }
+    installAuth([{ ...member, userId: manager.id, platformRole: 'managing_broker', officeId: 'al', teamId: 'al', market: 'Alabama' }, target])
+    await expect(setAgentWebsitePublication(manager, target.userId, true, 1, repository())).rejects.toThrow(/outside your authorized scope/i)
   })
   it('rejects unsafe hero image URLs before durable storage', async () => {
     installAuth()

@@ -3,7 +3,7 @@ import { Pool, type PoolClient } from 'pg'
 import { env } from '@/lib/config/env'
 import {
   DomainRecordConflictError, PermissionDeniedError, canSeeRecruiting, canSeeWholeBrokerage,
-  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type DomainRecordQueryOptions, type Repository, type TransactionDomainRecordInput,
+  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type DomainRecordQueryOptions, type PublicContentProjection, type Repository, type TransactionDomainRecordInput,
 } from './repository'
 import { withRlsSession } from './rls'
 import type {
@@ -53,6 +53,9 @@ function personScope(actor: Actor, alias = 'p'): { sql: string; params: unknown[
   if (canSeeWholeBrokerage(actor.role)) {
     return { sql: `${alias}.organization_id = $1`, params: [actor.organizationId] }
   }
+  if (actor.role === 'managing_broker') {
+    return { sql: `${alias}.organization_id = $1 and ${alias}.assigned_user_id in (select rcre_scoped_user_ids())`, params: [actor.organizationId] }
+  }
   return {
     sql: `${alias}.organization_id = $1 and ${alias}.assigned_user_id = $2`,
     params: [actor.organizationId, actor.userId],
@@ -78,7 +81,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 function transactionCollection(value: string): boolean { return /^(transactions|transaction_[A-Za-z0-9_.-]{1,72})$/.test(value) }
 
 function canWriteDomainOwner(actor: Actor, ownerUserId: string | null): boolean {
-  const admin = ['owner', 'broker', 'staff'].includes(actor.role)
+  const admin = ['owner', 'broker', 'staff', 'managing_broker'].includes(actor.role)
   return ownerUserId === null ? ['owner', 'broker'].includes(actor.role)
     : ownerUserId === actor.userId || admin
 }
@@ -108,6 +111,23 @@ export class PgRepository implements Repository {
     }
   }
 
+  async getPublicContentProjection(organizationId: string, path: string): Promise<PublicContentProjection | null> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId) || !path.startsWith('/') || path.length > 240) return null
+    const rows = (await getPgPool().query(
+      `select id, status, revision, published from rcre_public_content_projection($1::uuid, $2::text)`,
+      [organizationId, path],
+    ) as { rows?: PublicContentProjection[] }).rows ?? []
+    return rows[0] ?? null
+  }
+
+  async listPublicContentProjections(organizationId: string): Promise<PublicContentProjection[]> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId)) return []
+    return (await getPgPool().query(
+      `select id, status, revision, published from rcre_public_content_projection($1::uuid, null::text)`,
+      [organizationId],
+    ) as { rows?: PublicContentProjection[] }).rows ?? []
+  }
+
   async getOrganization(actor: Actor, id: string): Promise<Organization | null> {
     if (id !== actor.organizationId) return null
     const rows = await this.q<Organization>(actor,
@@ -117,26 +137,27 @@ export class PgRepository implements Repository {
   }
 
   async getUser(actor: Actor, id: string): Promise<User | null> {
-    const own = canSeeWholeBrokerage(actor.role) ? '' : ' and id = $3'
-    const params = canSeeWholeBrokerage(actor.role) ? [actor.organizationId, id] : [actor.organizationId, id, actor.userId]
+    const scopeByRls = canSeeWholeBrokerage(actor.role) || actor.role === 'managing_broker'
+    const own = scopeByRls ? '' : ' and id = $3'
+    const params = scopeByRls ? [actor.organizationId, id] : [actor.organizationId, id, actor.userId]
     const rows = await this.q<User>(actor,
       `select id, organization_id as "organizationId", email, full_name as "fullName",
-              role, fub_user_id as "fubUserId", is_active as "isActive"
+              role, fub_user_id as "fubUserId", is_active as "isActive", office_id as "officeId"
          from users where organization_id = $1 and id = $2${own}`, params)
     return rows[0] ?? null
   }
 
   async listUsers(actor: Actor): Promise<User[]> {
-    if (canSeeWholeBrokerage(actor.role)) {
+    if (canSeeWholeBrokerage(actor.role) || actor.role === 'managing_broker') {
       return this.q<User>(actor, 
         `select id, organization_id as "organizationId", email, full_name as "fullName",
-                role, fub_user_id as "fubUserId", is_active as "isActive"
+                role, fub_user_id as "fubUserId", is_active as "isActive", office_id as "officeId"
            from users where organization_id = $1 order by full_name`,
         [actor.organizationId])
     }
     return this.q<User>(actor, 
       `select id, organization_id as "organizationId", email, full_name as "fullName",
-              role, fub_user_id as "fubUserId", is_active as "isActive"
+              role, fub_user_id as "fubUserId", is_active as "isActive", office_id as "officeId"
          from users where organization_id = $1 and id = $2`,
       [actor.organizationId, actor.userId])
   }
@@ -364,7 +385,7 @@ export class PgRepository implements Repository {
     if (transactionCollection(input.collection)) throw new PermissionDeniedError('putDomainRecord', 'transaction records require the participant-checked transaction write API')
     validateDomainKey(input.collection, input.recordId)
     const ownerUserId = input.ownerUserId ?? null
-    if (!canWriteDomainOwner(actor, ownerUserId)) {
+    if (!canWriteDomainOwner(actor, ownerUserId) && !(actor.role === 'marketing_admin' && input.collection === 'public_content')) {
       throw new PermissionDeniedError('putDomainRecord', 'record owner is outside this actor scope')
     }
     if (!isPlainRecord(input.data)) throw new TypeError('Domain data must be a JSON object')
@@ -409,7 +430,7 @@ export class PgRepository implements Repository {
       if (keys.has(key)) throw new TypeError('Atomic write contains duplicate record identities')
       keys.add(key)
       const ownerUserId = input.ownerUserId ?? null
-      if (!canWriteDomainOwner(actor, ownerUserId)) throw new PermissionDeniedError('putDomainRecordsAtomic', 'record owner is outside this actor scope')
+      if (!canWriteDomainOwner(actor, ownerUserId) && !(actor.role === 'marketing_admin' && input.collection === 'public_content')) throw new PermissionDeniedError('putDomainRecordsAtomic', 'record owner is outside this actor scope')
       if (!isPlainRecord(input.data)) throw new TypeError('Domain data must be a JSON object')
       if (Buffer.byteLength(JSON.stringify(input.data), 'utf8') > MAX_DOMAIN_JSON_BYTES) throw new RangeError('Domain record exceeds the 256 KB limit')
       if (input.createOnly && input.expectedVersion !== undefined) throw new TypeError('Insert-only records cannot specify an expected version')
@@ -485,10 +506,32 @@ export class PgRepository implements Repository {
     }
     validateDomainKey(input.collection, input.recordId)
     if (!isPlainRecord(input.data) || Buffer.byteLength(JSON.stringify(input.data), 'utf8') > MAX_DOMAIN_JSON_BYTES) throw new TypeError('Transaction domain data is invalid or too large')
-    const broker = actor.role === 'owner' || actor.role === 'broker'
+    const broker = canSeeWholeBrokerage(actor.role)
+    const managingBroker = actor.role === 'managing_broker'
     const client = await getPgPool().connect()
     try {
       return await withRlsSession(client, actor, async scoped => {
+        let officeId: string | null = null
+        if (managingBroker) {
+          const officeRows = (await scoped.query(
+            `select office_id as "officeId" from users where organization_id = $1 and id = $2`,
+            [actor.organizationId, actor.userId],
+          ) as { rows?: { officeId: string | null }[] }).rows ?? []
+          officeId = officeRows[0]?.officeId ?? null
+          if (!officeId) throw new PermissionDeniedError('putTransactionDomainRecord', 'managing broker has no authorized office')
+          const assignedIds = [String(input.data.ownerId ?? ''), String(input.data.tcId ?? '')].filter(Boolean)
+          if (input.data.officeId !== officeId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction is outside the managing broker office')
+          if (assignedIds.length) {
+            const assignmentRows = (await scoped.query(
+              `select id, platform_role as role from users where organization_id = $1 and office_id = $2 and id = any($3::uuid[])`,
+              [actor.organizationId, officeId, assignedIds],
+            ) as { rows?: { id: string; role: string }[] }).rows ?? []
+            if (assignmentRows.length !== new Set(assignedIds).size) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction assignment must remain within the managing broker office')
+            if (input.data.tcId && !assignmentRows.some(user => user.id === input.data.tcId && user.role === 'transaction_coordinator')) {
+              throw new PermissionDeniedError('putTransactionDomainRecord', 'only an office transaction coordinator may be assigned')
+            }
+          }
+        }
         const parentId = input.collection === 'transactions' ? input.recordId : String(input.data.transactionId ?? '')
         let parent: Record<string, unknown> | null = null
         if (input.collection !== 'transactions') {
@@ -519,13 +562,14 @@ export class PgRepository implements Repository {
           const isOwner = old.ownerId === actor.userId
           const isTc = actor.role === 'transaction_coordinator' && old.tcId === actor.userId
           const isTeamScoped = actor.role === 'team_lead'
-          if (!broker && !isOwner && !isTc && !isTeamScoped) throw new PermissionDeniedError('putTransactionDomainRecord', 'actor is not a transaction participant')
-          if (!broker && (input.data.ownerId !== old.ownerId || input.data.tcId !== old.tcId || input.data.teamId !== old.teamId || ownerUserId !== existing.ownerUserId)) {
+          if (managingBroker && old.officeId !== officeId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction is outside the managing broker office')
+          if (!broker && !managingBroker && !isOwner && !isTc && !isTeamScoped) throw new PermissionDeniedError('putTransactionDomainRecord', 'actor is not a transaction participant')
+          if (!broker && !managingBroker && (input.data.ownerId !== old.ownerId || input.data.tcId !== old.tcId || input.data.teamId !== old.teamId || ownerUserId !== existing.ownerUserId)) {
             throw new PermissionDeniedError('putTransactionDomainRecord', 'only brokerage administrators may change transaction ownership or participant assignment')
           }
-        } else if (input.collection === 'transactions' && !broker && (input.data.ownerId !== actor.userId || input.data.tcId)) {
+        } else if (input.collection === 'transactions' && !broker && !managingBroker && (input.data.ownerId !== actor.userId || input.data.tcId)) {
           throw new PermissionDeniedError('putTransactionDomainRecord', 'agents may create only transactions they own; coordinator assignment is a broker action')
-        } else if (ownerUserId !== actor.userId && !broker) {
+        } else if (ownerUserId !== actor.userId && !broker && !managingBroker) {
           throw new PermissionDeniedError('putTransactionDomainRecord', 'new transaction records must be owned by the actor')
         }
         let rows: DomainRecord<T>[]

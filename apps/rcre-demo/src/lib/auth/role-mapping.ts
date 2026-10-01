@@ -6,7 +6,7 @@ export function repositoryRoleForPlatform(role: PlatformRole): UserRole {
   const map: Record<PlatformRole, UserRole> = {
     agent: 'agent',
     team_leader: 'team_lead',
-    managing_broker: 'broker',
+    managing_broker: 'managing_broker',
     broker_owner: 'owner',
     transaction_coordinator: 'transaction_coordinator',
     marketing_admin: 'marketing_admin',

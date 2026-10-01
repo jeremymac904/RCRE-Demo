@@ -8,6 +8,8 @@ import { AccessError, can } from '@/lib/platform/auth'
 import { repositoryActor } from '@/lib/platform/onboarding'
 import { createStorageService } from '@/lib/storage'
 import { academy } from '@/data/academy'
+import { notifyTrainingAssignment } from '@/lib/services/notification-producers'
+import { getAuthPersistence } from '@/lib/auth/persistence'
 
 const COURSE = 'academy_courses'
 const LESSON = 'academy_lessons'
@@ -27,12 +29,14 @@ export type DurableCourse = {
   id: string; organizationId: string; ownerId: string; title: string; description: string
   category: string; state: 'draft' | 'review' | 'published' | 'archived'; version: number
   createdAt: string; updatedAt: string; source: 'rcre-authored'; order: number; prerequisite: string; resources: { id: string; name: string; type: string }[]; revisions: { version: number; title: string; body: string; at: string }[]
+  submittedBy?: string; reviewedBy?: string
 }
 export type DurableLesson = {
   id: string; organizationId: string; ownerId: string; courseId: string; title: string
   description: string; order: number; status: 'draft' | 'review' | 'published' | 'archived'
   resources: { id: string; name: string; contentType: string; size: number }[]
   version: number; createdAt: string; updatedAt: string
+  submittedBy?: string; reviewedBy?: string
 }
 export type DurableProgress = {
   id: string; organizationId: string; ownerId: string; completedLessonIds: string[]
@@ -45,7 +49,7 @@ export type DurableAssignment = {
 export type DurablePost = {
   id: string; organizationId: string; ownerId: string; author: string; category: string
   title: string; body: string; lessonId: string; draft: boolean; createdAt: string
-  attachments: { id: string; name: string }[]; video?: {
+  attachments: { id: string; name: string }[]; deleted?: boolean; video?: {
     provider: 'youtube'; videoId: string; title: string; summary: string; watchUrl: string
     thumbnailUrl?: string; discussionPrompt: string; source: 'manual_approved_metadata'
   }
@@ -57,6 +61,7 @@ export type DurableCommunityPost = DurablePost & { comments: DurableComment[]; l
 type DurableAsset = { id: string; organizationId: string; ownerId: string; filename: string; contentType: string; size: number; category: 'training-resource' | 'community-attachment'; createdAt: string }
 
 const manager = (actor: PlatformActor) => can(actor, 'academy.manage')
+const academyPublisher = (actor: PlatformActor) => actor.role === 'broker_owner' || actor.role === 'managing_broker'
 const communityManager = (actor: PlatformActor) => can(actor, 'community.manage')
 const ctx = (actor: PlatformActor) => repositoryActor(actor)
 const repoOf = async (repository?: Repository) => repository ?? getRepository()
@@ -80,13 +85,42 @@ export async function saveAcademyProgress(actor: PlatformActor, input: { lessonI
   const repo = await repoOf(repository), scoped = ctx(actor)
   const lessonId = clean(input.lessonId, 160)
   const localLesson = academy.lessons.find(item => item.id === lessonId)
-  const customLesson = await repo.getDomainRecord<DurableLesson>(scoped, LESSON, lessonId)
-  const customCourse = customLesson ? await repo.getDomainRecord<DurableCourse>(scoped, COURSE, customLesson.data.courseId) : null
-  const isPublished = Boolean(localLesson || customLesson?.data.status === 'published' && customCourse?.data.state === 'published')
-  if (!lessonId || !isPublished) throw new AccessError('Lesson unavailable', 404)
+  const [customLesson, courseAtLessonId] = await Promise.all([
+    repo.getDomainRecord<DurableLesson>(scoped, LESSON, lessonId),
+    repo.getDomainRecord<DurableCourse>(scoped, COURSE, lessonId),
+  ])
+  // RCRE-authored courses without individual lessons use the course ID as the
+  // completion unit. Lesson IDs remain authoritative when actual lessons exist.
+  const courseCompletion = Boolean(courseAtLessonId && !customLesson && !localLesson)
+  const courseId = localLesson?.courseId ?? customLesson?.data.courseId ?? (courseCompletion ? courseAtLessonId?.data.id : undefined)
+  const authoredCourse = courseId ? await repo.getDomainRecord<DurableCourse>(scoped, COURSE, courseId) : null
+  if (!lessonId || !courseId || !await academyCourseAccessible(actor, courseId, repo)) throw new AccessError('Lesson unavailable', 404)
+  if (!courseCompletion && customLesson?.data.status !== 'published' && !localLesson) throw new AccessError('Lesson unavailable', 404)
+  if (courseCompletion && (authoredCourse?.data.state !== 'published' || typeof input.complete !== 'boolean' || input.bookmark !== undefined || input.seconds !== undefined)) throw new AccessError('Only published courses can be completed', 400)
   if (input.seconds !== undefined && (!Number.isFinite(input.seconds) || input.seconds < 0 || input.seconds > 86400)) throw new AccessError('Invalid lesson position', 400)
   const prior = await repo.getDomainRecord<DurableProgress>(scoped, PROGRESS, actor.id)
   const p = prior?.data ?? emptyProgress(actor)
+  if (courseCompletion && input.complete === true) {
+    const lessons = await repo.listDomainRecords<DurableLesson>(scoped, LESSON, { limit: 200 })
+    const requiredLessonIds = lessons.map(row => row.data).filter(item => item.courseId === courseId && item.status === 'published').map(item => item.id)
+    if (requiredLessonIds.some(id => !p.completedLessonIds.includes(id))) throw new AccessError('Complete each published lesson before completing this course', 409)
+  }
+  if (input.complete === true && !courseCompletion && authoredCourse?.data.prerequisite) {
+    const prerequisiteId = authoredCourse.data.prerequisite
+    const [prerequisiteCourse, lessonRows] = await Promise.all([
+      repo.getDomainRecord<DurableCourse>(scoped, COURSE, prerequisiteId),
+      repo.listDomainRecords<DurableLesson>(scoped, LESSON, { limit: 200 }),
+    ])
+    const requiredLessonIds = [
+      ...academy.lessons.filter(item => item.courseId === prerequisiteId).map(item => item.id),
+      ...lessonRows.map(row => row.data).filter(item => item.courseId === prerequisiteId && item.status === 'published').map(item => item.id),
+    ]
+    const prerequisiteDone = requiredLessonIds.length
+      ? requiredLessonIds.every(id => p.completedLessonIds.includes(id))
+      : p.completedLessonIds.includes(prerequisiteId)
+    if (prerequisiteCourse?.data.state !== 'published' && !academy.courses.some(item => item.id === prerequisiteId)) throw new AccessError('Prerequisite course unavailable', 409)
+    if (!prerequisiteDone) throw new AccessError('Complete the prerequisite course first', 409)
+  }
   for (const [key, value] of [['completedLessonIds', input.complete], ['bookmarks', input.bookmark]] as const) {
     if (typeof value !== 'boolean') continue
     const values = p[key]
@@ -101,10 +135,23 @@ export async function saveAcademyProgress(actor: PlatformActor, input: { lessonI
 
 export async function academyCatalog(actor: PlatformActor, repository?: Repository) {
   const repo = await repoOf(repository), scoped = ctx(actor)
-  const customCourseRows = await repo.listDomainRecords<DurableCourse>(scoped, COURSE, { limit: 200 })
+  const [customCourseRows, policyRows] = await Promise.all([
+    repo.listDomainRecords<DurableCourse>(scoped, COURSE, { limit: 200 }),
+    repo.listDomainRecords<Record<string, unknown>>(scoped, POLICY, { limit: 200 }),
+  ])
+  const policies = new Map(policyRows.map(row => [String(row.data.courseId), row.data]))
+  const policyAllows = (courseId: string, isStatic = false) => {
+    if (manager(actor)) return true
+    const policy = policies.get(courseId)
+    // A missing row can mean RLS hid a trainer-owned policy. Treat that as
+    // denied for authored courses; only approved static curriculum defaults open.
+    if (!policy) return isStatic
+    const roles = Array.isArray(policy.roles) ? policy.roles.map(String) : []
+    return roles.length === 0 || roles.includes(actor.role)
+  }
   const customCourses = customCourseRows.map(row => ({ ...row.data, version: row.version }))
-  const visibleCourses = customCourses.filter(course => manager(actor) || course.state === 'published')
-  const staticCourses = academy.courses
+  const visibleCourses = customCourses.filter(course => (manager(actor) || course.state === 'published') && policyAllows(course.id))
+  const staticCourses = academy.courses.filter(course => policyAllows(course.id, true))
   const courseIds = new Set([...staticCourses.map(c => c.id), ...visibleCourses.map(c => c.id)])
   const lessonRows = await repo.listDomainRecords<DurableLesson>(scoped, LESSON, { limit: 200 })
   const customLessons = lessonRows.map(row => ({ ...row.data, version: row.version })).filter(lesson => manager(actor) || lesson.status === 'published')
@@ -123,9 +170,18 @@ export function orderAcademyCourses<T extends { id: string; order?: number }>(ca
 
 export async function academyCourseAccessible(actor: PlatformActor, courseId: string, repository?: Repository) {
   if (!courseId) return false
-  if (academy.courses.some(course => course.id === courseId)) return true
-  const row = await (await repoOf(repository)).getDomainRecord<DurableCourse>(ctx(actor), COURSE, courseId)
-  return Boolean(row && (manager(actor) || row.data.state === 'published'))
+  const repo = await repoOf(repository), scoped = ctx(actor)
+  const [isStatic, row, policyRow] = await Promise.all([
+    Promise.resolve(academy.courses.some(course => course.id === courseId)),
+    repo.getDomainRecord<DurableCourse>(scoped, COURSE, courseId),
+    repo.getDomainRecord<Record<string, unknown>>(scoped, POLICY, `${actor.organizationId}:${courseId}`),
+  ])
+  if (!isStatic && !row) return false
+  if (row && !manager(actor) && row.data.state !== 'published') return false
+  const roles = Array.isArray(policyRow?.data.roles) ? policyRow.data.roles.map(String) : []
+  if (manager(actor)) return true
+  if (!policyRow) return isStatic
+  return roles.length === 0 || roles.includes(actor.role)
 }
 
 export async function academyConfigDurable(actor: PlatformActor, repository?: Repository) {
@@ -145,13 +201,16 @@ export async function academyManageData(actor: PlatformActor, repository?: Repos
   const allProgress = manager(actor) ? (await repo.listDomainRecords<DurableProgress>(scoped, PROGRESS, { limit: 200 })).map(row => ({ ...row.data, version: row.version })) : []
   const bookmarks = progress.bookmarks.map(id => {
     const local = academy.lessons.find(lesson => lesson.id === id)
-    return local ? { id: local.id, title: local.title, courseId: local.courseId } : null
+    if (local) return { id: local.id, title: local.title, courseId: local.courseId }
+    const authored = catalog.lessons.find(lesson => lesson.id === id)
+    if (authored) return { id: authored.id, title: authored.title, courseId: authored.courseId }
+    return null
   }).filter(Boolean)
   const visibleAssignments = assignments.map(row => row.data).filter(item => manager(actor) || item.targetType === 'all' || ({ agent: actor.id, role: actor.role, market: actor.market, office: actor.officeId, team: actor.teamId } as Record<string, string>)[item.targetType] === item.target).filter(item => !item.exemptions?.includes(actor.id))
   return {
-    bookmarks, config: config?.data ?? { id: actor.organizationId, categories: ['General Discussion', 'AI Questions', 'Lead Follow Up', 'Marketing', 'Listings', 'AI Tools', 'Wins', 'Training', 'RCRE Updates'], order: academy.courses.map(course => course.id) },
+    bookmarks, assignmentTargetTypes: actor.role === 'broker_owner' ? ['all', 'agent', 'role', 'market', 'office', 'team'] : actor.role === 'managing_broker' ? ['agent', 'office', 'team'] : [], config: config?.data ?? { id: actor.organizationId, categories: ['General Discussion', 'AI Questions', 'Lead Follow Up', 'Marketing', 'Listings', 'AI Tools', 'Wins', 'Training', 'RCRE Updates'], order: academy.courses.map(course => course.id) },
     policies: policies.map(row => ({ ...row.data, id: `${row.data.organizationId}:${row.data.courseId}` })), ownProgress: progress,
-    manager: manager(actor), assignments: visibleAssignments, courses: catalog.customCourses.map(course => ({ ...course, status: course.state, body: course.description, order: course.order, prerequisite: course.prerequisite, resources: course.resources, revisions: course.revisions })), lessons: catalog.lessons,
+    manager: manager(actor), canPublish: academyPublisher(actor), assignments: visibleAssignments, courses: catalog.customCourses.map(course => ({ ...course, status: course.state, body: course.description, order: course.order, prerequisite: course.prerequisite, resources: course.resources, revisions: course.revisions })), lessons: catalog.lessons,
     progress: allProgress,
   }
 }
@@ -160,34 +219,49 @@ export async function manageAcademyDurable(actor: PlatformActor, raw: Record<str
   if (!manager(actor)) throw new AccessError('Trainer permission required', 403)
   const repo = await repoOf(repository), scoped = ctx(actor), action = String(raw.action ?? '')
   if (action === 'config') {
+    if (!academyPublisher(actor)) throw new AccessError('Brokerage leadership must publish shared Training settings', 403)
     const categories = Array.isArray(raw.categories) ? raw.categories.map(value => clean(value, 70)).filter(Boolean) : []
     const order = Array.isArray(raw.order) ? raw.order.map(String) : []
     if (categories.length < 1 || categories.length > 20 || new Set(categories).size !== categories.length) throw new AccessError('Provide 1–20 unique category names', 400)
     if (order.some(id => !academy.courses.some(course => course.id === id)) || new Set(order).size !== order.length) throw new AccessError('Course order contains an unknown or duplicate course', 400)
     const prior = await repo.getDomainRecord<Record<string, unknown>>(scoped, CONFIG, actor.organizationId)
     const data = { id: actor.organizationId, organizationId: actor.organizationId, ownerId: prior?.data.ownerId ?? actor.id, categories, order, updatedAt: isoNow() }
-    return (await repo.putDomainRecord(scoped, { collection: CONFIG, recordId: actor.organizationId, ownerUserId: prior?.ownerUserId ?? actor.id, data, ...(prior ? { expectedVersion: prior.version } : {}) })).data
+    return (await repo.putDomainRecord(scoped, { collection: CONFIG, recordId: actor.organizationId, ownerUserId: null, data, ...(prior ? { expectedVersion: prior.version } : {}) })).data
   }
   if (action === 'policy') {
+    if (!academyPublisher(actor)) throw new AccessError('Brokerage leadership must publish shared enrollment policies', 403)
     const courseId = clean(raw.courseId, 160), roles = Array.isArray(raw.roles) ? raw.roles.map(value => clean(value, 80)) : []
     if (!academy.courses.some(course => course.id === courseId) && !(await repo.getDomainRecord(scoped, COURSE, courseId))) throw new AccessError('Unknown course', 404)
     const id = `${actor.organizationId}:${courseId}`, prior = await repo.getDomainRecord<Record<string, unknown>>(scoped, POLICY, id)
     const data = { id, organizationId: actor.organizationId, courseId, ownerId: prior?.data.ownerId ?? actor.id, roles: [...new Set(roles)], publicPreview: raw.publicPreview === true, updatedAt: isoNow() }
-    return (await repo.putDomainRecord(scoped, { collection: POLICY, recordId: id, ownerUserId: prior?.ownerUserId ?? actor.id, data, ...(prior ? { expectedVersion: prior.version } : {}) })).data
+    return (await repo.putDomainRecord(scoped, { collection: POLICY, recordId: id, ownerUserId: null, data, ...(prior ? { expectedVersion: prior.version } : {}) })).data
   }
   if (action === 'assignment') {
+    if (!academyPublisher(actor)) throw new AccessError('Brokerage leadership must create shared learner assignments', 403)
     const courseId = clean(raw.courseId, 160), due = clean(raw.due, 10), targetType = clean(raw.targetType, 32)
     const catalog = await academyCatalog(actor, repo)
     if (!catalog.courses.some(course => course.id === courseId && (course.source === 'approved-curriculum' || course.state === 'published'))) throw new AccessError('Choose a published course', 400)
     if (!['all', 'agent', 'role', 'market', 'office', 'team'].includes(targetType)) throw new AccessError('Invalid assignment target', 400)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(due) || !Number.isFinite(Date.parse(due))) throw new AccessError('Due date required', 400)
-    const id = randomUUID(), data: DurableAssignment = { id, organizationId: actor.organizationId, ownerId: actor.id, courseId, targetType, target: clean(raw.target, 120), due, createdAt: isoNow(), exemptions: [] }
-    return (await repo.putDomainRecord(scoped, { collection: ASSIGNMENT, recordId: id, ownerUserId: actor.id, data: data as unknown as Record<string, unknown>, createOnly: true })).data
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(due) || !Number.isFinite(Date.parse(`${due}T00:00:00Z`)) || new Date(`${due}T00:00:00Z`).toISOString().slice(0, 10) !== due) throw new AccessError('Due date required', 400)
+    const target = clean(raw.target, 120)
+    if (targetType !== 'all' && !target) throw new AccessError('Choose a target for this assignment', 400)
+    if (actor.role === 'managing_broker') {
+      const permitted = targetType === 'office' && target === actor.officeId
+        || targetType === 'team' && target === actor.teamId
+        || targetType === 'agent' && (await (await getAuthPersistence()).listMembers(actor)).some(member => member.userId === target && member.active && member.organizationId === actor.organizationId && member.officeId === actor.officeId)
+      if (!permitted) throw new AccessError('Managing Brokers can assign training only to a verified learner or their own office/team.', 403)
+    }
+    const id = randomUUID(), data: DurableAssignment = { id, organizationId: actor.organizationId, ownerId: actor.id, courseId, targetType, target, ...(actor.role === 'managing_broker' ? { officeId: actor.officeId } : {}), due, createdAt: isoNow(), exemptions: [] }
+    const saved = (await repo.putDomainRecord(scoped, { collection: ASSIGNMENT, recordId: id, ownerUserId: null, data: data as unknown as Record<string, unknown>, createOnly: true })).data
+    // Keep assignment persistence authoritative; notice delivery is a separate
+    // idempotent outbox operation and never sends externally here.
+    await notifyTrainingAssignment(actor, saved as unknown as DurableAssignment, repo)
+    return saved
   }
   if (action === 'remind' || action === 'exempt') {
     const id = clean(raw.id, 160), prior = await repo.getDomainRecord<DurableAssignment>(scoped, ASSIGNMENT, id)
     if (!prior) throw new AccessError('Assignment unavailable', 404)
-    if (prior.data.ownerId !== actor.id && !['broker_owner', 'managing_broker'].includes(actor.role)) throw new AccessError('Only the assignment author or brokerage leadership may change it', 403)
+    if (!academyPublisher(actor) && prior.data.ownerId !== actor.id) throw new AccessError('Only the assignment author or brokerage leadership may change it', 403)
     if (action === 'exempt') {
       const learnerId = clean(raw.learnerId, 160)
       if (!learnerId) throw new AccessError('Choose a learner to exempt', 400)
@@ -201,33 +275,48 @@ export async function manageAcademyDurable(actor: PlatformActor, raw: Record<str
   if (action === 'course') {
     const id = clean(raw.id, 160) || randomUUID(), prior = await repo.getDomainRecord<DurableCourse>(scoped, COURSE, id)
     if (raw.id && !prior) throw new AccessError('Course not found', 404)
+    if (prior && prior.data.ownerId !== actor.id && !['broker_owner', 'managing_broker'].includes(actor.role)) throw new AccessError('You can only edit courses you authored', 403)
+    if (prior && prior.ownerUserId === null && !academyPublisher(actor)) throw new AccessError('Only brokerage leadership may change published shared courses', 403)
     if (prior && Number(raw.version) !== prior.version) throw new AccessError('Course changed; reload before saving', 409)
-    const title = clean(raw.title, 180), description = clean(raw.body ?? raw.description, 50000), state = clean(raw.status ?? raw.state, 20) || 'draft', order = Number(raw.order || prior?.data.order || 1), prerequisite = clean(raw.prerequisite, 160)
+    const title = clean(raw.title, 180), description = clean(raw.body ?? raw.description, 50000), category = clean(raw.category, 70) || 'AI Training', state = clean(raw.status ?? raw.state, 20) || 'draft', order = Number(raw.order || prior?.data.order || 1), prerequisite = clean(raw.prerequisite, 160)
     if (!title || !description || !Number.isInteger(order) || order < 1 || order > 1000 || !['draft', 'review', 'published', 'archived'].includes(state)) throw new AccessError('Title, course text, and a valid status are required', 400)
-    if (state === 'published' && (!prior || prior.data.state !== 'review' || prior.data.ownerId === actor.id)) throw new AccessError('A different trainer or leader must review this course before publication', 403)
+    if (state === 'published' && (!academyPublisher(actor) || !prior || prior.data.state !== 'review' || (prior.data.submittedBy ?? prior.data.ownerId) === actor.id)) throw new AccessError('A different brokerage leader must review this course before publication', 403)
     if (prerequisite && !academy.courses.some(course => course.id === prerequisite) && !(await repo.getDomainRecord(scoped, COURSE, prerequisite))) throw new AccessError('Unknown prerequisite course', 400)
     const resources = Array.isArray(raw.resources) ? await Promise.all(raw.resources.slice(0, 30).map(async value => { if (typeof value !== 'object' || value === null) throw new AccessError('Invalid course resource', 400); const item = value as Record<string, unknown>, assetId = clean(item.id, 160), stored = await repo.getDomainRecord<DurableAsset>(scoped, RESOURCE, assetId); if (!stored || stored.data.organizationId !== actor.organizationId) throw new AccessError('Resource unavailable', 403); return { id: assetId, name: stored.data.filename, type: stored.data.contentType } })) : prior?.data.resources ?? []
-    const data: DurableCourse = { id, organizationId: actor.organizationId, ownerId: prior?.data.ownerId ?? actor.id, title, description, category: clean(raw.category, 70) || 'AI Training', state: state as DurableCourse['state'], version: (prior?.version ?? 0) + 1, createdAt: prior?.data.createdAt ?? isoNow(), updatedAt: isoNow(), source: 'rcre-authored', order, prerequisite, resources, revisions: prior ? [...prior.data.revisions, { version: prior.version, title: prior.data.title, body: prior.data.description, at: isoNow() }] : [] }
-    const saved = await repo.putDomainRecord(scoped, { collection: COURSE, recordId: id, ownerUserId: prior?.ownerUserId ?? actor.id, data: data as unknown as Record<string, unknown>, ...(prior ? { expectedVersion: prior.version } : { createOnly: true }) })
-    return { ...saved.data, version: saved.version }
+    if (state === 'published' && prior && (title !== prior.data.title || description !== prior.data.description || category !== prior.data.category || order !== prior.data.order || prerequisite !== prior.data.prerequisite || JSON.stringify(resources) !== JSON.stringify(prior.data.resources))) throw new AccessError('Reviewed course content changed. Save a new review version before publication.', 409)
+    const data: DurableCourse = { id, organizationId: actor.organizationId, ownerId: prior?.data.ownerId ?? actor.id, title, description, category, state: state as DurableCourse['state'], version: (prior?.version ?? 0) + 1, createdAt: prior?.data.createdAt ?? isoNow(), updatedAt: isoNow(), source: 'rcre-authored', order, prerequisite, resources, submittedBy: state === 'review' ? actor.id : (state === 'published' ? prior?.data.submittedBy : undefined), reviewedBy: state === 'published' ? actor.id : undefined, revisions: prior ? [...prior.data.revisions, { version: prior.version, title: prior.data.title, body: prior.data.description, at: isoNow() }] : [] }
+    const courseInput = { collection: COURSE, recordId: id, ownerUserId: state === 'published' ? null : (prior?.ownerUserId ?? actor.id), data: data as unknown as Record<string, unknown>, ...(prior ? { expectedVersion: prior.version } : { createOnly: true }) }
+    if (state !== 'published') {
+      const saved = await repo.putDomainRecord(scoped, courseInput)
+      return { ...saved.data, version: saved.version }
+    }
+    const policyId = `${actor.organizationId}:${id}`, priorPolicy = await repo.getDomainRecord<Record<string, unknown>>(scoped, POLICY, policyId)
+    const policy = priorPolicy ?? { data: { id: policyId, organizationId: actor.organizationId, courseId: id, ownerId: actor.id, roles: [], publicPreview: false, updatedAt: isoNow() } }
+    const saved = await repo.putDomainRecordsAtomic(scoped, [
+      courseInput,
+      { collection: POLICY, recordId: policyId, ownerUserId: null, data: policy.data, ...(priorPolicy ? { expectedVersion: priorPolicy.version } : { createOnly: true }) },
+    ])
+    return { ...saved[0].data, version: saved[0].version }
   }
   if (action === 'lesson') {
     const id = clean(raw.id, 160) || randomUUID(), courseId = clean(raw.courseId, 160), prior = await repo.getDomainRecord<DurableLesson>(scoped, LESSON, id)
     if (raw.id && !prior) throw new AccessError('Lesson not found', 404)
+    if (prior && prior.ownerUserId === null && !academyPublisher(actor)) throw new AccessError('Only brokerage leadership may change published shared lessons', 403)
     if (prior && Number(raw.version) !== prior.version) throw new AccessError('Lesson changed; reload before saving', 409)
     const course = await repo.getDomainRecord<DurableCourse>(scoped, COURSE, courseId)
     if (!course || course.data.ownerId !== actor.id && !['broker_owner', 'managing_broker'].includes(actor.role)) throw new AccessError('Choose a course you can manage', 403)
     const title = clean(raw.title, 180), description = clean(raw.description, 10000), order = Number(raw.order || 1), status = clean(raw.status, 20) || 'draft'
     if (!title || !description || !Number.isInteger(order) || order < 1 || order > 1000 || !['draft', 'review', 'published', 'archived'].includes(status)) throw new AccessError('Lesson title, text, order, and status are required', 400)
-    if (status === 'published' && (!prior || prior.data.status !== 'review' || prior.data.ownerId === actor.id)) throw new AccessError('A different trainer or leader must review this lesson before publication', 403)
+    if (status === 'published' && (!academyPublisher(actor) || !prior || prior.data.status !== 'review' || (prior.data.submittedBy ?? prior.data.ownerId) === actor.id)) throw new AccessError('A different brokerage leader must review this lesson before publication', 403)
     const resources = Array.isArray(raw.resources) ? await Promise.all(raw.resources.slice(0, 30).map(async value => {
       if (typeof value !== 'object' || value === null) throw new AccessError('Invalid lesson resource', 400)
       const resource = value as Record<string, unknown>, assetId = clean(resource.id, 160), stored = await repo.getDomainRecord<DurableAsset>(scoped, RESOURCE, assetId)
       if (!stored || stored.data.organizationId !== actor.organizationId) throw new AccessError('Resource unavailable', 403)
       return { id: assetId, name: stored.data.filename, contentType: stored.data.contentType, size: stored.data.size }
     })) : prior?.data.resources ?? []
-    const data: DurableLesson = { id, organizationId: actor.organizationId, ownerId: prior?.data.ownerId ?? actor.id, courseId, title, description, order, status: status as DurableLesson['status'], resources, version: (prior?.version ?? 0) + 1, createdAt: prior?.data.createdAt ?? isoNow(), updatedAt: isoNow() }
-    const saved = await repo.putDomainRecord(scoped, { collection: LESSON, recordId: id, ownerUserId: prior?.ownerUserId ?? actor.id, data: data as unknown as Record<string, unknown>, ...(prior ? { expectedVersion: prior.version } : { createOnly: true }) })
+    if (status === 'published' && prior && (courseId !== prior.data.courseId || title !== prior.data.title || description !== prior.data.description || order !== prior.data.order || JSON.stringify(resources) !== JSON.stringify(prior.data.resources))) throw new AccessError('Reviewed lesson content changed. Save a new review version before publication.', 409)
+    const data: DurableLesson = { id, organizationId: actor.organizationId, ownerId: prior?.data.ownerId ?? actor.id, courseId, title, description, order, status: status as DurableLesson['status'], resources, version: (prior?.version ?? 0) + 1, createdAt: prior?.data.createdAt ?? isoNow(), updatedAt: isoNow(), submittedBy: status === 'review' ? actor.id : (status === 'published' ? prior?.data.submittedBy : undefined), reviewedBy: status === 'published' ? actor.id : undefined }
+    const saved = await repo.putDomainRecord(scoped, { collection: LESSON, recordId: id, ownerUserId: status === 'published' ? null : (prior?.ownerUserId ?? actor.id), data: data as unknown as Record<string, unknown>, ...(prior ? { expectedVersion: prior.version } : { createOnly: true }) })
     return { ...saved.data, version: saved.version }
   }
   throw new AccessError('Choose a supported Training management action', 400)
@@ -289,6 +378,8 @@ export async function communityActionDurable(actor: PlatformActor, raw: Record<s
   if (action === 'create') {
     const title = clean(raw.title, 180), body = clean(raw.body, 10000), category = clean(raw.category, 80) || 'General Discussion'
     if (!title || !body) throw new AccessError('Add a title and message', 400)
+    const draft = raw.draft === true
+    if (!draft && !academyPublisher(actor)) throw new AccessError('Community posts require brokerage approval before they are visible to everyone', 403)
     const attachmentIds = Array.isArray(raw.attachments) ? raw.attachments.map(value => clean(value, 160)).filter(Boolean).slice(0, 8) : []
     const attachments = [] as { id: string; name: string }[]
     for (const attachmentId of attachmentIds) {
@@ -296,12 +387,19 @@ export async function communityActionDurable(actor: PlatformActor, raw: Record<s
       if (!row || row.data.ownerId !== actor.id || row.data.organizationId !== actor.organizationId) throw new AccessError('Attachment unavailable', 403)
       attachments.push({ id: attachmentId, name: row.data.filename })
     }
-    const id = randomUUID(), data: DurablePost = { id, organizationId: actor.organizationId, ownerId: actor.id, author: actor.name, category, title, body, lessonId: clean(raw.lessonId, 160), draft: raw.draft === true, createdAt: isoNow(), attachments }
-    await repo.putDomainRecord(scoped, { collection: POST, recordId: id, ownerUserId: actor.id, data: data as unknown as Record<string, unknown>, createOnly: true })
+    const id = randomUUID(), data: DurablePost = { id, organizationId: actor.organizationId, ownerId: actor.id, author: actor.name, category, title, body, lessonId: clean(raw.lessonId, 160), draft, createdAt: isoNow(), attachments }
+    await repo.putDomainRecord(scoped, { collection: POST, recordId: id, ownerUserId: draft ? actor.id : null, data: data as unknown as Record<string, unknown>, createOnly: true })
     return data
   }
   const id = clean(raw.id, 160), postRow = await repo.getDomainRecord<DurablePost>(scoped, POST, id)
-  if (!postRow || postRow.data.organizationId !== actor.organizationId || postRow.data.draft && postRow.data.ownerId !== actor.id && !communityManager(actor)) throw new AccessError('Post unavailable', 404)
+  if (!postRow || postRow.data.organizationId !== actor.organizationId || postRow.data.deleted === true || postRow.data.draft && postRow.data.ownerId !== actor.id && !communityManager(actor)) throw new AccessError('Post unavailable', 404)
+  if (action === 'publish') {
+    if (!academyPublisher(actor)) throw new AccessError('Only brokerage leadership can publish Community posts', 403)
+    if (!postRow.data.draft) return { id, alreadyPublished: true }
+    const published = { ...postRow.data, draft: false, publishedAt: isoNow(), publishedBy: actor.id }
+    await repo.putDomainRecord(scoped, { collection: POST, recordId: id, ownerUserId: null, data: published as unknown as Record<string, unknown>, expectedVersion: postRow.version })
+    return published
+  }
   if (action === 'comment') {
     const body = clean(raw.body, 5000)
     if (!body) throw new AccessError('Write a comment', 400)
@@ -318,12 +416,15 @@ export async function communityActionDurable(actor: PlatformActor, raw: Record<s
   if (action === 'edit' && postRow.data.ownerId === actor.id) {
     const title = clean(raw.title, 180), body = clean(raw.body, 10000)
     if (!title || !body) throw new AccessError('Write a title and message', 400)
-    const updated = { ...postRow.data, title, body, draft: raw.draft === true }
-    await repo.putDomainRecord(scoped, { collection: POST, recordId: id, ownerUserId: actor.id, data: updated as unknown as Record<string, unknown>, expectedVersion: postRow.version })
+    const draft = raw.draft === true
+    if (postRow.data.draft && !draft && !academyPublisher(actor)) throw new AccessError('Brokerage approval is required before this post can be shared', 403)
+    const updated = { ...postRow.data, title, body, draft, ...(postRow.data.draft && !draft ? { publishedAt: isoNow(), publishedBy: actor.id } : {}) }
+    await repo.putDomainRecord(scoped, { collection: POST, recordId: id, ownerUserId: draft ? actor.id : null, data: updated as unknown as Record<string, unknown>, expectedVersion: postRow.version })
     return updated
   }
   if (action === 'pin' || action === 'delete') {
-    if (!communityManager(actor) && postRow.data.ownerId !== actor.id) throw new AccessError('Moderator permission required', 403)
+    if (action === 'pin' && !communityManager(actor)) throw new AccessError('Moderator permission required', 403)
+    if (action === 'delete' && !communityManager(actor) && postRow.data.ownerId !== actor.id) throw new AccessError('Moderator permission required', 403)
     if (action === 'delete' && postRow.data.ownerId === actor.id) {
       await repo.putDomainRecord(scoped, { collection: POST, recordId: id, ownerUserId: actor.id, data: { ...postRow.data, draft: true, deleted: true, updatedAt: isoNow() } as unknown as Record<string, unknown>, expectedVersion: postRow.version })
       return { id }
@@ -400,7 +501,8 @@ export async function publishYoutubeDraft(actor: PlatformActor, postId: string, 
   if (!communityManager(actor)) throw new AccessError('Community management permission required', 403)
   const repo = await repoOf(repository), scoped = ctx(actor), row = await repo.getDomainRecord<DurablePost>(scoped, POST, postId)
   if (!row || !row.data.video) throw new AccessError('Video draft unavailable', 404)
+  if (!academyPublisher(actor)) throw new AccessError('Only brokerage leadership can publish shared Community posts', 403)
   const updated = { ...row.data, draft: false, publishedAt: isoNow(), publishedBy: actor.id }
-  await repo.putDomainRecord(scoped, { collection: POST, recordId: postId, ownerUserId: row.ownerUserId ?? actor.id, data: updated as unknown as Record<string, unknown>, expectedVersion: row.version })
+  await repo.putDomainRecord(scoped, { collection: POST, recordId: postId, ownerUserId: null, data: updated as unknown as Record<string, unknown>, expectedVersion: row.version })
   return updated
 }

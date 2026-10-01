@@ -5,6 +5,7 @@ import type { Actor, Repository } from '@/lib/db/repository'
 import { configuredMailTransport, type MailTransport } from '@/lib/auth/mail'
 import { durableNotifications } from './notifications-durable'
 import { enqueueScheduledOperationalNotices } from './notification-producers'
+import { recordOperationalFailure } from '@/lib/operations/operational-errors'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAX_BATCH = 50
@@ -56,8 +57,11 @@ export async function handleDurableNotificationJob(request: Request, deps: Depen
   if (!organizationId || !UUID.test(organizationId) || !workerUserId || !UUID.test(workerUserId)) {
     return json({ state: 'waiting_for_worker_configuration' }, 503)
   }
+  let reportingRepository: Repository | null = null
+  let reportingActor: Actor | null = null
   try {
     const repository = await (deps.getRepository ?? getRepository)()
+    reportingRepository = repository
     // Broker scope is required to consume brokerage outbox rows. The ID comes
     // only from server configuration; validate its persisted, active identity
     // before using that scope, then retain the actual persisted admin role.
@@ -67,6 +71,7 @@ export async function handleDurableNotificationJob(request: Request, deps: Depen
       return json({ state: 'waiting_for_worker_configuration' }, 503)
     }
     const actor: Actor = { ...provisional, role: user.role }
+    reportingActor = actor
     const scheduled = await (deps.produceScheduledNotices ?? enqueueScheduledOperationalNotices)(actor, repository)
     const transport = (deps.getTransport ?? configuredMailTransport)()
     if (!transport) return json({ state: 'waiting_for_mail_configuration', scheduled }, 503)
@@ -74,7 +79,12 @@ export async function handleDurableNotificationJob(request: Request, deps: Depen
       durableNotifications(repository).processEmailBatch(scope, mail, { limit: batchLimit }))
     const result = await processBatch(actor, transport, limit)
     return json({ state: 'processed', scheduled, ...result })
-  } catch {
+  } catch (error) {
+    if (reportingRepository && reportingActor) {
+      await recordOperationalFailure(reportingRepository, reportingActor, {
+        category: 'notification_failure', route: '/api/internal/jobs/notifications', method: 'JOB', status: 503,
+      }, error)
+    }
     return json({ error: 'Notification queue processing failed.' }, 503)
   }
 }

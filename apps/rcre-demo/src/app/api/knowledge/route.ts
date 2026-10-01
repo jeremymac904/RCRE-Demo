@@ -5,6 +5,7 @@ import { getRepository } from '@/lib/db'
 import { DomainRecordConflictError } from '@/lib/db/repository'
 import { domainKnowledgeRepository, createKnowledgeDocument, updateKnowledgeDocument, archiveKnowledgeDocument, listKnowledgeDocuments, searchKnowledge, getKnowledgeDocument } from '@/lib/services/ai-knowledge'
 import { trustedKnowledgeActor } from '@/lib/platform/knowledge-access'
+import { assertSameOriginMutation } from '@/lib/auth/request-origin'
 
 export const dynamic = 'force-dynamic'
 const audienceRoles = z.array(z.enum(['owner', 'broker', 'team_lead', 'agent', 'staff', 'recruiter', 'viewer'])).min(1).max(7)
@@ -46,8 +47,7 @@ export async function POST(request: Request) {
   try {
     const platformActor = await requireActor()
     if (!canManage(platformActor)) throw new AccessError('Brokerage administrator access required')
-    const origin = request.headers.get('origin')
-    if (origin && new URL(origin).host !== new URL(request.url).host) throw new AccessError('Cross-origin update denied')
+    assertSameOriginMutation(request)
     const body = documentSchema.parse(await request.json())
     const saved = await createKnowledgeDocument(await repo(), trustedKnowledgeActor(platformActor), { ...body, id: body.id.trim() })
     return NextResponse.json({ document: saved }, { status: 201, headers: { 'Cache-Control': 'private, no-store' } })
@@ -58,8 +58,7 @@ export async function PATCH(request: Request) {
   try {
     const platformActor = await requireActor()
     if (!canManage(platformActor)) throw new AccessError('Brokerage administrator access required')
-    const origin = request.headers.get('origin')
-    if (origin && new URL(origin).host !== new URL(request.url).host) throw new AccessError('Cross-origin update denied')
+    assertSameOriginMutation(request)
     const body = z.object({ id: z.string().min(1).max(180), expectedVersion: z.number().int().positive(), patch: documentSchema.partial() }).parse(await request.json())
     const { id, expectedVersion, patch } = body
     const saved = await updateKnowledgeDocument(await repo(), trustedKnowledgeActor(platformActor), id, patch, expectedVersion)
@@ -71,8 +70,7 @@ export async function DELETE(request: Request) {
   try {
     const platformActor = await requireActor()
     if (!canManage(platformActor)) throw new AccessError('Brokerage administrator access required')
-    const origin = request.headers.get('origin')
-    if (origin && new URL(origin).host !== new URL(request.url).host) throw new AccessError('Cross-origin update denied')
+    assertSameOriginMutation(request)
     const body = z.object({ id: z.string().min(1).max(180), expectedVersion: z.number().int().positive() }).parse(await request.json())
     const document = await archiveKnowledgeDocument(await repo(), trustedKnowledgeActor(platformActor), body.id, body.expectedVersion)
     return NextResponse.json({ document }, { headers: { 'Cache-Control': 'private, no-store' } })

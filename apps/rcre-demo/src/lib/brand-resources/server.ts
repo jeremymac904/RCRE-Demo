@@ -10,11 +10,11 @@ import { publicAgents } from '@/lib/public/content'
 import { canAccessBrandResources, isBrandAdmin, listBrandAgents } from './index'
 import type { BrandAgent, BrandState } from './shared'
 
-function profileBrandAgent(profile: Record<string, unknown>, name: string, email: string): BrandAgent | null {
+function profileBrandAgent(profile: Record<string, unknown>, allowPrivate = false): BrandAgent | null {
   const canonical = typeof profile.verifiedPersonId === 'string'
     ? publicAgents.find(person => person.slug === profile.verifiedPersonId)
     : undefined
-  if (!canonical || profile.publicVisible !== true) return null
+  if (!canonical || (profile.publicVisible !== true && !allowPrivate)) return null
   const markets = Array.isArray(profile.markets) ? profile.markets.filter((value): value is string => typeof value === 'string') : []
   const licenses = Array.isArray(profile.licenses) ? profile.licenses.flatMap(value => {
     if (!value || typeof value !== 'object') return []
@@ -27,10 +27,10 @@ function profileBrandAgent(profile: Record<string, unknown>, name: string, email
   return {
     slug,
     canonicalSlug: canonical.slug,
-    name,
+    name: canonical.name,
     title: typeof profile.professionalTitle === 'string' && profile.professionalTitle.trim() ? profile.professionalTitle.trim() : canonical.role,
-    phone: typeof profile.phone === 'string' ? profile.phone : '',
-    email,
+    phone: typeof profile.phone === 'string' && profile.phone.trim() ? profile.phone.trim() : canonical.phone,
+    email: typeof profile.email === 'string' && profile.email.trim() ? profile.email.trim() : canonical.email,
     license: licenses.length === 1 ? licenses[0].number : '',
     licenses,
     market: markets.length === 1 ? markets[0] : markets.join(', '),
@@ -50,7 +50,7 @@ async function listDurableBrandAgents(actor: NonNullable<Awaited<ReturnType<type
   const context = repositoryActor(actor)
   const rows = await Promise.all(members.filter(member => member.active && ['agent','team_leader','managing_broker','broker_owner'].includes(member.platformRole)).map(async member => {
     const profile = await repository.getDomainRecord<Record<string, unknown>>(context, 'member_profiles', member.userId)
-    return profile ? profileBrandAgent(profile.data, member.name, member.email) : null
+    return profile ? profileBrandAgent(profile.data, member.userId === actor.id) : null
   }))
   return rows.filter((row): row is BrandAgent => row !== null)
 }

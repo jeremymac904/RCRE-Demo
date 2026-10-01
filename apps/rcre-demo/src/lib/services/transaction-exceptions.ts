@@ -2,6 +2,11 @@ import type { PlatformActor } from '@/lib/platform/auth'
 import { getRecord, putRecord, readRecords } from '@/lib/platform/store'
 import { calculateDeadline } from './deadlines'
 import { listTransactions, type TransactionRecord } from './transactions'
+import 'server-only'
+import { getRepository } from '@/lib/db'
+import type { Repository } from '@/lib/db/repository'
+import { durableTransactionActor, durableTransactions, type DurableTransactionService } from './transactions-durable'
+import { transactionRepositoryActor } from './transaction-files'
 
 export type ExceptionType = 'overdue_approval' | 'compliance_flag' | 'deadline_breach' | 'disputed_item' | 'stalled_negotiation' | 'missing_document'
 export interface TransactionException {
@@ -21,7 +26,7 @@ export interface TransactionException {
   resolvedBy?: string
   resolution?: string
 }
-interface ResolutionRecord {
+interface ResolutionRecord extends Record<string, unknown> {
   id: string
   organizationId: string
   transactionId: string
@@ -144,4 +149,90 @@ export function resolveTransactionException(a: PlatformActor, exceptionId: strin
     },
   }
   return putRecord('transaction_exception_resolutions', record)
+}
+
+
+/** Production exception work queue. Resolution snapshots are transaction children
+ * in PostgreSQL, so authorization, tenant scope, audit, and retention use the
+ * same durable boundary as the transaction itself. */
+export interface DurableTransactionExceptionDependencies {
+  repository?: Repository
+  transactions?: DurableTransactionService
+}
+
+export class DurableTransactionExceptionService {
+  constructor(private readonly dependencies: DurableTransactionExceptionDependencies = {}) {}
+
+  private async services() {
+    const repository = this.dependencies.repository ?? await getRepository()
+    const transactions = this.dependencies.transactions ?? durableTransactions({ repository })
+    return { repository, transactions }
+  }
+
+  async list(actor: PlatformActor, now = new Date()) {
+    ensureBroker(actor)
+    const { repository, transactions } = await this.services()
+    const txActor = durableTransactionActor(actor)
+    const rows = await transactions.list(txActor)
+    const visible = rows.filter(transaction => transaction.organizationId === actor.organizationId)
+    const byId = new Map<string, ResolutionRecord>()
+    const scoped = transactionRepositoryActor(txActor)
+    for (let offset = 0; ; offset += 200) {
+      const page = await repository.listDomainRecords<ResolutionRecord>(scoped, 'transaction_exception_resolutions', { limit: 200, offset })
+      for (const row of page) {
+        const resolution = row.data
+        if (resolution.organizationId === actor.organizationId && visible.some(transaction => transaction.id === resolution.transactionId)) byId.set(row.recordId, resolution)
+      }
+      if (page.length < 200) break
+    }
+    const results = visible.flatMap(transaction => unresolvedFor(transaction as unknown as TransactionRecord, now)).map(exception => {
+      const resolution = byId.get(exception.id)
+      return resolution
+        ? { ...exception, resolved: true, resolvedAt: resolution.resolvedAt, resolvedBy: resolution.actorName, resolution: resolution.resolution }
+        : { ...exception, resolved: false }
+    })
+    const present = new Set(results.map(exception => exception.id))
+    for (const resolution of byId.values()) {
+      if (!present.has(resolution.id)) results.push({ ...resolution.snapshot, resolved: true, resolvedAt: resolution.resolvedAt, resolvedBy: resolution.actorName, resolution: resolution.resolution })
+    }
+    return results
+  }
+
+  async resolve(actor: PlatformActor, exceptionId: string, note: string) {
+    ensureBroker(actor)
+    const resolution = note.trim()
+    if (!resolution || resolution.length > 2000) throw new Error('A resolution note of 1–2000 characters is required')
+    const current = (await this.list(actor)).find(item => item.id === exceptionId)
+    if (!current) throw new Error('Open transaction exception not found in your authorized scope')
+    if (current.resolved) throw new Error('Transaction exception was already resolved')
+    const { repository, transactions } = await this.services()
+    const txActor = durableTransactionActor(actor)
+    const scoped = transactionRepositoryActor(txActor)
+    const transaction = await transactions.get(txActor, current.transactionId)
+    const record: ResolutionRecord = {
+      id: current.id, organizationId: current.organizationId, transactionId: current.transactionId,
+      actorId: actor.userId, actorName: actor.name, resolution, resolvedAt: new Date().toISOString(),
+      snapshot: {
+        id: current.id, organizationId: current.organizationId, transactionId: current.transactionId,
+        type: current.type, description: current.description, severity: current.severity,
+        createdAt: current.createdAt, ageDays: current.ageDays, transaction: current.transaction,
+        assignedTc: current.assignedTc, assignedAgent: current.assignedAgent,
+      },
+    }
+    const auditEvent = {
+      organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'user' as const,
+      action: 'transaction.exception-resolved', targetType: 'transaction_exception', targetId: exceptionId,
+      effect: 'write' as const, allowed: true,
+    }
+    await repository.putTransactionDomainRecord(scoped, {
+      collection: 'transaction_exception_resolutions', recordId: exceptionId, ownerUserId: transaction.ownerId,
+      data: { ...record, ownerId: transaction.ownerId, tcId: transaction.tcId, teamId: transaction.teamId },
+      createOnly: true,
+    }, [auditEvent])
+    return record
+  }
+}
+
+export function durableTransactionExceptions(dependencies?: DurableTransactionExceptionDependencies) {
+  return new DurableTransactionExceptionService(dependencies)
 }

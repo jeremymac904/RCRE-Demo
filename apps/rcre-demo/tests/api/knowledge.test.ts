@@ -74,6 +74,14 @@ describe('authenticated knowledge management API', () => {
     expect(await repository.getDomainRecord({ userId: 'taquilla', organizationId: 'rcre-test', role: 'broker' }, 'rcre_ai_knowledge', input.id)).not.toBeNull()
   })
 
+  it('rejects cookie-authenticated mutations when same-origin evidence is missing', async () => {
+    const mutation = (method: string, body: unknown) => new Request('http://localhost/api/knowledge', { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    expect((await POST(mutation('POST', input))).status).toBe(403)
+    expect((await PATCH(mutation('PATCH', { id: input.id, expectedVersion: 1, patch: { content: 'Not written.' } }))).status).toBe(403)
+    expect((await DELETE(mutation('DELETE', { id: input.id, expectedVersion: 1 }))).status).toBe(403)
+    expect(await repository.listDomainRecords({ userId: 'taquilla', organizationId: 'rcre-test', role: 'broker' }, 'rcre_ai_knowledge')).toHaveLength(0)
+  })
+
   it('rejects cross-origin changes and requires authentication before listing', async () => {
     const crossOrigin = new Request('http://localhost/api/knowledge', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://other.example' }, body: JSON.stringify(input) })
     expect((await POST(crossOrigin)).status).toBe(403)

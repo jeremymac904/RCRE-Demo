@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { exchangeGoogleCode, googleConfig, OidcError } from '@/lib/auth/google-oidc'
 import { getAuthPersistence, hashSecret } from '@/lib/auth/persistence'
 import { issueDurableSession, SESSION_COOKIE, sessionCookieOptions } from '@/lib/platform/auth'
+import { enqueueMemberNotice, memberNotificationIdentity } from '@/lib/services/notification-producers'
 
 export const dynamic = 'force-dynamic'
 const cookiePath = '/api/auth/google'
@@ -36,7 +37,9 @@ export async function GET(request: NextRequest) {
   try {
     const identity = await exchangeGoogleCode({ config, code, verifier, expectedNonce: nonce })
     const inviteToken = request.cookies.get('rcre_invitation_token')?.value
-    const actor = await (await getAuthPersistence()).linkGoogle({
+    const auth = await getAuthPersistence()
+    const invitation = inviteToken ? await auth.invitationStatus(hashSecret(inviteToken)) : null
+    const actor = await auth.linkGoogle({
       email: identity.email,
       subject: identity.subject,
       name: identity.name,
@@ -48,6 +51,18 @@ export async function GET(request: NextRequest) {
       ip: request.headers.get('x-nf-client-connection-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
     }
     const session = await issueDurableSession(actor.userId, metadata)
+    if (invitation?.valid && invitation.email === identity.email) {
+      // The durable identity link and session are authoritative. A notification
+      // outbox outage must not strand a valid invitee after session issuance.
+      try {
+        await enqueueMemberNotice(memberNotificationIdentity({ id: actor.userId, organizationId: actor.organizationId, role: actor.role, officeId: actor.officeId }), {
+          idempotencyKey: `invitation-accepted:${actor.userId}`,
+          eventType: 'invitation', title: 'Welcome to RCRE',
+          body: 'Your RCRE account is active. Continue setting up your profile and workspace.',
+          href: '/onboarding', source: 'Invitations',
+        })
+      } catch { console.warn(JSON.stringify({ level: 'warn', event: 'rcre.auth.welcome_notice_enqueue_failed' })) }
+    }
     const destination = actor.role === 'transaction_coordinator' ? '/transactions'
       : actor.role === 'trainer' ? '/training'
       : actor.role === 'marketing_admin' ? '/marketing'

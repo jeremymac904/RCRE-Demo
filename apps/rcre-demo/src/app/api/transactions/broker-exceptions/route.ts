@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server'
 import { requireActor } from '@/lib/platform/auth'
-import { listTransactionExceptions } from '@/lib/services/transaction-exceptions'
+import { listTransactionExceptions, durableTransactionExceptions } from '@/lib/services/transaction-exceptions'
+import { dataMode } from '@/lib/config/env'
 
 export type { ExceptionType as ExceptionType, TransactionException as TransactionException } from '@/lib/services/transaction-exceptions'
 
 export async function GET() {
   try {
     const actor = await requireActor()
-    const items = listTransactionExceptions(actor)
+    const items = dataMode() === 'live'
+      ? await durableTransactionExceptions().list(actor)
+      : listTransactionExceptions(actor)
     return NextResponse.json({
       exceptions: items.filter((item) => !item.resolved),
       resolved: items.filter((item) => item.resolved),

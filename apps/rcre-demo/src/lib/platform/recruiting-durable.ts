@@ -8,6 +8,7 @@ import { AccessError, assertCapability } from './auth'
 import type { AuditEvent } from '@/lib/domain-types'
 import type { Repository, Actor as RepositoryActor } from '@/lib/db/repository'
 import { createInvitation, listInvitations } from '@/lib/auth/invitations'
+import { getAuthPersistence } from '@/lib/auth/persistence'
 
 const stage = z.enum(['New inquiry', 'Contacted', 'Meeting scheduled', 'Considering', 'Joined', 'Paused', 'Rejected', 'Do not contact', 'Withdrawn'])
 const draftSchema = z.object({
@@ -17,10 +18,11 @@ const draftSchema = z.object({
   source: z.string().trim().max(200).optional(),
   notes: z.string().trim().max(5000).optional(),
   consent: z.boolean().default(false),
+  officeId: z.string().trim().min(1).max(120).optional(),
 }).strict()
 
-type Prospect = z.infer<typeof draftSchema> & { id: string; organizationId: string; ownerId: string; officeId: string; version: number; createdAt: string; updatedAt: string; invitationId?: string }
-const repositoryActor = (actor: PlatformActor): RepositoryActor => ({ userId: actor.id, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role) })
+type Prospect = Omit<z.infer<typeof draftSchema>, 'officeId'> & { id: string; organizationId: string; ownerId: string; officeId: string; teamId: string; market: string; version: number; createdAt: string; updatedAt: string; invitationId?: string }
+const repositoryActor = (actor: PlatformActor): RepositoryActor => ({ userId: actor.id, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role), officeId: actor.officeId })
 const auditEvent = (actor: RepositoryActor, action: string, id: string): AuditEvent => ({
   organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'user', action,
   targetType: 'recruiting_prospect', targetId: id, effect: 'write', allowed: true,
@@ -42,16 +44,20 @@ export async function saveRecruitingDurable(actor: PlatformActor, raw: unknown, 
   assertCapability(actor, 'recruiting')
   const repo = repository ?? await getRepository()
   const fields = typeof raw === 'object' && raw !== null ? raw as Record<string, unknown> : {}
-  const input = draftSchema.parse(Object.fromEntries(['name', 'stage', 'nextAction', 'source', 'notes', 'consent'].filter(key => key in fields).map(key => [key, fields[key]])))
+  const input = draftSchema.parse(Object.fromEntries(['name', 'stage', 'nextAction', 'source', 'notes', 'consent', 'officeId'].filter(key => key in fields).map(key => [key, fields[key]])))
   const now = new Date().toISOString()
   const id = typeof raw === 'object' && raw !== null && 'id' in raw && typeof raw.id === 'string' ? raw.id : randomUUID()
   const prior = await repo.getDomainRecord<Prospect>(repositoryActor(actor), 'recruiting_prospects', id)
   if (prior && !visibleTo(actor, prior.data)) throw new AccessError('Prospect not found', 404)
+  if (prior && input.officeId && input.officeId !== prior.data.officeId) throw new AccessError('A recruiting prospect office cannot be changed after creation', 409)
   const expected = typeof raw === 'object' && raw !== null && 'version' in raw ? Number(raw.version) : undefined
   if (prior && expected !== prior.version) throw new AccessError('Prospect changed; refresh before saving', 409)
+  const assignedScope = prior
+    ? { officeId: prior.data.officeId, teamId: prior.data.teamId || actor.teamId, market: prior.data.market || actor.market }
+    : await resolveRecruitingScope(actor, input.officeId)
   const data: Prospect = {
     ...input, id, organizationId: actor.organizationId, ownerId: prior?.data.ownerId ?? actor.id,
-    officeId: prior?.data.officeId ?? actor.officeId, version: (prior?.version ?? 0) + 1,
+    ...assignedScope, version: (prior?.version ?? 0) + 1,
     createdAt: prior?.data.createdAt ?? now, updatedAt: now,
     ...(prior?.data.invitationId ? { invitationId: prior.data.invitationId } : {}),
   }
@@ -61,6 +67,37 @@ export async function saveRecruitingDurable(actor: PlatformActor, raw: unknown, 
     data: data as unknown as Record<string, unknown>, ...(prior ? { expectedVersion: prior.version } : { createOnly: true }),
   }], [auditEvent(scoped, prior ? 'recruiting.prospect_updated' : 'recruiting.prospect_created', id)])
   return { ...data, version: saved.version }
+}
+
+/** A broker owner must select an active office; scoped leaders use their verified assignment. */
+async function resolveRecruitingScope(actor: PlatformActor, requestedOfficeId?: string) {
+  if (actor.role !== 'broker_owner') {
+    if (requestedOfficeId && requestedOfficeId !== actor.officeId) throw new AccessError('Prospect office is outside your authorized scope', 403)
+    if (!actor.officeId || actor.officeId === 'all') throw new AccessError('Choose a brokerage office before creating this recruiting prospect', 400)
+    return { officeId: actor.officeId, teamId: actor.teamId, market: actor.market }
+  }
+
+  const memberships = await (await getAuthPersistence()).listMembers(actor)
+  return resolveRecruitingScopeFromMembers(memberships, requestedOfficeId)
+}
+
+/** Resolve a broker-owner prospect target only from active member assignments. */
+export function resolveRecruitingScopeFromMembers(
+  members: Array<{ active: boolean; officeId: string; teamId: string; market: string; platformRole: string }>,
+  requestedOfficeId?: string,
+) {
+  const activeMembers = members.filter(member => member.active && member.officeId && member.officeId !== 'all')
+  const offices = [...new Set(activeMembers.map(member => member.officeId))]
+  const officeId = requestedOfficeId ?? (offices.length === 1 ? offices[0] : undefined)
+  if (!officeId || officeId === 'all') throw new AccessError('Select the office where this prospective agent would be based', 400)
+  const officeMembers = activeMembers.filter(member => member.officeId === officeId)
+  if (!officeMembers.length) throw new AccessError('Choose an active RCRE office', 400)
+  const canonicalScope = officeMembers.find(member => member.platformRole === 'agent' || member.platformRole === 'team_leader') ?? officeMembers[0]
+  if (!canonicalScope.teamId || !canonicalScope.market) throw new AccessError('The selected office needs a configured team and market before recruiting invitations can be created', 409)
+  if (officeMembers.some(member => member.teamId !== canonicalScope.teamId || member.market !== canonicalScope.market)) {
+    throw new AccessError('Office members have inconsistent team or market assignments; resolve that in Admin before recruiting here', 409)
+  }
+  return { officeId, teamId: canonicalScope.teamId, market: canonicalScope.market }
 }
 
 export async function recruitingProspectDurable(actor: PlatformActor, id: string, repository?: Repository): Promise<Prospect & { events: Record<string, unknown>[] }> {
@@ -74,7 +111,12 @@ export async function recruitingProspectDurable(actor: PlatformActor, id: string
   return { ...row.data, version: row.version, events }
 }
 
-export async function appendRecruitingEventDurable(actor: PlatformActor, prospectId: string, raw: unknown, repository?: Repository) {
+type RecruitingInvitationOps = {
+  list(actor: PlatformActor): Promise<Array<{ id: string; email: string; status: string }>>
+  create(actor: PlatformActor, input: { email: string; name: string; role: 'agent'; officeId: string; teamId: string; market: string }): Promise<{ id: string }>
+}
+
+export async function appendRecruitingEventDurable(actor: PlatformActor, prospectId: string, raw: unknown, repository?: Repository, invitationOps: RecruitingInvitationOps = { list: listInvitations, create: createInvitation }) {
   assertCapability(actor, 'recruiting')
   const repo = repository ?? await getRepository()
   const prospect = await recruitingProspectDurable(actor, prospectId, repo)
@@ -90,9 +132,9 @@ export async function appendRecruitingEventDurable(actor: PlatformActor, prospec
     if (prospect.stage !== 'Joined') throw new AccessError('Move the prospect to Joined before creating an invitation', 409)
     if (prospect.invitationId) throw new AccessError('An invitation is already linked to this prospect', 409)
     const email = z.string().email().max(250).transform(value => value.trim().toLowerCase()).parse(input.email)
-    const invitations = await listInvitations(actor)
+    const invitations = await invitationOps.list(actor)
     const existing = invitations.find(invite => invite.email.toLowerCase() === email && ['pending', 'queued', 'sent'].includes(invite.status))
-    const invitation = existing ?? await createInvitation(actor, { email, name: prospect.name, role: 'agent', officeId: prospect.officeId, teamId: prospect.officeId, market: prospect.officeId })
+    const invitation = existing ?? await invitationOps.create(actor, { email, name: prospect.name, role: 'agent', officeId: prospect.officeId, teamId: prospect.teamId, market: prospect.market })
     const next = { ...prospect, invitationId: invitation.id, invitationEmail: email, updatedAt: now, version: prospect.version + 1 }
     await repo.putDomainRecordsAtomic(scoped, [
       { collection: 'recruiting_prospects', recordId: prospectId, ownerUserId: prospect.ownerId, data: next as unknown as Record<string, unknown>, expectedVersion: prospect.version },

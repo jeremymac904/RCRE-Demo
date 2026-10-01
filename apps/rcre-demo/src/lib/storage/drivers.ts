@@ -129,17 +129,23 @@ export class SupabaseObjectDriver implements ObjectDriver {
     })
     if (!response.ok) throw new StorageUnavailableError(`Supabase Storage upload failed (${response.status})`)
     const metaPath = encodeURIComponent(metadataPath(asset)).replace(/%2F/g, '/')
-    const manifest = await fetch(this.endpoint(`object/${encodeURIComponent(this.bucket)}/${metaPath}`), {
-      method: 'POST', headers: this.headers({ 'content-type': 'application/json', 'x-upsert': 'false', 'cache-control': 'private, max-age=0' }), body: new Uint8Array(metadataJSON(asset)),
-    })
-    if (!manifest.ok) {
-      await this.deleteObject(pathName)
-      throw new StorageUnavailableError(`Supabase Storage metadata write failed (${manifest.status})`)
+    try {
+      const manifest = await fetch(this.endpoint(`object/${encodeURIComponent(this.bucket)}/${metaPath}`), {
+        method: 'POST', headers: this.headers({ 'content-type': 'application/json', 'x-upsert': 'false', 'cache-control': 'private, max-age=0' }), body: new Uint8Array(metadataJSON(asset)),
+      })
+      if (!manifest.ok) throw new StorageUnavailableError(`Supabase Storage metadata write failed (${manifest.status})`)
+    } catch (error) {
+      // An object without its verified manifest must never be addressable via
+      // this service. Best-effort rollback prevents private orphaned uploads.
+      await this.deleteObject(pathName).catch(() => undefined)
+      if (error instanceof StorageUnavailableError) throw error
+      throw new StorageUnavailableError('Supabase Storage metadata write could not be completed')
     }
   }
 
   private async deleteObject(pathName: string): Promise<void> {
-    await fetch(this.endpoint(`object/${encodeURIComponent(this.bucket)}/${pathName}`), { method: 'DELETE', headers: this.headers() })
+    const response = await fetch(this.endpoint(`object/${encodeURIComponent(this.bucket)}/${pathName}`), { method: 'DELETE', headers: this.headers() })
+    if (!response.ok && response.status !== 404) throw new StorageUnavailableError(`Supabase Storage object deletion failed (${response.status})`)
   }
 
   async get(asset: StorageAsset): Promise<Buffer> {
@@ -161,6 +167,8 @@ export class SupabaseObjectDriver implements ObjectDriver {
   async delete(asset: StorageAsset): Promise<void> {
     const pathName = encodeURIComponent(objectPath(asset)).replace(/%2F/g, '/')
     const metaPath = encodeURIComponent(metadataPath(asset)).replace(/%2F/g, '/')
+    // Retain the manifest if blob deletion fails so a retry can safely finish
+    // the same deletion. Object deletion is idempotent (404 is success).
     await this.deleteObject(pathName)
     const response = await fetch(this.endpoint(`object/${encodeURIComponent(this.bucket)}/${metaPath}`), { method: 'DELETE', headers: this.headers() })
     if (!response.ok && response.status !== 404) throw new StorageUnavailableError(`Supabase Storage metadata deletion failed (${response.status})`)

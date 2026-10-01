@@ -6,7 +6,7 @@ import { communityActionDurable, listCommunityDurable } from '@/lib/academy-dura
 export async function GET() {
   const actor = await actorOrNull()
   if (!actor) return Response.json({ error: 'Sign in required' }, { status: 401 })
-  try { return Response.json({ posts: await listCommunityDurable(actor), userId: actor.id, moderator: academyManager(actor) }) }
+  try { return Response.json({ posts: await listCommunityDurable(actor), userId: actor.id, moderator: academyManager(actor), publisher: actor.role === 'broker_owner' || actor.role === 'managing_broker' }) }
   catch { return Response.json({ error: 'Community is temporarily unavailable.' }, { status: 503 }) }
 }
 

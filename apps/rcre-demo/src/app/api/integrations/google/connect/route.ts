@@ -6,10 +6,10 @@ import type { WorkspaceService } from '@/lib/google-workspace/types'
 import { WORKSPACE_SERVICES } from '@/lib/google-workspace/types'
 
 export const dynamic = 'force-dynamic'
-const STATE = 'rcre_google_workspace_state', VERIFIER = 'rcre_google_workspace_verifier', SERVICE = 'rcre_google_workspace_service'
+const STATE = 'rcre_google_workspace_state', VERIFIER = 'rcre_google_workspace_verifier', SERVICE = 'rcre_google_workspace_service', ACTOR = 'rcre_google_workspace_actor'
 export async function GET(request: Request) {
   try {
-    await requireActor()
+    const actor = await requireActor()
     const url = new URL(request.url), service = url.searchParams.get('service') as WorkspaceService | null
     if (!service || !WORKSPACE_SERVICES.includes(service)) return NextResponse.json({ error: 'Choose Gmail, Calendar, or Drive.' }, { status: 400 })
     const config = workspaceOAuthConfig()
@@ -18,7 +18,10 @@ export async function GET(request: Request) {
     const provider = new GoogleOAuthHttp(config)
     const jar = await cookies(), secure = process.env.NODE_ENV === 'production'
     const cookieBase = { httpOnly: true, secure, sameSite: 'lax' as const, path: '/api/integrations/google/callback', maxAge: 600 }
-    jar.set(STATE, state, cookieBase); jar.set(VERIFIER, verifier, cookieBase); jar.set(SERVICE, service, cookieBase)
+    // Bind Google consent to the initiating RCRE account. If the browser
+    // switches accounts during consent, the callback cannot attach the grant
+    // to the newly active user.
+    jar.set(STATE, state, cookieBase); jar.set(VERIFIER, verifier, cookieBase); jar.set(SERVICE, service, cookieBase); jar.set(ACTOR, actor.userId, cookieBase)
     return NextResponse.redirect(provider.authorizationUrl(service, state, verifier), 303)
   } catch { return NextResponse.json({ error: 'Sign in to RCRE before connecting Google Workspace.' }, { status: 401 }) }
 }

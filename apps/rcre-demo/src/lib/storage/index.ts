@@ -1,6 +1,7 @@
 import 'server-only'
 import { createHash, randomUUID } from 'node:crypto'
 import { createObjectDriver, type ObjectDriver } from './drivers'
+import { createClamAvScanner } from './clamav'
 import {
   StorageAuthorizationError, StorageError, StorageUnavailableError,
   type MalwareScanner, type StorageAction, type StorageAsset, type StorageAuthorization,
@@ -8,6 +9,7 @@ import {
 } from './types'
 export * from './types'
 export { LocalObjectDriver, SupabaseObjectDriver, verifyLocalSignature, localAssetForSignedId } from './drivers'
+export { ClamAvScanner, createClamAvScanner } from './clamav'
 
 const maxBytes: Record<StorageCategory, number> = {
   'agent-headshot': 8 * 1024 * 1024,
@@ -71,11 +73,17 @@ export class StorageService {
 
   private async authorize(actor: StorageUpload['actor'], action: StorageAction, asset: StorageAsset): Promise<void> {
     if (!actor || typeof actor.id !== 'string' || !actor.id || typeof actor.organizationId !== 'string' || !actor.organizationId || typeof actor.role !== 'string' || !actor.role) throw new StorageAuthorizationError()
+    // Tenant membership is a storage invariant, not merely a policy callback
+    // convention. This prevents an overly broad caller policy from turning a
+    // valid identity into cross-organization file access.
+    if (actor.organizationId !== asset.organizationId) throw new StorageAuthorizationError()
     if (!await this.authorization.authorize(actor, action, asset)) throw new StorageAuthorizationError()
   }
 
   async upload(input: StorageUpload): Promise<StorageAsset> {
-    if (!input.actor.id || !input.actor.organizationId) throw new StorageAuthorizationError()
+    if (!input?.actor || !input.actor.id || !input.actor.organizationId || !input.actor.role) throw new StorageAuthorizationError()
+    if (!input.category || !storageCategories.has(input.category)) throw new StorageError('Unsupported file category')
+    if (input.visibility !== undefined && input.visibility !== 'private' && input.visibility !== 'public') throw new StorageError('Unsupported file visibility')
     if (!Buffer.isBuffer(input.bytes) || input.bytes.length < 1) throw new StorageError('File must not be empty')
     if (input.bytes.length > maxBytes[input.category]) throw new StorageError(`File exceeds the ${Math.floor(maxBytes[input.category] / 1024 / 1024)} MB limit`)
     if (!mimeByCategory[input.category]?.has(input.contentType) || !validMagic(input.contentType, input.bytes)) throw new StorageError('File type or content does not match an allowed format')
@@ -137,5 +145,5 @@ export class StorageService {
 }
 
 export function createStorageService(authorization: StorageAuthorization, scanner?: MalwareScanner, driver?: ObjectDriver): StorageService {
-  return new StorageService(driver ?? createObjectDriver(), authorization, scanner)
+  return new StorageService(driver ?? createObjectDriver(), authorization, scanner ?? createClamAvScanner())
 }

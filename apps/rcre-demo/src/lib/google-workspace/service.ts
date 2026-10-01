@@ -28,7 +28,7 @@ export class RepositoryWorkspaceStore extends RepositoryGoogleGrantStore impleme
 }
 
 function repositoryActor(actor: PlatformActor) {
-  return { userId: actor.userId, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role) }
+  return { userId: actor.userId, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role), officeId: actor.officeId }
 }
 
 function validateEmail(email: string) { const value = email.trim(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || value.length > 320) throw new Error('Enter a valid email address'); return value }

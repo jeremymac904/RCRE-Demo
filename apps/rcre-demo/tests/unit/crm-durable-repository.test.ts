@@ -4,6 +4,7 @@ import type { AuditEvent } from '@/lib/domain-types'
 import type { PlatformActor } from '@/lib/platform/auth'
 import { AccessError } from '@/lib/platform/auth'
 import { createContactDurable, listContactsPage } from '@/lib/platform/service'
+import { discardCrmFubProposalDurable, listCrmFubProposalsDurable } from '@/lib/platform/crm-durable'
 import { persistIntakeDurable, IntakeError } from '@/lib/public/intake'
 import { durableNotifications } from '@/lib/services/notifications-durable'
 
@@ -17,6 +18,7 @@ const seed = () => {
   value.users.push({ id: agentId, organizationId: org, email: 'agent@example.test', fullName: 'Agent', role: 'agent', fubUserId: null, isActive: true })
   value.users.push({ id: brokerId, organizationId: org, email: 'broker@example.test', fullName: 'Broker', role: 'broker', fubUserId: null, isActive: true })
   value.users.push({ id: '20000000-0000-4000-8000-000000000003', organizationId: org, email: 'molly@rcregroup.com', fullName: 'Molly Plude', role: 'agent', fubUserId: null, isActive: true })
+  value.users.push({ id: '20000000-0000-4000-8000-000000000004', organizationId: org, email: 'sarah@rcregroup.com', fullName: 'Sarah Brockner', role: 'agent', fubUserId: null, isActive: true })
   return value
 }
 const contact = (id: string, receivedAt: string, source: string, stage: string) => ({
@@ -27,6 +29,40 @@ const contact = (id: string, receivedAt: string, source: string, stage: string) 
 })
 
 describe('durable CRM repository contract', () => {
+  it('lists and locally discards scoped FUB proposals without writing to Follow Up Boss', async () => {
+    const repository = new MemoryRepository(seed())
+    const proposalId = '30000000-0000-4000-8000-000000000001'
+    const row = {
+      id: proposalId, organizationId: org, ownerId: agentId, officeId: 'fl', contactId: 'contact-1',
+      sourceVersion: 1, patch: { firstName: 'Updated locally' }, state: 'awaiting_connector',
+      sourceSystem: 'rcre', submittedBy: agentId, createdAt: '2026-09-30T12:00:00.000Z',
+    }
+    const repoActor = { userId: agentId, organizationId: org, role: 'agent' as const }
+    await repository.putDomainRecord(repoActor, { collection: 'crm_fub_proposals', recordId: proposalId, ownerUserId: agentId, data: row })
+
+    expect(await listCrmFubProposalsDurable(agent, repository)).toMatchObject([{ id: proposalId, state: 'awaiting_connector' }])
+    expect(await listCrmFubProposalsDurable(agent, repository, 'contact-1')).toHaveLength(1)
+    expect(await listCrmFubProposalsDurable(agent, repository, 'other-contact')).toHaveLength(0)
+
+    const discarded = await discardCrmFubProposalDurable(agent, proposalId, repository)
+    expect(discarded).toMatchObject({ id: proposalId, state: 'discarded' })
+    expect((await repository.getDomainRecord(repoActor, 'crm_fub_proposals', proposalId))?.data.state).toBe('discarded')
+    expect(await repository.listAudit({ userId: brokerId, organizationId: org, role: 'broker' }, 10)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'crm.fub_proposal_discarded', targetId: proposalId }),
+    ]))
+  })
+
+  it('does not expose or discard another agent’s FUB proposal', async () => {
+    const repository = new MemoryRepository(seed())
+    const proposalId = '30000000-0000-4000-8000-000000000002'
+    await repository.putDomainRecord({ userId: agentId, organizationId: org, role: 'agent' }, {
+      collection: 'crm_fub_proposals', recordId: proposalId, ownerUserId: agentId,
+      data: { id: proposalId, organizationId: org, ownerId: agentId, officeId: 'fl', contactId: 'contact-1', state: 'awaiting_connector' },
+    })
+    const otherAgent: PlatformActor = { ...agent, id: '20000000-0000-4000-8000-000000000003', userId: '20000000-0000-4000-8000-000000000003' }
+    expect(await listCrmFubProposalsDurable(otherAgent, repository)).toEqual([])
+    await expect(discardCrmFubProposalDurable(otherAgent, proposalId, repository)).rejects.toMatchObject({ status: 404 })
+  })
   it('filters, sorts, counts, and pages only actor-visible contacts', async () => {
     const repository = new MemoryRepository(seed())
     const repoAgent = { userId: agentId, organizationId: org, role: 'agent' as const }
@@ -109,10 +145,10 @@ describe('durable public inquiry intake', () => {
     const siteOwnerId = '20000000-0000-4000-8000-000000000003'
     await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: siteOwnerId, ownerUserId: siteOwnerId, data: { officeId: 'fl', market: 'Florida', role: 'agent', verifiedPersonId: 'molly-plude', websiteSlug: 'molly-homes', publicVisible: true } })
     await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: siteOwnerId, ownerUserId: siteOwnerId, data: { slug: 'molly-homes', published: true } })
-    const input = { submissionId: 'a0a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'property', name: 'Demo Client', email: 'client@example.test', market: 'Florida', agentSlug: 'molly-homes', consent: true, listingId: 'listing-1', providerId: 'realmls', mlsListingId: '123', landingPage: '/homes/listing-1', utmSource: 'campaign', propertyAddress: '12 Main Street' }
+    const intakeInput = { submissionId: 'a0a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'property', name: 'Demo Client', email: 'client@example.test', market: 'Florida', agentSlug: 'molly-homes', consent: true, listingId: 'listing-1', providerId: 'realmls', mlsListingId: '123', landingPage: '/homes/listing-1', utmSource: 'campaign', propertyAddress: '12 Main Street' }
     const [first, retry] = await Promise.all([
-      persistIntakeDurable(input, repository, actor),
-      persistIntakeDurable(input, repository, actor),
+      persistIntakeDurable(intakeInput, repository, actor),
+      persistIntakeDurable(intakeInput, repository, actor),
     ])
     expect(first).toMatchObject({ status: 'saved', persistence: 'postgres', duplicate: false })
     expect(retry).toMatchObject({ id: first.id, duplicate: true })
@@ -121,8 +157,62 @@ describe('durable public inquiry intake', () => {
     const notice = await durableNotifications(repository).list({ userId: siteOwnerId, organizationId: org, role: 'agent' })
     expect(notice).toHaveLength(1)
     expect(notice[0]).toMatchObject({ eventType: 'website_lead', deliveryState: 'queued', href: `/crm/${first.contactId}` })
-    const altered = { ...input, message: 'different payload' }
+    const altered = { ...intakeInput, message: 'different payload' }
     await expect(persistIntakeDurable(altered, repository, actor)).rejects.toBeInstanceOf(IntakeError)
+  })
+
+  it('keeps campaign attribution on the canonical CRM contact and deduplicates the same email across agent sites', async () => {
+    const repository = new MemoryRepository(seed())
+    const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
+    const mollyId = '20000000-0000-4000-8000-000000000003'
+    const sarahId = '20000000-0000-4000-8000-000000000004'
+    await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: mollyId, ownerUserId: mollyId, data: { officeId: 'fl', market: 'Florida', role: 'agent', verifiedPersonId: 'molly-plude', websiteSlug: 'molly-homes', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: mollyId, ownerUserId: mollyId, data: { slug: 'molly-homes', published: true } })
+    await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: sarahId, ownerUserId: sarahId, data: { officeId: 'fl', market: 'Florida', role: 'agent', verifiedPersonId: 'sarah-brockner', websiteSlug: 'sarah-homes', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: sarahId, ownerUserId: sarahId, data: { slug: 'sarah-homes', published: true } })
+
+    const first = await persistIntakeDurable({ submissionId: 'a0a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'property', name: 'Demo Client', market: 'Florida', agentSlug: 'molly-homes', consent: true, landingPage: '/homes/listing-1', email: ' Shared@Example.test ', utmSource: 'instagram', utmCampaign: 'lake-house' }, repository, actor)
+    const second = await persistIntakeDurable({ kind: 'property', name: 'Demo Client', market: 'Florida', consent: true, landingPage: '/homes/listing-1', submissionId: 'b1c8b2a4-f352-49cf-b4c0-6ea4a71b9a00', email: 'shared@example.test', agentSlug: 'sarah-homes', listingId: undefined, providerId: undefined, mlsListingId: undefined, utmSource: 'google', utmMedium: 'cpc', utmCampaign: 'brand-search' }, repository, actor)
+    const contacts = await repository.listDomainRecords<Record<string, any>>({ userId: brokerId, organizationId: org, role: 'broker' }, 'crm_contacts')
+    expect(contacts).toHaveLength(1)
+    expect(contacts[0]).toMatchObject({ ownerUserId: mollyId, data: {
+      source: 'Agent Website', leadAttribution: {
+        firstTouch: { source: 'Agent Website', utmSource: 'instagram', utmCampaign: 'lake-house' },
+        latestTouch: { source: 'Agent Website', agentWebsiteSlug: 'sarah-homes', utmSource: 'google', utmMedium: 'cpc', utmCampaign: 'brand-search' },
+      },
+    } })
+    expect(contacts[0].data.leadAttribution.touches.map((touch: any) => touch.id)).toEqual([first.id, second.id])
+    expect(await repository.getDomainRecord(actor, 'public_inquiries', second.id)).toMatchObject({ data: { ownerId: mollyId, agentWebsiteSlug: 'sarah-homes', utmCampaign: 'brand-search' } })
+    expect(await repository.listDomainRecords({ userId: mollyId, organizationId: org, role: 'agent' }, 'notification_inbox')).toHaveLength(2)
+    expect(await repository.listDomainRecords({ userId: sarahId, organizationId: org, role: 'agent' }, 'notification_inbox')).toHaveLength(0)
+  })
+
+  it('converges concurrent distinct inquiries for one normalized email onto one CRM contact', async () => {
+    class ConcurrentCreateRepository extends MemoryRepository {
+      private arrivals = 0
+      private release!: () => void
+      private gate = new Promise<void>(resolve => { this.release = resolve })
+      override async putDomainRecordsAtomic(actor: Actor, inputs: DomainRecordInput[], events: AuditEvent[] = []) {
+        if (inputs.some(row => row.collection === 'crm_contacts') && this.arrivals < 2) {
+          this.arrivals++
+          if (this.arrivals === 2) this.release()
+          await this.gate
+        }
+        return super.putDomainRecordsAtomic(actor, inputs, events)
+      }
+    }
+    const repository = new ConcurrentCreateRepository(seed())
+    const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
+    const siteOwnerId = '20000000-0000-4000-8000-000000000003'
+    await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: siteOwnerId, ownerUserId: siteOwnerId, data: { officeId: 'fl', market: 'Florida', role: 'agent', verifiedPersonId: 'molly-plude', websiteSlug: 'molly-homes', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: siteOwnerId, ownerUserId: siteOwnerId, data: { slug: 'molly-homes', published: true } })
+    const one = { kind: 'property', name: 'Demo Client', market: 'Florida', agentSlug: 'molly-homes', consent: true, submissionId: 'd1a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', email: 'race@example.test' }
+    const two = { kind: 'property', name: 'Demo Client', market: 'Florida', agentSlug: 'molly-homes', consent: true, submissionId: 'd2a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', email: ' RACE@example.test ', utmSource: 'second' }
+    const results = await Promise.all([persistIntakeDurable(one, repository, actor), persistIntakeDurable(two, repository, actor)])
+    expect(new Set(results.map(result => result.contactId)).size).toBe(1)
+    expect(await repository.listDomainRecords({ userId: brokerId, organizationId: org, role: 'broker' }, 'crm_contacts')).toHaveLength(1)
+    expect(await repository.listDomainRecords({ userId: brokerId, organizationId: org, role: 'broker' }, 'public_inquiries')).toHaveLength(2)
+    expect(await repository.listDomainRecords({ userId: brokerId, organizationId: org, role: 'broker' }, 'notification_inbox')).toHaveLength(2)
   })
 
   it('uses the durable office lead-routing policy for brokerage inquiries', async () => {

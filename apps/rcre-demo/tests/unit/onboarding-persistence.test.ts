@@ -13,6 +13,7 @@ describe('durable onboarding profile progress', () => {
     const loaded = await loadOnboarding(agent, database)
     expect(loaded.profile.version).toBe(saved.version)
     expect(loaded.profile.licenses).toEqual([{ state: 'Florida', number: 'SL0000001' }])
+    expect(loaded.profile.officeId).toBe('fl')
     expect(loaded.profile.steps.websiteSelected).toBe(true)
     expect(loaded.displayName).toBe(agent.name)
     expect(loaded.photoUploaded).toBe(false)
@@ -25,6 +26,18 @@ describe('durable onboarding profile progress', () => {
     await saveOnboarding(agent, { version, phone: '', licenses: [], markets: [], specialties: [], biography: '', socialLinks: { instagram: '', facebook: '', linkedin: '' }, websiteTemplate: 'signature', steps: {} }, database)
     await expect(saveOnboarding(agent, { version, phone: '', licenses: [], markets: [], specialties: [], biography: '', socialLinks: { instagram: '', facebook: '', linkedin: '' }, websiteTemplate: 'signature', steps: {} }, database)).rejects.toThrow(/changed/i)
   })
+  it('derives office and canonical identity from trusted account data, not submitted profile fields', async () => {
+    const database = repo()
+    const saved = await saveOnboarding(agent, {
+      officeId: 'al', verifiedPersonId: 'another-person', publicVisible: true,
+      phone: '555-0100', professionalTitle: 'REALTOR®', licenses: [], markets: [], specialties: [],
+      biography: '', socialLinks: {}, websiteTemplate: 'signature', steps: {},
+    }, database)
+    expect(saved.officeId).toBe('fl')
+    expect(saved.verifiedPersonId).toBeNull()
+    expect(saved.publicVisible).toBeUndefined()
+  })
+
   it('rejects cross-user profile reads and writes at the repository boundary', async () => {
     const database = repo()
     const other = { ...agent, id: 'agent-2', userId: 'agent-2' }

@@ -17,13 +17,21 @@ export type BrandRole = 'agent' | 'team_leader' | 'managing_broker' | 'broker_ow
 const ALLOWED_ROLES: readonly BrandRole[] = ['agent', 'team_leader', 'managing_broker', 'broker_owner', 'transaction_coordinator', 'marketing_admin', 'trainer']
 export function canAccessBrandResources(role: string): role is BrandRole { return ALLOWED_ROLES.includes(role as BrandRole) }
 export function isBrandAdmin(role: string): boolean { return role === 'managing_broker' || role === 'broker_owner' }
-/** A combined license string does not establish which license belongs to which state. */
+
+export function supportedBrandStates(agent: Pick<BrandAgent, 'market' | 'markets' | 'licenses'>): BrandState[] {
+  const available = new Set<BrandState>()
+  for (const license of agent.licenses ?? []) available.add(license.state)
+  const markets = agent.markets ?? [agent.market]
+  if (markets.some(market => /\bAlabama\b/i.test(market))) available.add('Alabama')
+  if (markets.some(market => /\bFlorida\b/i.test(market))) available.add('Florida')
+  return [...available]
+}
+
+/** Only an explicitly state-mapped license may appear on state-specific collateral. */
 export function licenseForState(agent: Pick<BrandAgent, 'license' | 'market' | 'licenses'>, state: BrandState): string | null {
   const explicit = agent.licenses?.filter(license => license.state === state) ?? []
   if (explicit.length === 1) return explicit[0].number.trim() || null
-  if (explicit.length > 1) return null
-  if (agent.market !== state) return null
-  return agent.license.trim() || null
+  return null
 }
 export function brandComplianceReadiness(_state: BrandState) {
   return { ready: false as const, status: 'pending' as const, reason: 'State-specific brokerage identity and approved compliance copy have not been configured.' }

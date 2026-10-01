@@ -1,5 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
+import type { PoolClient } from 'pg'
 import { describe, expect, it } from 'vitest'
 import { repositoryBackend } from '@/lib/db/selection'
 import { MemoryRepository, PermissionDeniedError, emptySeed, type Actor } from '@/lib/db/repository'
@@ -91,7 +93,7 @@ describe('durable repository bridge contract', () => {
     ])
     expect(names).toContain('0005_identity_sessions_invitations.sql')
     expect(names).toContain('0010_agent_website_lifecycle.sql')
-    expect(names.at(-1)).toBe('0013_crm_people_query_indexes.sql')
+    expect(names.at(-1)).toBe('0022_public_content_projection.sql')
     const runner = readFileSync(join(process.cwd(), 'src/lib/db/migrate.mjs'), 'utf8')
     expect(runner).toMatch(/sha256/)
     expect(runner).toMatch(/pg_advisory_lock/)
@@ -125,5 +127,56 @@ describe.skipIf(!localUrl(adminUrl) || !localUrl(appUrl))('optional real Postgre
       expect(result.rows[0].migration_ledger).toBe(true)
       expect(result.rows[0].database_role).not.toBe('postgres')
     } finally { await pool.end() }
+  })
+  it('rejects forged Academy review submitters and accepts a separate reviewer', async () => {
+    const { Pool } = await import('pg')
+    const admin = new Pool({ connectionString: adminUrl, max: 1 })
+    const app = new Pool({ connectionString: appUrl, max: 1 })
+    const org = randomUUID(), author = randomUUID(), broker = randomUUID()
+    const courseId = `academy-integration-${randomUUID()}`
+    const domain = (id: string, state: string, submittedBy: string, reviewedBy?: string) => ({
+      id, organizationId: org, ownerId: author, title: 'Integration course', description: 'Reviewed content',
+      category: 'RCRE', state, version: 1, source: 'rcre-authored', order: 1, prerequisite: '',
+      resources: [], revisions: [], submittedBy, ...(reviewedBy ? { reviewedBy } : {}),
+    })
+    const setActor = async (client: PoolClient, user: string, role: string) => {
+      await client.query("select set_config('rcre.organization_id',$1,true),set_config('rcre.user_id',$2,true),set_config('rcre.role',$3,true)", [org, user, role])
+    }
+    try {
+      await admin.query('insert into organizations(id,name,slug) values($1,$2,$3)', [org, 'RCRE test', `test-${org}`])
+      await admin.query(`insert into users(id,organization_id,email,full_name,role,platform_role,is_active,onboarding_status,office_id,team_id,market)
+        values($1,$3,$4,'Test author','agent','agent',true,'active','fl','fl','Florida'),
+              ($2,$3,$5,'Test managing broker','broker','managing_broker',true,'active','fl','fl','Florida')`,
+        [author, broker, org, `author-${org}@example.test`, `broker-${org}@example.test`])
+
+      const client = await app.connect()
+      try {
+        await client.query('begin')
+        await setActor(client, broker, 'managing_broker')
+        const forgedId = `forged-${courseId}`
+        await client.query(`insert into rcre_domain_records(organization_id,collection,record_id,owner_user_id,data)
+          values($1,'academy_courses',$2,null,$3::jsonb)`, [org, forgedId, JSON.stringify(domain(forgedId, 'draft', author))])
+        const forged = domain(forgedId, 'review', author)
+        await expect(client.query(`update rcre_domain_records set data=$3::jsonb,version=version+1,updated_at=now()
+          where organization_id=$1 and collection='academy_courses' and record_id=$2`, [org, forgedId, JSON.stringify(forged)])).rejects.toMatchObject({ code: '42501' })
+        await client.query('rollback')
+
+        await client.query('begin')
+        await setActor(client, author, 'agent')
+        await client.query(`insert into rcre_domain_records(organization_id,collection,record_id,owner_user_id,data)
+          values($1,'academy_courses',$2,$3,$4::jsonb)`, [org, courseId, author, JSON.stringify(domain(courseId, 'review', author))])
+        await setActor(client, broker, 'managing_broker')
+        const published = domain(courseId, 'published', author, broker)
+        await client.query(`update rcre_domain_records set data=$3::jsonb,owner_user_id=null,version=version+1,updated_at=now()
+          where organization_id=$1 and collection='academy_courses' and record_id=$2`, [org, courseId, JSON.stringify(published)])
+        await client.query('commit')
+      } catch (error) {
+        await client.query('rollback').catch(() => undefined)
+        throw error
+      } finally { client.release() }
+    } finally {
+      await admin.query('delete from organizations where id=$1', [org]).catch(() => undefined)
+      await Promise.all([admin.end(), app.end()])
+    }
   })
 })

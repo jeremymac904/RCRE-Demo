@@ -30,6 +30,16 @@ describe('storage service', () => {
     await expect(service.upload(upload('agent-headshot', { filename: '   ' }))).rejects.toThrow(/file name/i)
   })
 
+  it('rejects malformed categories and cross-organization access even with a broad callback', async () => {
+    const driver = new MemoryDriver()
+    const service = new StorageService(driver, { authorize: () => true }, undefined, false)
+    await expect(service.upload({ ...upload(), category: 'constructor' as StorageCategory })).rejects.toThrow(/category/i)
+    const asset = await service.upload(upload())
+    await expect(service.download({ ...actor, organizationId: 'another-org' }, asset.id)).rejects.toMatchObject({ status: 403 })
+    await expect(service.delete({ ...actor, organizationId: 'another-org' }, asset.id)).rejects.toMatchObject({ status: 403 })
+    expect(driver.records.has(asset.id)).toBe(true)
+  })
+
   it('requires explicit policy approval for upload, download, signing and delete', async () => {
     const driver = new MemoryDriver()
     const denied: StorageAuthorization = { authorize: (_a, action) => action === 'upload' }
@@ -111,6 +121,37 @@ describe('storage service', () => {
       expect(calls.every(call => (call.init?.headers as Record<string, string>).apikey === 'server-only-test-secret')).toBe(true)
       expect(calls.some(call => call.url.includes('/rcre-private/org-rcre/agent-headshot/'))).toBe(true)
       expect(calls.some(call => call.url.includes('.rcre-metadata/'))).toBe(true)
+    } finally { globalThis.fetch = originalFetch }
+  })
+
+  it('rolls back a Supabase object when its metadata manifest cannot be committed', async () => {
+    const driver = new SupabaseObjectDriver({ NODE_ENV: 'test', SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'server-only-test-secret', RCRE_STORAGE_BUCKET: 'rcre-private', RCRE_STORAGE_BUCKET_PRIVATE: 'true' })
+    const calls: Array<{ url: string; method?: string }> = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const entry = { url: String(url), method: init?.method }
+      calls.push(entry)
+      if (calls.length === 2) return new Response('metadata write rejected', { status: 500 })
+      return new Response('', { status: 200 })
+    }) as typeof fetch
+    try {
+      const asset: StorageAsset = { id: '00000000-0000-0000-0000-000000000001', organizationId: 'org-rcre', ownerId: actor.id, category: 'agent-headshot', visibility: 'private', filename: 'photo.jpg', contentType: 'image/jpeg', size: jpeg.length, sha256: 'a'.repeat(64), createdAt: new Date().toISOString(), provider: 'supabase' }
+      await expect(driver.put(asset, jpeg)).rejects.toThrow(/metadata write failed/)
+      expect(calls).toHaveLength(3)
+      expect(calls[0].method).toBe('POST')
+      expect(calls[1].method).toBe('POST')
+      expect(calls[2].method).toBe('DELETE')
+      expect(calls[2].url).toContain('/org-rcre/agent-headshot/')
+    } finally { globalThis.fetch = originalFetch }
+  })
+
+  it('does not report Supabase deletion success when the provider rejects removal', async () => {
+    const driver = new SupabaseObjectDriver({ NODE_ENV: 'test', SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'server-only-test-secret', RCRE_STORAGE_BUCKET: 'rcre-private', RCRE_STORAGE_BUCKET_PRIVATE: 'true' })
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async () => new Response('provider unavailable', { status: 503 })) as typeof fetch
+    try {
+      const asset: StorageAsset = { id: '00000000-0000-0000-0000-000000000001', organizationId: 'org-rcre', ownerId: actor.id, category: 'agent-headshot', visibility: 'private', filename: 'photo.jpg', contentType: 'image/jpeg', size: jpeg.length, sha256: 'a'.repeat(64), createdAt: new Date().toISOString(), provider: 'supabase' }
+      await expect(driver.delete(asset)).rejects.toThrow(/object deletion failed/)
     } finally { globalThis.fetch = originalFetch }
   })
 

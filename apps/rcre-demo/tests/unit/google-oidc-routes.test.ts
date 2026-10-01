@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getAuthPersistence: vi.fn(),
   hashSecret: vi.fn((value: string) => `hash:${value}`),
   issueDurableSession: vi.fn(),
+  enqueueMemberNotice: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/lib/auth/google-oidc', () => ({
@@ -17,6 +18,10 @@ vi.mock('@/lib/auth/google-oidc', () => ({
   OidcError: class OidcError extends Error {},
 }))
 vi.mock('@/lib/auth/persistence', () => ({ getAuthPersistence: mocks.getAuthPersistence, hashSecret: mocks.hashSecret }))
+vi.mock('@/lib/services/notification-producers', () => ({
+  enqueueMemberNotice: mocks.enqueueMemberNotice,
+  memberNotificationIdentity: (member: unknown) => member,
+}))
 vi.mock('@/lib/platform/auth', () => ({
   issueDurableSession: mocks.issueDurableSession,
   SESSION_COOKIE: 'rcre_local_session',
@@ -38,6 +43,7 @@ beforeEach(() => {
     id: 'user-1', userId: 'user-1', organizationId: 'org-1', role: 'agent', name: 'Example Agent', market: 'Florida', officeId: 'fl', teamId: 'fl',
   }) })
   mocks.issueDurableSession.mockResolvedValue({ token: 'opaque-session-cookie', sessionId: 'session-1', expiresAt: new Date(Date.now() + 60_000) })
+  mocks.enqueueMemberNotice.mockResolvedValue(undefined)
 })
 
 describe('Google sign-in HTTP boundary', () => {
@@ -56,6 +62,14 @@ describe('Google sign-in HTTP boundary', () => {
     }
   })
 
+  it('does not start OAuth on a host different from the configured callback origin', async () => {
+    const response = await startGoogle(new NextRequest('https://preview-rcre.example/api/auth/google'))
+    expect(response.headers.get('location')).toBe('https://rcre.example/login?error=identity-unavailable')
+    expect(response.cookies.get('rcre_oidc_state')).toBeUndefined()
+    expect(mocks.makeGoogleAuthorization).not.toHaveBeenCalled()
+    expect(response.headers.get('cache-control')).toContain('no-store')
+  })
+
   it('rejects a state mismatch without exchanging a code or clearing an existing signed-in session', async () => {
     const request = new NextRequest('https://rcre.example/api/auth/google/callback?code=synthetic&state=attacker', {
       headers: { cookie: 'rcre_oidc_state=expected; rcre_oidc_nonce=nonce; rcre_oidc_verifier=verifier; rcre_local_session=existing-session' },
@@ -71,7 +85,7 @@ describe('Google sign-in HTTP boundary', () => {
     const linkGoogle = vi.fn().mockResolvedValue({
       id: 'user-1', userId: 'user-1', organizationId: 'org-1', role: 'agent', name: 'Example Agent', market: 'Florida', officeId: 'fl', teamId: 'fl',
     })
-    mocks.getAuthPersistence.mockResolvedValue({ linkGoogle })
+    mocks.getAuthPersistence.mockResolvedValue({ linkGoogle, invitationStatus: vi.fn().mockResolvedValue({ valid: true, email: 'agent@example.com', expiresAt: new Date(Date.now() + 60000).toISOString(), name: 'Example Agent' }) })
     const request = new NextRequest('https://rcre.example/api/auth/google/callback?code=synthetic-code&state=state-value', {
       headers: { cookie: 'rcre_oidc_state=state-value; rcre_oidc_nonce=nonce-value; rcre_oidc_verifier=verifier-value; rcre_invitation_token=invite-bearer; rcre_local_session=prior-session' },
     })
@@ -84,6 +98,20 @@ describe('Google sign-in HTTP boundary', () => {
     expect(response.cookies.get('rcre_local_session')?.httpOnly).toBe(true)
     expect(response.cookies.get('rcre_invitation_token')?.maxAge).toBe(0)
     expect(response.headers.get('cache-control')).toContain('no-store')
+  })
+
+  it('keeps a valid sign-in successful when the optional welcome notice cannot be queued', async () => {
+    mocks.getAuthPersistence.mockResolvedValue({
+      linkGoogle: vi.fn().mockResolvedValue({ id: 'user-1', userId: 'user-1', organizationId: 'org-1', role: 'agent', officeId: 'fl' }),
+      invitationStatus: vi.fn().mockResolvedValue({ valid: true, email: 'agent@example.com', expiresAt: new Date(Date.now() + 60_000).toISOString(), name: 'Example Agent' }),
+    })
+    mocks.enqueueMemberNotice.mockRejectedValue(new Error('outbox unavailable'))
+    const request = new NextRequest('https://rcre.example/api/auth/google/callback?code=synthetic-code&state=state-value', {
+      headers: { cookie: 'rcre_oidc_state=state-value; rcre_oidc_nonce=nonce-value; rcre_oidc_verifier=verifier-value; rcre_invitation_token=invite-bearer' },
+    })
+    const response = await finishGoogle(request)
+    expect(response.headers.get('location')).toBe('https://rcre.example/today')
+    expect(response.cookies.get('rcre_local_session')?.value).toBe('opaque-session-cookie')
   })
 
   it('does not issue a session when the verified account has no active membership or matching invitation', async () => {

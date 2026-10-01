@@ -12,7 +12,7 @@ function repositoryActor(actor: PlatformActor): RepositoryActor {
   if (!isUuid(actor.id) || !isUuid(actor.organizationId) || actor.userId !== actor.id) {
     throw new AccessError('A verified durable organization membership is required.', 503)
   }
-  return { userId: actor.id, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role) }
+  return { userId: actor.id, organizationId: actor.organizationId, role: repositoryRoleForPlatform(actor.role), officeId: actor.officeId }
 }
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 const now = () => new Date().toISOString()
@@ -207,6 +207,28 @@ export async function updateCrmContactDurable(actor: PlatformActor, id: string, 
   if (patch.ownerId && patch.ownerId !== contact.ownerId) inputs.push({ collection: 'crm_assignment_history', recordId: `${id}:${randomUUID()}`, ownerUserId: envelope, data: { organizationId: actor.organizationId, contactId: id, from: contact.ownerId, to: patch.ownerId, at: now(), actorId: actor.id, kind: 'manual reassignment' }, createOnly: true })
   await repo.putDomainRecordsAtomic(scope, inputs, [{ organizationId: actor.organizationId, actorUserId: actor.id, actorKind: 'user', action: 'crm.contact.updated', targetType: 'crm_contacts', targetId: id, effect: 'write', allowed: true, detail: { fields: Object.keys(patch) } }])
   return next
+}
+
+export async function listCrmFubProposalsDurable(actor: PlatformActor, repo: Repository, contactId?: string) {
+  assertCapability(actor, 'crm')
+  const scope = repositoryActor(actor), result: Array<Record<string, unknown>> = []
+  for (let offset = 0; ; offset += 200) {
+    const page = await repo.listDomainRecords<Record<string, unknown>>(scope, 'crm_fub_proposals', { limit: 200, offset })
+    result.push(...page.map(record => ({ ...record.data, id: record.recordId, version: record.version })))
+    if (page.length < 200) break
+  }
+  return result.filter(row => row.organizationId === actor.organizationId && scopedOwner(actor, String(row.ownerId ?? ''), String(row.officeId ?? '')) && (!contactId || row.contactId === contactId))
+}
+
+/** Local-only disposition of a proposal. This never writes to Follow Up Boss. */
+export async function discardCrmFubProposalDurable(actor: PlatformActor, id: string, repo: Repository) {
+  assertCapability(actor, 'crm')
+  const current = await repo.getDomainRecord<Record<string, unknown>>(repositoryActor(actor), 'crm_fub_proposals', id)
+  if (!current || current.data.organizationId !== actor.organizationId || !scopedOwner(actor, String(current.data.ownerId ?? ''), String(current.data.officeId ?? ''))) throw new AccessError('Pending proposal not found', 404)
+  if (current.data.state !== 'awaiting_connector') throw new AccessError('Pending proposal not found', 404)
+  const next = { ...current.data, state: 'discarded', discardedAt: now() }
+  const [saved] = await repo.putDomainRecordsAtomic(repositoryActor(actor), [{ collection: 'crm_fub_proposals', recordId: id, ownerUserId: current.ownerUserId, data: next, expectedVersion: current.version }], [{ organizationId: actor.organizationId, actorUserId: actor.id, actorKind: 'user', action: 'crm.fub_proposal_discarded', targetType: 'crm_fub_proposals', targetId: id, effect: 'write', allowed: true, detail: { contactId: current.data.contactId } }])
+  return { ...saved.data, id: saved.recordId, version: saved.version }
 }
 
 export async function listCrmSavedViewsDurable(actor: PlatformActor, repo: Repository) {

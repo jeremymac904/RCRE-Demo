@@ -8,7 +8,7 @@ describe('production repository role mapping', () => {
     ['marketing_admin', 'marketing_admin'],
     ['trainer', 'trainer'],
     ['broker_owner', 'owner'],
-    ['managing_broker', 'broker'],
+    ['managing_broker', 'managing_broker'],
   ] as const)('preserves the %s platform boundary', (platformRole, repositoryRole) => {
     expect(repositoryRoleForPlatform(platformRole)).toBe(repositoryRole)
   })
