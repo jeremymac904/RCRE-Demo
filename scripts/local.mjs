@@ -7,7 +7,7 @@ import {randomBytes,createHash} from 'node:crypto'
 import {readFileSync,writeFileSync} from 'node:fs'
 import {DatabaseSync} from 'node:sqlite'
 const root=realpathSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'))
-if(path.basename(root)!=='RCRE')throw Error('Existing RCRE root required')
+if(!['RCRE','RCRE-Demo'].includes(path.basename(root))||!existsSync(path.join(root,'apps/rcre-demo/package.json')))throw Error('Existing RCRE repository root required')
 const runtime=path.join(root,'runtime');for(const d of ['tmp','cache','data','backups','logs'])mkdirSync(path.join(runtime,d),{recursive:true,mode:0o700})
 const command=process.argv[2]??'dev',dbfile=path.join(runtime,'data/platform.sqlite')
 async function requireStopped(){for(const port of new Set([3200,Number(process.env.RCRE_PORT??3200)])){const active=await new Promise(resolve=>{const socket=net.createConnection({host:'127.0.0.1',port});socket.setTimeout(1000);socket.once('connect',()=>{socket.destroy();resolve(true)});socket.once('error',()=>resolve(false));socket.once('timeout',()=>{socket.destroy();resolve(false)})});if(active)throw Error('Stop the local app before reset or restore (port '+port+' is active)')}}
