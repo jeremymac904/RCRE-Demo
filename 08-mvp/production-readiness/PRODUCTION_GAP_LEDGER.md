@@ -339,7 +339,7 @@ The prior “18 activation pending” label is retired because P1-07 and P1-10 h
 
 ## Continued implementation snapshot — 2026-09-30 (supersedes previous queue snapshot)
 
-This snapshot incorporates the canonical onboarding/site identity path, durable Agent Profile Admin, durable MLS Admin configuration, durable agent-inspector reporting, production theme previews tied to the signed-in member, and durable production lead-alert dispatch. It does not claim live production activation.
+This snapshot incorporates the canonical onboarding/site identity path, durable Agent Profile Admin, durable MLS Admin configuration, durable agent-inspector reporting, production theme previews tied to the signed-in member, durable production lead-alert dispatch, and synchronized static canonical records in agent lifecycle admin. It does not claim live production activation.
 
 ### P1 disposition
 
@@ -357,10 +357,11 @@ This snapshot incorporates the canonical onboarding/site identity path, durable 
 - The agent-inspector reporting route now reads scoped durable CRM/member/task/appointment/deal records and labels unavailable history instead of manufacturing zero activity.
 - Production lead-alert dispatch now uses durable CRM evidence plus the idempotent in-app notification outbox. This endpoint sends no email or external communication.
 - The catchall platform API review confirmed existing durable handlers for core supported operations; legacy-only paths remain explicitly unavailable in production or are served by their dedicated durable route.
+- A fresh independent review found one stale-public-profile edge: lifecycle edits updated `member_profiles` but not an already-linked static roster `canonical_people` row. The service now validates owner and organization, then writes both records and the audit entry atomically with version checks; dynamic records still fail closed if missing. A regression test proves licenses, title, biography, specialties, markets, visibility and status update on the canonical projection.
 
 ### Verification
 
-- Full RCRE unit suite: **1,012 passed, 2 skipped across 129 files**. Both skips require explicitly configured local PostgreSQL integration URLs.
+- Full RCRE unit suite: **1,013 passed, 2 skipped across 129 files**. Both skips require explicitly configured local PostgreSQL integration URLs.
 - TypeScript: passed after the final feature edits.
 - ESLint: passed with `--quiet` and zero errors.
 - Production build: passed; Next.js compiled and generated 79/79 static pages, then completed trace collection.
@@ -371,4 +372,4 @@ This snapshot incorporates the canonical onboarding/site identity path, durable 
 
 **Production activation remains NO GO** until the external activation and live-proof gates above pass. This is not a code-incomplete P1 count; see `EXTERNAL_ACTIVATION_PACKET.md` for the exact grouped inputs and where to provide them.
 
-**Final verification addendum:** after the durable lead-alert change, the complete test suite remained at 1,012 passing / 2 skipped, TypeScript passed after the production build, ESLint `--quiet` exited successfully, `next build` exited successfully, and `git diff --check` passed. The build retains existing non-fatal `<img>` optimization warnings. No browser visual inspection or database integration result is claimed.
+**Final verification addendum:** after the canonical-profile synchronization repair, the complete test suite passed at 1,013 / 2 skipped, TypeScript passed, ESLint `--quiet` exited successfully, and `next build` exited successfully, and `git diff --check` passed. The build retains existing non-fatal `<img>` optimization warnings. No browser visual inspection or database integration result is claimed.

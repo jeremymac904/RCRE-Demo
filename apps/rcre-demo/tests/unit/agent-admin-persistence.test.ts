@@ -70,6 +70,29 @@ describe('agent lifecycle administration', () => {
     expect(auth.updateMember).toHaveBeenCalledWith(owner, flAgent.userId, expect.objectContaining({ active: true, role: 'agent' }))
   })
 
+  it('updates an existing static-roster canonical person with admin profile edits', async () => {
+    const auth = authMock([{ ...flAgent, canonicalPersonId: 'sarah-brockner' }])
+    const repo = repository()
+    const context = { userId: owner.id, organizationId: owner.organizationId, role: 'owner' as const }
+    await repo.putDomainRecord(context, {
+      collection: 'member_profiles', recordId: flAgent.userId, ownerUserId: flAgent.userId,
+      data: { id: flAgent.userId, memberId: flAgent.userId, organizationId: flAgent.organizationId, officeId: 'fl', verifiedPersonId: 'sarah-brockner', publicVisible: true, licenses: [{ state: 'Florida', number: 'OLD-LICENSE' }], professionalTitle: 'Old title', biography: 'Old bio', specialties: ['Old specialty'], markets: ['Old market'], steps: {}, version: 1 },
+    })
+    await repo.putDomainRecord(context, {
+      collection: 'canonical_people', recordId: 'sarah-brockner', ownerUserId: flAgent.userId,
+      data: { id: 'sarah-brockner', slug: 'sarah-brockner', userId: flAgent.userId, organizationId: flAgent.organizationId, name: 'Sarah Brockner', email: flAgent.email, status: 'active', publicVisible: true, licenses: [{ state: 'Florida', number: 'OLD-LICENSE' }], professionalTitle: 'Old title', biography: 'Old bio', specialties: ['Old specialty'], markets: ['Old market'], market: 'Florida', socialLinks: {} },
+    })
+
+    const change = { ...payload, officeId: 'fl', teamId: 'fl', market: 'Florida', active: true, publicVisible: true, licenses: [{ state: 'Florida' as const, number: 'NEW-LICENSE' }], professionalTitle: 'Updated REALTOR®', biography: 'Current approved bio', specialties: ['Buyer representation'], markets: ['Jacksonville, Florida'] }
+    await updateAdminAgent(owner, flAgent.userId, change, repo)
+
+    const savedCanonical = await repo.getDomainRecord<any>(context, 'canonical_people', 'sarah-brockner')
+    const savedProfile = await repo.getDomainRecord<any>(context, 'member_profiles', flAgent.userId)
+    expect(savedCanonical?.data).toMatchObject({ status: 'active', publicVisible: true, licenses: change.licenses, professionalTitle: change.professionalTitle, biography: change.biography, specialties: change.specialties, markets: change.markets })
+    expect(savedProfile?.data).toMatchObject({ licenses: change.licenses, professionalTitle: change.professionalTitle, biography: change.biography, specialties: change.specialties, markets: change.markets })
+    expect(auth.updateMember).toHaveBeenCalledOnce()
+  })
+
   it('rejects identity claims outside the verified roster and duplicate canonical links', async () => {
     const invalidAuth = authMock([flAgent])
     await expect(updateAdminAgent(owner, flAgent.userId, { ...payload, officeId: 'fl', teamId: 'fl', market: 'Florida', canonicalPersonId: 'unknown-person-slug' }, repository())).rejects.toThrow(/verified RCRE roster/i)

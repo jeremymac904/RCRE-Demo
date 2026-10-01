@@ -128,10 +128,20 @@ export async function updateAdminAgent(actor: PlatformActor, userId: string, raw
   if (!updated) throw new AccessError('Member could not be updated; reload and retry the account change', 409)
   try {
     const writes = [{ collection: 'member_profiles', recordId: userId, ownerUserId: userId, data: next as unknown as Record<string, unknown>, ...(current ? { expectedVersion: current.version } : {}) }]
-    if (dynamicPerson && canonicalPersonId) {
+    if (canonicalPersonId) {
       const personRow = await repo.getDomainRecord<Record<string, unknown>>(context, 'canonical_people', canonicalPersonId)
-      if (!personRow || personRow.data.userId !== userId) throw new AccessError('Canonical identity ownership changed; reload before saving.', 409)
-      writes.push({ collection: 'canonical_people', recordId: canonicalPersonId, ownerUserId: userId, data: { ...personRow.data, status: change.active ? 'active' : 'inactive', publicVisible: change.publicVisible, licenses: change.licenses, professionalTitle: change.professionalTitle, biography: change.biography, specialties: change.specialties, markets: change.markets, market: change.markets[0] ?? change.market, officeId: change.officeId, updatedAt: savedAt }, expectedVersion: personRow.version } as typeof writes[number])
+      if (personRow && (personRow.data.userId !== userId || personRow.data.organizationId !== actor.organizationId)) {
+        throw new AccessError('Canonical identity ownership changed; reload before saving.', 409)
+      }
+      // Existing static-roster identities can already have a canonical_people row.
+      // The public projection prefers that row to member_profiles, so update both
+      // when it exists. Newly invited members must always retain their canonical
+      // record, while a verified static roster entry without a row remains backed
+      // by its member profile until its canonical record is provisioned.
+      if (personRow || dynamicPerson) {
+        if (!personRow) throw new AccessError('Canonical identity is missing; reload and link it again before saving.', 409)
+        writes.push({ collection: 'canonical_people', recordId: canonicalPersonId, ownerUserId: userId, data: { ...personRow.data, status: change.active ? 'active' : 'inactive', publicVisible: change.publicVisible, licenses: change.licenses, professionalTitle: change.professionalTitle, biography: change.biography, specialties: change.specialties, markets: change.markets, market: change.markets[0] ?? change.market, officeId: change.officeId, updatedAt: savedAt }, expectedVersion: personRow.version } as typeof writes[number])
+      }
     }
     await repo.putDomainRecordsAtomic(context, writes, [{ organizationId: actor.organizationId, actorUserId: actor.id, actorKind: 'user', action: 'agent.lifecycle-updated', targetType: 'member', targetId: userId, effect: 'write', allowed: true, detail: { role: change.role, active: change.active, officeId: change.officeId, publicVisible: change.publicVisible, canonicalPersonId, licenseCount: change.licenses.length } }])
   } catch (error) {
