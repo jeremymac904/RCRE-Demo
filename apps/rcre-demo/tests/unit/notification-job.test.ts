@@ -63,6 +63,22 @@ describe('durable notification job route', () => {
     expect(invalid.status).toBe(400)
   })
 
+  it('stores sanitized job failure metadata after a processing exception', async () => {
+    const repository = repositoryWithMembers()
+    const response = await handleDurableNotificationJob(request(), {
+      config, getRepository: async () => repository, getTransport: () => new DevelopmentMailCapture(),
+      produceScheduledNotices: async () => ({ tasks: 0, appointments: 0, transactionDeadlines: 0, approvals: 0 }),
+      processBatch: async () => { throw new Error('private provider response with person@example.test') },
+    })
+    expect(response.status).toBe(503)
+    const rows = await repository.listDomainRecords(worker, 'operational_errors')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].ownerUserId).toBe(worker.userId)
+    expect(rows[0].data).toMatchObject({ category: 'notification_failure', route: '/api/internal/jobs/notifications', status: 503, errorCode: 'ERROR' })
+    expect(JSON.stringify(rows[0].data)).not.toContain('person@example.test')
+    expect(JSON.stringify(rows[0].data)).not.toContain('private provider response')
+  })
+
   it('requires an active persisted brokerage worker identity', async () => {
     const repository = repositoryWithMembers()
     const response = await handleDurableNotificationJob(request(), {

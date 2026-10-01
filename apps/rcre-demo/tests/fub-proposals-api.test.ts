@@ -38,8 +38,8 @@ describe('legacy platform paths stay out of production persistence',()=>{
 describe('platform route failure telemetry',()=>{
  it('logs a redacted correlation record and returns no dependency detail to the caller',async()=>{
   const sink=vi.spyOn(console,'error').mockImplementation(()=>{})
-  const req=new Request('http://localhost:3200/api/platform/crm-options',{headers:{'x-request-id':'01234567-89ab-cdef-0123-456789abcdef'}})
-  const r=platformApiFailure(new Error('private database URL secret value'),req)
+  const req=new Request('http://localhost:3200/api/platform/crm-options',{headers:{'x-rcre-request-id':'01234567-89ab-cdef-0123-456789abcdef'}})
+  const r=await platformApiFailure(new Error('private database URL secret value'),req)
   expect(r.status).toBe(500)
   expect(await r.json()).toEqual({error:'The request could not be completed. Please try again later.'})
   const record=String(sink.mock.calls[0]?.[0]??'')

@@ -276,3 +276,24 @@ This snapshot supersedes the P1 counts and verification numbers immediately abov
 - No live PostgreSQL, migrations/RLS, backup restore, ClamAV daemon, production provider, deployed Netlify, or rendered browser session was available or exercised. No live integration is claimed.
 
 **Status remains: NO GO for production activation.** Local implementation has reduced the code-incomplete P1 work queue from 20 to 2. PR #2 remains unmerged. The repository branch still needs the verified changes committed and pushed; the current shell cannot resolve GitHub DNS, so remote publication must be retried when connectivity is available.
+
+## Follow-up production-boundary pass — 2026-09-30
+
+### Additional changes
+
+- Four SQLite-only endpoints now fail closed with a consumer-safe 503 before authentication or any legacy store access when `NODE_ENV=production`: lead campaign (including local campaign lead generation), approval center, workspace search, and consented public engagement. Fixture behavior remains available outside production. These paths are now safe but unavailable; they are not counted as PostgreSQL-backed product completion.
+- Authenticated 5xx failures in the shared platform API catchall now attempt a best-effort, owner/organization-scoped PostgreSQL operational error record. The record contains a fixed route template, method, status, correlation ID, timestamp and error class only. Capture failure cannot alter the generic response or recurse on a database outage.
+- Fixed the correlation header use to `x-rcre-request-id`.
+
+### Verification
+
+- Full tests: **932 passed, 2 skipped, 106 files**.
+- Focused FUB, production-route-guard, notification-job, and route-failure tests passed; focused TypeScript and ESLint also passed.
+- Final TypeScript, ESLint (`--quiet`), and production build passed.
+- Independent review of durable FUB proposal path found no authorization or source-write defect. A separate independent review of the latest route-guard and telemetry changes found no P0/P1 in those diffs; it verified early 503 behavior, metadata allowlisting, actor scoping, best-effort persistence, and generic-response preservation.
+
+### Disposition remains conservative
+
+**Code-incomplete P1: 2 (P1-03 and P1-20).** P1-03 still requires a complete selector/page audit of the broad platform catchall and production server-rendered data, plus durable replacements for the four now-disabled endpoints. P1-20 now persists authenticated platform 5xx and notification-worker failures, but other route-local caught failures are not universally recorded; alert delivery and aggregation are unconfigured. The 18 external/source/live-proof gates and locally closed P1-06 remain as stated in the preceding snapshot.
+
+No live PostgreSQL/RLS, migrations, backups, browser-rendered QA, external services, or production deployment were performed. The PR remains open, draft, and unmerged.
