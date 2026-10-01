@@ -363,11 +363,11 @@ This snapshot incorporates the canonical onboarding/site identity path, durable 
 - Full RCRE unit suite: **1,012 passed, 2 skipped across 129 files**. Both skips require explicitly configured local PostgreSQL integration URLs.
 - TypeScript: passed after the final feature edits.
 - ESLint: passed with `--quiet` and zero errors.
-- Production build: see this snapshot's final status update below after the final build completes.
+- Production build: passed; Next.js compiled and generated 79/79 static pages, then completed trace collection.
 - Independent review: no concrete P0/P1 defect was found in the scoped auth/session/OIDC/invitation/site/MLS/profile checks; the bounded catchall review identified and helped wire the durable lead-alert path. The durable profile editor does not enumerate arbitrary new invitees in its static roster-specific screen, but the lifecycle admin supports those canonical profiles. This is not counted as a P1.
 - `git diff --check` passes. No PostgreSQL server/client or container runtime is installed; migrations 0001–0026, RLS, tenant isolation, concurrent database writes, backups/restores, and storage scanning were not executed.
 - Rendered browser/accessibility QA was not performed. The prior user instruction requires the built-in browser only, and no browser-interaction tool is available in this session. Unit/build output is not presented as visual QA.
-- GitHub's repository connector confirms PR #2 is open, draft, and unmerged at `baab8400fcf1d0be7440377161347707fd8d8035`. Direct shell GitHub DNS is unavailable in this session; final changes still need publication through the authenticated GitHub API path before the PR can reflect this snapshot.
+- GitHub's repository connector confirms PR #2 is open, draft, and unmerged at `06a662c467a1f8c1dffcb3c664e6be3791616440`. The 86-file repair snapshot was pushed as a fast-forward commit through the authenticated GitHub API path; shell DNS remains unavailable.
 
 **Production activation remains NO GO** until the external activation and live-proof gates above pass. This is not a code-incomplete P1 count; see `EXTERNAL_ACTIVATION_PACKET.md` for the exact grouped inputs and where to provide them.
 
