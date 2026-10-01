@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 /**
  * RCRE Rural & Land — Home Page
  * Route: /agent/alabama-rural
@@ -15,9 +16,9 @@ import { RuralContactForm } from './RuralContactForm'
 import './rural.css'
 
 export const metadata: Metadata = {
-  title: 'Coleman Reid | RCRE Rural & Land, Alabama',
-  description:
-    'Coleman Reid — Land & Rural Property Specialist with RCRE Group, serving Birmingham exurbs, Wiregrass, Black Belt, Lake Martin, and Tuscaloosa County. Acreage, timberland, equestrian, and USDA rural markets.',
+  robots: { index: false, follow: false },
+  title: process.env.NODE_ENV === 'production' ? 'Page not found | RCRE Group' : 'Coleman Reid | RCRE Rural & Land, Alabama',
+  description: process.env.NODE_ENV === 'production' ? 'The requested page is unavailable.' : 'Coleman Reid — Land & Rural Property Specialist with RCRE Group, serving Birmingham exurbs, Wiregrass, Black Belt, Lake Martin, and Tuscaloosa County. Acreage, timberland, equestrian, and USDA rural markets.',
 }
 
 const RURAL_CONFIG = {
@@ -102,6 +103,7 @@ function formatPrice(p: number) {
 }
 
 export default function RuralHomePage() {
+  if (process.env.NODE_ENV === 'production') notFound()
   const agent = getExampleAgent('alabama-rural')!
   const seo = buildHomeSEO(agent, RURAL_CONFIG)
 

@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 /**
  * RCRE Luxury — Home Page
  * Route: /agent/jacksonville-luxury
@@ -15,9 +16,9 @@ import { LuxuryContactForm } from './LuxuryContactForm'
 import './luxury.css'
 
 export const metadata: Metadata = {
-  title: 'Alexandra Whitfield | RCRE Luxury, Northeast Florida',
-  description:
-    'Alexandra Whitfield — Luxury REALTOR® with RCRE Group, specializing in waterfront, estate, and executive relocation in Ponte Vedra, Nocatee, and the Southbank corridor.',
+  robots: { index: false, follow: false },
+  title: process.env.NODE_ENV === 'production' ? 'Page not found | RCRE Group' : 'Alexandra Whitfield | RCRE Luxury, Northeast Florida',
+  description: process.env.NODE_ENV === 'production' ? 'The requested page is unavailable.' : 'Alexandra Whitfield — Luxury REALTOR® with RCRE Group, specializing in waterfront, estate, and executive relocation in Ponte Vedra, Nocatee, and the Southbank corridor.',
 }
 
 const LUXURY_CONFIG = {
@@ -97,6 +98,7 @@ function formatPrice(p: number) {
 }
 
 export default function LuxuryHomePage() {
+  if (process.env.NODE_ENV === 'production') notFound()
   const agent = getExampleAgent('jacksonville-luxury')!
   const seo = buildHomeSEO(agent, LUXURY_CONFIG)
 

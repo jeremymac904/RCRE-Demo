@@ -1,37 +1,40 @@
 import { NextResponse } from 'next/server'
-import { requireActor } from '@/lib/platform/auth'
-import { randomUUID } from 'node:crypto'
+import { z } from 'zod'
+import { requireActor, AccessError } from '@/lib/platform/auth'
+import { resolveTransactionException, durableTransactionExceptions } from '@/lib/services/transaction-exceptions'
+import { dataMode } from '@/lib/config/env'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
+
+const bodySchema = z.object({ note: z.string().trim().min(1).max(2000) }).strict()
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let actor: Awaited<ReturnType<typeof requireActor>> | null = null
   try {
-    const actor = await requireActor()
-    if (!['broker_owner', 'managing_broker'].includes(actor.role)) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    actor = await requireActor()
+    const origin = request.headers.get('origin')
+    const host = request.headers.get('host')
+    if (origin && (!host || new URL(origin).host !== host)) {
+      return NextResponse.json({ error: 'Origin access denied' }, { status: 403 })
     }
+    if (!origin && process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Origin verification required' }, { status: 403 })
+    }
+    const size = Number(request.headers.get('content-length') || 0)
+    if (!size || size > 8192) return NextResponse.json({ error: 'Resolution request must be between 1 byte and 8 KB' }, { status: 400 })
+    const body = bodySchema.parse(await request.json())
     const { id } = await params
-    // In production this would update a durable exception store.
-    // For now, return a synthetic resolved exception.
-    const resolved = {
-      id,
-      transactionId: id.replace(/^exc-/, '').split('-')[0],
-      type: 'deadline_breach',
-      description: 'Resolved via broker action',
-      severity: 'medium' as const,
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      ageDays: 1,
-      transaction: { id: id.split('-')[0], address: '', client: '', status: 'active', updatedAt: new Date().toISOString() },
-      assignedTc: '—',
-      assignedAgent: '—',
-      resolved: true,
-      resolvedAt: new Date().toISOString(),
-      resolvedBy: actor.name,
-      resolution: 'Broker reviewed and resolved',
-    }
-    return NextResponse.json(resolved)
+    const result = dataMode() === 'live'
+      ? await durableTransactionExceptions().resolve(actor, id, body.note)
+      : resolveTransactionException(actor, id, body.note)
+    return NextResponse.json(result)
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 401 })
+    const error = e as Error & { status?: number }
+    const status = e instanceof AccessError ? e.status : e instanceof z.ZodError ? 400 : Number.isInteger(error.status) && Number(error.status) >= 400 && Number(error.status) <= 599 ? Number(error.status) : /resolution note/i.test(error.message ?? '') ? 400 : /already resolved/i.test(error.message ?? '') ? 409 : /not found/i.test(error.message ?? '') ? 404 : 503
+    const response = NextResponse.json({ error: status >= 500 ? 'Transaction review is temporarily unavailable.' : error.message || 'Request failed' }, { status, headers: { 'Cache-Control': 'private, no-store' } })
+    await recordCaughtRouteFailure(request, '/api/transactions/broker-exceptions/[id]/resolve', actor, status, e)
+    return response
   }
 }

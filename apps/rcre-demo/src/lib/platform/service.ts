@@ -1,14 +1,22 @@
 import 'server-only'
 import {settingsSchema} from './settings'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { CONTACTS,TASKS,APPOINTMENTS,LISTINGS,RECRUITS,STAGE_THRESHOLD_DAYS,type DemoContact,type DemoTask,type DemoAppointment } from '@/data/demo'
 import { getRecord,putRecord,readRecords,transaction } from './store'
 import { type PlatformActor,PERSONAS,directory,can,scopedOwner,assertCapability,AccessError } from './auth'
+import { DomainRecordConflictError, type Actor as RepositoryActor, type Repository } from '@/lib/db/repository'
+import { getRepository } from '@/lib/db'
+import { repositoryRoleForPlatform } from '@/lib/auth/role-mapping'
 export interface Contact extends DemoContact {organizationId:string;officeId:string;version:number;consent?:boolean;sourceSystem?:string;fubId?:number;sourceDeleted?:boolean}
 export interface Task extends DemoTask {organizationId:string;officeId:string;version:number;sourceDeleted?:boolean}
 export interface Appointment extends DemoAppointment {organizationId:string;officeId:string;endsAt:string;version:number;kind?:string;sourceDeleted?:boolean;createdAt?:string;status?:'planned'|'held'|'missed'|'canceled'|'completed';taskId?:string|null}
 export interface Setting {id:string;value:Record<string,any>;version:number}
-export function audit(a:PlatformActor,action:string,resource:string){putRecord('audit',{id:randomUUID(),organizationId:a.organizationId,actorId:a.id,action,resource,at:new Date().toISOString()})}
+export function audit(a:PlatformActor,action:string,resource:string){
+  if(!a||typeof a.id!=='string'||!a.id.trim()||typeof a.userId!=='string'||a.userId!==a.id||typeof a.organizationId!=='string'||!a.organizationId.trim())throw new AccessError('A scoped actor identity is required to write an audit event',403)
+  if(!/^[a-z][a-z0-9_.-]{1,99}$/i.test(action)||typeof resource!=='string'||resource.length>500)throw new AccessError('Invalid audit event metadata',400)
+  const isLocalWorker=process.env.RCRE_APP_MODE==='local'&&a.organizationId==='rcre-local'&&a.id==='local-worker'&&a.role==='broker_owner'
+  putRecord('audit',{id:randomUUID(),organizationId:a.organizationId,actorId:isLocalWorker?'system:local-worker':a.id,actorType:isLocalWorker?'system':'user',actorRole:isLocalWorker?'system':a.role,officeId:isLocalWorker?null:a.officeId,action,resource,at:new Date().toISOString()})
+}
 const office=(id:string)=>['u-vito','u-regiena','u-leader','u-taquilla'].includes(id)?'al':'fl'
 export function seed(){transaction(()=>{if(getRecord('meta','seed'))return;for(const c of CONTACTS)putRecord('contacts',{...c,organizationId:'rcre-local',officeId:office(c.ownerId),version:1});for(const t of TASKS)putRecord('tasks',{...t,organizationId:'rcre-local',officeId:office(t.ownerId),version:1});for(const a of APPOINTMENTS)putRecord('appointments',{...a,endsAt:new Date(Date.parse(a.startsAt)+3600000).toISOString(),organizationId:'rcre-local',officeId:office(a.ownerId),version:1});for(const l of LISTINGS)putRecord('listings',{...l,organizationId:'rcre-local',officeId:office(l.agentId),version:1});for(const r of RECRUITS)putRecord('recruits',{...r,ownerId:'u-taquilla',officeId:'al',organizationId:'rcre-local',version:1});putRecord('settings',{id:'leads',version:1,value:{stageDays:STAGE_THRESHOLD_DAYS,responseMinutes:60,graceMinutes:15,enabled:true,synthetic:true}});putRecord('meta',{id:'seed',at:new Date().toISOString()})})}
 export function listContacts(a:PlatformActor,includeDeleted=false){seed();assertCapability(a,'crm');return readRecords<Contact>('contacts').filter(c=>c.organizationId===a.organizationId&&(includeDeleted||!c.sourceDeleted)&&scopedOwner(a,c.ownerId,c.officeId))}
@@ -27,13 +35,172 @@ export function createAppointment(a:PlatformActor,input:Record<string,any>){asse
 export function priorities(a:PlatformActor,previewPolicy?:Record<string,any>){const now=Date.now();return listContacts(a).map(c=>{const hours=(now-Date.parse(c.receivedAt))/3600000;const days=c.stageEnteredAt?Math.floor((now-Date.parse(c.stageEnteredAt))/86400000):null;const policy=previewPolicy??getRecord<any>('settings','leads:'+c.officeId)?.value??getSetting(a,'leads').value;if(policy.enabled===false)return {contact:c,reasons:[] as string[],score:0};const threshold=policy?.enabled?policy.stageDays?.[c.stage]:undefined;const reasons:string[]=[];let score=0;if(!c.firstTouchAt&&hours*60>Number(policy?.responseMinutes??60)+Number(policy?.graceMinutes??0)){reasons.push(`No recorded outbound outreach since ${new Date(c.receivedAt).toLocaleDateString()}`);score+=100+hours}const activity=c.timeline.filter(e=>['property_view','property_saved','email_open'].includes(e.kind)&&now-Date.parse(e.at)<7*86400000).length;if(activity&&(!c.lastOutboundAt||now-Date.parse(c.lastOutboundAt)>Number(policy?.followUpDays??7)*86400000)){reasons.push(`${activity} recent engagement events without recent recorded outreach`);score+=50}if(days!==null&&threshold&&days>threshold){reasons.push(`${days} days in ${c.stage}; synthetic guideline ${threshold}`);score+=20}return {contact:c,reasons,score}}).filter(p=>p.reasons.length).sort((a,b)=>b.score-a.score)}
 export function report(a:PlatformActor,from:string,to:string){assertCapability(a,'reporting');const start=Date.parse(from),end=Date.parse(to)+86400000;if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)throw new AccessError('Choose a valid date range',400);const contacts=listContacts(a,true);const cohort=contacts.filter(c=>Date.parse(c.receivedAt)>=start&&Date.parse(c.receivedAt)<end);const events=contacts.flatMap(c=>c.timeline.filter(e=>Date.parse(e.at)>=start&&Date.parse(e.at)<end).map(e=>({...e,contactId:c.id,name:`${c.firstName} ${c.lastName}`})));const calls=events.filter(e=>e.kind==='call'&&e.direction==='out');const response=cohort.filter(c=>c.firstTouchAt).map(c=>(Date.parse(c.firstTouchAt!)-Date.parse(c.receivedAt))/60000).filter(n=>n>=0).sort((a,b)=>a-b);const med=response.length?(response[Math.floor((response.length-1)/2)]+response[Math.floor(response.length/2)])/2:null;const calendar=listAppointments(a,true);const outcomes=calendar.filter(e=>e.kind==='appointment'&&Date.parse(e.startsAt)>=start&&Date.parse(e.startsAt)<end);const cohortClosed=cohort.filter(c=>c.timeline.some(e=>e.kind==='stage'&&e.label.endsWith('to Closed')&&Date.parse(e.at)<end)).length;const stageTimes:Record<string,{days:number;count:number}>={};for(const c of contacts){const transitions=c.timeline.filter(e=>e.kind==='stage'&&e.label.startsWith('Stage changed from ')).sort((x,y)=>x.at.localeCompare(y.at));for(let i=0;i<transitions.length-1;i++){const event=transitions[i],next=transitions[i+1],entered=Date.parse(event.at),exited=Date.parse(next.at);if(entered<start||exited>=end||exited<entered)continue;const stage=event.label.split(' to ').at(-1)!;const item=stageTimes[stage]??{days:0,count:0};item.days+=(exited-entered)/86400000;item.count++;stageTimes[stage]=item}}return {from,to,cohort,events,cohortClosed,recordedClosingConversion:cohort.length?cohortClosed/cohort.length:null,appointmentSetEvents:calendar.filter(e=>e.kind==='appointment'&&e.createdAt&&Date.parse(e.createdAt)>=start&&Date.parse(e.createdAt)<end).length,appointmentTimestampCoverage:calendar.filter(e=>e.kind==='appointment'&&e.createdAt).length,appointmentsHeld:outcomes.some(e=>!e.status||e.status==='planned')?null:outcomes.filter(e=>e.status==='held').length,stageTimes:Object.entries(stageTimes).map(([stage,v])=>({stage,meanDays:v.days/v.count,completedIntervals:v.count})),fallout:null,calls:calls.length,connected:calls.filter(e=>e.label.startsWith('Connected conversation')).length,firstResponseMedianMinutes:med,responseDenominator:response.length,appointmentEvidence:calendar.filter(e=>Date.parse(e.startsAt)>=start&&Date.parse(e.startsAt)<end),appointments:calendar.filter(e=>Date.parse(e.startsAt)>=start&&Date.parse(e.startsAt)<end).length,contracts:events.filter(e=>e.kind==='stage'&&e.label.endsWith('to Under Contract')).length,closings:events.filter(e=>e.kind==='stage'&&e.label.endsWith('to Closed')).length}}
 
-export function generateLeadAlerts(a:PlatformActor){assertCapability(a,'settings.leads');const policy=getSetting(a,'leads');if(!policy.value.enabled)return {created:0,suppressed:0,message:'Synthetic policy is paused'};const target=directory(a.organizationId).find(p=>p.id===(policy.value.alertRecipient||a.id)&&!p.disabled);if(!target||!can(target,'crm')||!scopedOwner(a,target.id,target.officeId))throw new AccessError('Alert recipient is outside your scope',400);const prefs=getSetting(target,'personal').value;const hour=Number(new Intl.DateTimeFormat('en-US',{hour:'numeric',hourCycle:'h23',timeZone:prefs.timezone??'America/New_York'}).format(new Date()));const start=policy.value.quietStart??22,end=policy.value.quietEnd??7;const quiet=prefs.inAppNotifications===false||(start>end?(hour>=start||hour<end):hour>=start&&hour<end);let created=0;for(const p of priorities(a)){if(!scopedOwner(target,p.contact.ownerId,p.contact.officeId))continue;const id=`lead-alert:${a.organizationId}:${target.id}:${p.contact.id}:${new Date().toISOString().slice(0,10)}:${policy.version}`;if(getRecord('notifications',id))continue;putRecord('notifications',{id,organizationId:a.organizationId,ownerId:target.id,title:`Review ${p.contact.firstName} ${p.contact.lastName}: ${p.reasons.join('; ')}`,href:'/crm/'+p.contact.id,at:new Date().toISOString(),suppressed:quiet,read:false});created++}for(const task of listTasks(a)){if(task.done||Date.now()-Date.parse(task.dueAt)<Number(policy.value.escalationMinutes??1440)*60000||!scopedOwner(target,task.ownerId,task.officeId))continue;const id=`task-escalation:${a.organizationId}:${task.id}:${task.version}:${policy.version}`;if(getRecord('notifications',id))continue;putRecord('notifications',{id,organizationId:a.organizationId,ownerId:target.id,title:'Review overdue task: '+task.title,href:task.contactId?'/crm/'+task.contactId:'/today',at:new Date().toISOString(),suppressed:quiet,read:false,kind:'synthetic_task_escalation'});created++}audit(a,'lead-alerts.evaluated',policy.id);return {created,suppressed:quiet?created:0}}
+export function generateLeadAlerts(a:PlatformActor){assertCapability(a,'settings.leads');const policy=getSetting(a,'leads');if(!policy.value.enabled)return {created:0,suppressed:0,message:'Synthetic policy is paused'};const target=directory(a.organizationId).find(p=>p.id===(policy.value.alertRecipient||a.id)&&!p.disabled);if(!target||!can(target,'crm')||!scopedOwner(a,target.id,target.officeId))throw new AccessError('Alert recipient is outside your scope',400);const prefs=getSetting(target,'personal').value;const hour=Number(new Intl.DateTimeFormat('en-US',{hour:'numeric',hourCycle:'h23',timeZone:prefs.timezone??'America/New_York'}).format(new Date()));const start=policy.value.quietStart??22,end=policy.value.quietEnd??7;const quiet=prefs.inAppNotifications===false||(start>end?(hour>=start||hour<end):hour>=start&&hour<end);let created=0;for(const p of priorities(a)){if(!scopedOwner(target,p.contact.ownerId,p.contact.officeId))continue;const id=`lead-alert:${a.organizationId}:${target.id}:${p.contact.id}:${new Date().toISOString().slice(0,10)}:${policy.version}`;if(getRecord('notifications',id))continue;putRecord('notifications',{id,organizationId:a.organizationId,ownerId:target.id,channel:'in_app',deliveryState:quiet?'suppressed':'recorded_in_app',title:`Review ${p.contact.firstName} ${p.contact.lastName}: ${p.reasons.join('; ')}`,href:'/crm/'+p.contact.id,at:new Date().toISOString(),suppressed:quiet,read:false});created++}for(const task of listTasks(a)){if(task.done||Date.now()-Date.parse(task.dueAt)<Number(policy.value.escalationMinutes??1440)*60000||!scopedOwner(target,task.ownerId,task.officeId))continue;const id=`task-escalation:${a.organizationId}:${task.id}:${task.version}:${policy.version}`;if(getRecord('notifications',id))continue;putRecord('notifications',{id,organizationId:a.organizationId,ownerId:target.id,channel:'in_app',deliveryState:quiet?'suppressed':'recorded_in_app',title:'Review overdue task: '+task.title,href:task.contactId?'/crm/'+task.contactId:'/today',at:new Date().toISOString(),suppressed:quiet,read:false,kind:'synthetic_task_escalation'});created++}audit(a,'lead-alerts.evaluated',policy.id);return {created,suppressed:quiet?created:0}}
 
 export function canEditMarketing(a:PlatformActor,r:{organizationId:string;ownerId:string;officeId?:string;status?:string}){return can(a,'marketing')&&r.organizationId===a.organizationId&&(a.role==='broker_owner'||a.role==='marketing_admin'||r.ownerId===a.id||(['team_leader','managing_broker'].includes(a.role)&&(r.officeId??directory(a.organizationId).find(p=>p.id===r.ownerId)?.officeId)===a.officeId))}
 export function canReadMarketing(a:PlatformActor,r:{organizationId:string;ownerId:string;officeId?:string;status?:string}){return canEditMarketing(a,r)||(can(a,'marketing')&&r.organizationId===a.organizationId&&r.status==='approved')}
 
-export function processCalendarReminders(a:PlatformActor,now=Date.now()){const people=directory(a.organizationId).filter(p=>!p.disabled);let created=0,suppressed=0;for(const event of listAppointments(a)){if(['completed','canceled','held','missed'].includes(event.status??''))continue;const person=people.find(p=>p.id===event.ownerId);if(!person)continue;const prefs=getSetting(person,'personal').value;if(prefs.calendarReminders===false)continue;const starts=Date.parse(event.startsAt),lead=Number(prefs.reminderMinutes??15)*60000;if(starts>now+lead||starts<now-60000)continue;const id=`calendar-reminder:${a.organizationId}:${event.id}:${event.version}`;if(getRecord('notifications',id))continue;const timezone=prefs.timezone??'America/New_York';const hour=Number(new Intl.DateTimeFormat('en-US',{hour:'numeric',hourCycle:'h23',timeZone:timezone}).format(new Date(now)));const start=prefs.quietStart??22,end=prefs.quietEnd??7;const quiet=prefs.inAppNotifications===false||(start>end?(hour>=start||hour<end):hour>=start&&hour<end);const date=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(starts));putRecord('notifications',{id,organizationId:a.organizationId,ownerId:person.id,title:'Calendar reminder: '+event.title,href:'/calendar?date='+date,at:new Date(now).toISOString(),suppressed:quiet,read:false});created++;if(quiet)suppressed++}if(created)audit(a,'calendar.reminders-processed',String(created));return {created,suppressed}}
+export function processCalendarReminders(a:PlatformActor,now=Date.now()){const people=directory(a.organizationId).filter(p=>!p.disabled);let created=0,suppressed=0;for(const event of listAppointments(a)){if(['completed','canceled','held','missed'].includes(event.status??''))continue;const person=people.find(p=>p.id===event.ownerId);if(!person)continue;const prefs=getSetting(person,'personal').value;if(prefs.calendarReminders===false)continue;const starts=Date.parse(event.startsAt),lead=Number(prefs.reminderMinutes??15)*60000;if(starts>now+lead||starts<now-60000)continue;const id=`calendar-reminder:${a.organizationId}:${event.id}:${event.version}`;if(getRecord('notifications',id))continue;const timezone=prefs.timezone??'America/New_York';const hour=Number(new Intl.DateTimeFormat('en-US',{hour:'numeric',hourCycle:'h23',timeZone:timezone}).format(new Date(now)));const start=prefs.quietStart??22,end=prefs.quietEnd??7;const quiet=prefs.inAppNotifications===false||(start>end?(hour>=start||hour<end):hour>=start&&hour<end);const date=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(starts));putRecord('notifications',{id,organizationId:a.organizationId,ownerId:person.id,channel:'in_app',deliveryState:quiet?'suppressed':'recorded_in_app',title:'Calendar reminder: '+event.title,href:'/calendar?date='+date,at:new Date(now).toISOString(),suppressed:quiet,read:false});created++;if(quiet)suppressed++}if(created)audit(a,'calendar.reminders-processed',String(created));return {created,suppressed}}
 
 export interface ProposedFubChange {id:string;organizationId:string;ownerId:string;officeId:string;contactId:string;sourceVersion:number;patch:Record<string,unknown>;state:'awaiting_connector'|'discarded';submittedBy:string;createdAt:string;discardedAt?:string}
 export function listProposedFubChanges(a:PlatformActor,contactId?:string){assertCapability(a,'crm');return readRecords<ProposedFubChange>('fub_proposed_changes').filter(p=>p.organizationId===a.organizationId&&(!contactId||p.contactId===contactId)&&scopedOwner(a,p.ownerId,p.officeId))}
 export function discardProposedFubChange(a:PlatformActor,id:string){return transaction(()=>{const proposal=listProposedFubChanges(a).find(p=>p.id===id);if(!proposal||proposal.state!=='awaiting_connector')throw new AccessError('Pending proposal not found',404);const next={...proposal,state:'discarded' as const,discardedAt:new Date().toISOString()};putRecord('fub_proposed_changes',next);audit(a,'fub.proposal_discarded',id);return next})}
+
+
+// Production CRM records live in the shared tenant-scoped PostgreSQL repository.
+// The legacy platform store remains the fixture adapter used by local review.
+function repositoryActor(a: PlatformActor): RepositoryActor {
+  return { userId: a.id, organizationId: a.organizationId, role: repositoryRoleForPlatform(a.role), officeId: a.officeId }
+}
+
+function contactDomainActor(a: PlatformActor): RepositoryActor {
+  if (!a || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(a.id)
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(a.organizationId)) {
+    throw new AccessError('A verified durable organization membership is required.', 503)
+  }
+  return repositoryActor(a)
+}
+
+export interface ContactQuery {
+  query?: string
+  stage?: string
+  source?: string
+  ownerId?: string
+  sort?: 'name' | 'oldest' | 'newest' | 'stage' | 'source'
+  page?: number
+  pageSize?: number
+}
+
+function filterContactRows(a: PlatformActor, rows: Contact[], input: ContactQuery) {
+  let result = rows.filter(c => c.organizationId === a.organizationId && !c.sourceDeleted && scopedOwner(a, c.ownerId, c.officeId))
+  if (input.stage) result = result.filter(c => c.stage === input.stage)
+  if (input.source) result = result.filter(c => c.source === input.source)
+  if (input.ownerId) result = result.filter(c => c.ownerId === input.ownerId)
+  const q = input.query?.trim().toLocaleLowerCase()
+  if (q) result = result.filter(c => [c.firstName, c.lastName, c.email, c.phone, c.source, c.location, c.stage, ...(c.tags ?? [])]
+    .some(value => String(value ?? '').toLocaleLowerCase().includes(q)))
+  const sort = input.sort ?? 'newest'
+  result.sort((left, right) => {
+    if (sort === 'name') return `${left.firstName} ${left.lastName}`.localeCompare(`${right.firstName} ${right.lastName}`) || left.id.localeCompare(right.id)
+    if (sort === 'stage') return left.stage.localeCompare(right.stage) || left.id.localeCompare(right.id)
+    if (sort === 'source') return left.source.localeCompare(right.source) || left.id.localeCompare(right.id)
+    const time = Date.parse(left.receivedAt) - Date.parse(right.receivedAt)
+    return (sort === 'oldest' ? time : -time) || left.id.localeCompare(right.id)
+  })
+  return result
+}
+
+/** Server-side bounded People query; PostgreSQL results are never sent unpaged. */
+export async function listContactsPage(a: PlatformActor, input: ContactQuery = {}, repository?: Repository) {
+  assertCapability(a, 'crm')
+  const pageValue = Number(input.page ?? 1)
+  const sizeValue = Number(input.pageSize ?? 50)
+  const page = Number.isFinite(pageValue) ? Math.max(1, Math.trunc(pageValue)) : 1
+  const pageSize = Number.isFinite(sizeValue) ? Math.max(1, Math.min(100, Math.trunc(sizeValue))) : 50
+  let rows: Contact[]
+  if (repository?.queryDomainRecords) {
+    const officeId = ['managing_broker', 'team_leader'].includes(a.role) ? a.officeId : undefined
+    const ownerId = a.role === 'agent' ? a.id : input.ownerId
+    const queried = await repository.queryDomainRecords<Record<string, unknown>>(contactDomainActor(a), 'crm_contacts', {
+      search: input.query, stage: input.stage, source: input.source, ownerId, officeId, sort: input.sort,
+      limit: pageSize, offset: (page - 1) * pageSize,
+    })
+    const scoped = queried.records.map(record => ({ ...record.data, id: record.recordId, version: record.version }) as unknown as Contact)
+      .filter(contact => contact.organizationId === a.organizationId && scopedOwner(a, contact.ownerId, contact.officeId))
+    return { rows: scoped, total: queried.total, page, pageSize, pageCount: Math.ceil(queried.total / pageSize) }
+  }
+  if (repository) {
+    const actor = contactDomainActor(a)
+    const visible = await repository.listDomainRecords<Record<string, unknown>>(actor, 'crm_contacts', { limit: 200, offset: 0 })
+    rows = visible.map(record => record.data as unknown as Contact)
+    for (let offset = visible.length; visible.length === 200; offset += 200) {
+      const next = await repository.listDomainRecords<Record<string, unknown>>(actor, 'crm_contacts', { limit: 200, offset })
+      rows.push(...next.map(record => record.data as unknown as Contact))
+      if (next.length < 200) break
+    }
+  } else {
+    rows = listContacts(a)
+  }
+  const filtered = filterContactRows(a, rows, input)
+  const total = filtered.length
+  return { rows: filtered.slice((page - 1) * pageSize, page * pageSize), total, page, pageSize, pageCount: Math.ceil(total / pageSize) }
+}
+
+export async function getContactDurable(a: PlatformActor, id: string, repository?: Repository) {
+  repository ??= await getRepository()
+  assertCapability(a, 'crm')
+  const actor = contactDomainActor(a)
+  const record = await repository.getDomainRecord<Record<string, unknown>>(actor, 'crm_contacts', id)
+  if (!record) throw new AccessError('Record not found', 404)
+  const contact = record.data as unknown as Contact
+  if (contact.organizationId !== a.organizationId || !scopedOwner(a, contact.ownerId, contact.officeId)) throw new AccessError('Record not found', 404)
+  return { ...contact, version: record.version }
+}
+
+export async function createContactDurable(a: PlatformActor, input: Record<string, any>, repository?: Repository) {
+  repository ??= await getRepository()
+  assertCapability(a, 'crm')
+  const actor = contactDomainActor(a)
+  const user = await repository.getUser(actor, a.id)
+  if (!user?.isActive || user.organizationId !== a.organizationId) throw new AccessError('Active organization membership is required.', 403)
+  const requestedOwner = String(input.ownerId ?? a.id)
+  if (requestedOwner !== a.id && !['broker_owner', 'managing_broker', 'team_leader'].includes(a.role)) throw new AccessError('Assignment is outside your scope', 403)
+  const owner = requestedOwner === a.id ? user : await repository.getUser(actor, requestedOwner)
+  if (!owner?.isActive || owner.organizationId !== a.organizationId || (requestedOwner !== a.id && !['agent', 'team_lead'].includes(owner.role))) {
+    throw new AccessError('Assigned agent is not active in this organization.', 400)
+  }
+  const profile = await repository.getDomainRecord<Record<string, unknown>>(actor, 'member_profiles', requestedOwner)
+  const officeId = String(profile?.data.officeId ?? (requestedOwner === a.id ? a.officeId : ''))
+  if (!officeId || (requestedOwner !== a.id && a.role !== 'broker_owner' && officeId !== a.officeId)) throw new AccessError('Assignment is outside your office scope.', 403)
+  const now = new Date().toISOString()
+  const source = String(input.source ?? 'Manual Entry').trim().slice(0, 200) || 'Manual Entry'
+  const contact: Contact = {
+    id: randomUUID(), organizationId: a.organizationId, officeId, ownerId: requestedOwner, version: 1,
+    firstName: String(input.firstName).trim(), lastName: String(input.lastName ?? '').trim(),
+    initials: `${String(input.firstName).trim()[0] ?? ''}${String(input.lastName ?? '').trim()[0] ?? ''}`,
+    stage: 'New Lead', source: source as Contact['source'], email: String(input.email ?? '').trim().toLowerCase(), phone: String(input.phone ?? '').trim(),
+    location: String(input.market ?? profile?.data.market ?? '').slice(0, 150), receivedAt: now, stageEnteredAt: now,
+    firstTouchAt: null, lastTouchAt: null, lastInboundAt: null, lastOutboundAt: null, timeline: [],
+    priority: null, reasons: [], tags: [], consent: input.consent === true,
+  }
+  const idempotencyKey = typeof input.idempotencyKey === 'string' ? input.idempotencyKey.trim() : ''
+  if (idempotencyKey && (idempotencyKey.length < 8 || idempotencyKey.length > 200)) throw new AccessError('A valid idempotency key is required.', 400)
+  const idempotencyId = idempotencyKey
+    ? createHash('sha256').update(`crm-contact-create\0${a.organizationId}\0${a.id}\0${idempotencyKey}`).digest('hex')
+    : null
+  const payloadHash = createHash('sha256').update(JSON.stringify({
+    ownerId: requestedOwner, officeId, firstName: contact.firstName, lastName: contact.lastName,
+    email: contact.email, phone: contact.phone, source: contact.source, market: contact.location,
+    consent: contact.consent,
+  })).digest('hex')
+
+  if (idempotencyId) {
+    const prior = await repository.getDomainRecord<{ payloadHash: string; contactId: string }>(actor, 'crm_contact_idempotency', idempotencyId)
+    if (prior) {
+      if (prior.data.payloadHash !== payloadHash) throw new AccessError('This idempotency key was already used for different contact information.', 409)
+      return getContactDurable(a, prior.data.contactId, repository)
+    }
+  }
+
+  const historyId = `${contact.id}:initial`
+  const inputs = [
+    { collection: 'crm_contacts', recordId: contact.id, ownerUserId: requestedOwner, data: contact as unknown as Record<string, unknown>, createOnly: true },
+    { collection: 'crm_assignment_history', recordId: historyId, ownerUserId: requestedOwner,
+      data: { contactId: contact.id, organizationId: a.organizationId, originalRecipient: requestedOwner, to: requestedOwner, at: now, actorId: a.id, kind: 'initial delivery' }, createOnly: true },
+    ...(idempotencyId ? [{ collection: 'crm_contact_idempotency', recordId: idempotencyId, ownerUserId: a.id,
+      data: { payloadHash, contactId: contact.id, createdAt: now }, createOnly: true }] : []),
+  ]
+  const auditEvent = { organizationId: a.organizationId, actorUserId: a.id, actorKind: 'user' as const,
+    action: 'crm.contact_created', targetType: 'crm_contacts', targetId: contact.id, effect: 'write' as const, allowed: true,
+    detail: { source: contact.source, assignedOwnerId: requestedOwner } }
+  try {
+    const written = await repository.putDomainRecordsAtomic(actor, inputs, [auditEvent])
+    return { ...contact, version: written[0].version }
+  } catch (error) {
+    if (!idempotencyId || !(error instanceof DomainRecordConflictError)) throw error
+    const winner = await repository.getDomainRecord<{ payloadHash: string; contactId: string }>(actor, 'crm_contact_idempotency', idempotencyId)
+    if (!winner) throw error
+    if (winner.data.payloadHash !== payloadHash) throw new AccessError('This idempotency key was already used for different contact information.', 409)
+    return getContactDurable(a, winner.data.contactId, repository)
+  }
+}

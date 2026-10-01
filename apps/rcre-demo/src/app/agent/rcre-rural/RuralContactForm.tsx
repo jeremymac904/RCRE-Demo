@@ -53,14 +53,14 @@ export function RuralContactForm({ agent }: Props) {
     )
   }
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setBusy(true)
     setError('')
     const form = e.currentTarget
     const f = new FormData(form)
 
-    const result = captureLead({
+    const result = await captureLead({
       agentSlug: agent.slug,
       type: 'buyer',
       name: f.get('name') as string || undefined,
@@ -83,7 +83,7 @@ export function RuralContactForm({ agent }: Props) {
       setSelectedAcreage([])
       setSelectedUse([])
     } else {
-      setError('Your inquiry could not be recorded. Please try again.')
+      setError(result.error || 'Your request could not be saved. Please try again.')
     }
     setBusy(false)
   }
@@ -91,12 +91,12 @@ export function RuralContactForm({ agent }: Props) {
   if (done) {
     return (
       <div className="rural-success" role="status">
-        <h3>Thank you — your inquiry is recorded.</h3>
+        <h3>Thank you — your request is saved locally for review.</h3>
         <p>
           Reference: <code>{referenceId}</code>
         </p>
         <p style={{ marginTop: '0.75rem' }}>
-          This is a review environment. No appointment is confirmed and no message has been sent.
+          No message was sent and no appointment is confirmed.
         </p>
         <button
           onClick={() => { setDone(false); setReferenceId('') }}

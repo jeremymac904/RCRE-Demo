@@ -7,6 +7,9 @@ import { AcademyCatalogCard } from '@/components/AcademyCatalogCard'
 import { AcademyContinueCard } from '@/components/AcademyContinueCard'
 import { AcademyProgressSummary } from '@/components/AcademyProgressSummary'
 import { ACADEMY, allLessonsInOrder, courses, publicAsset } from '@/lib/academy'
+import { academyCatalog, academyConfigDurable, orderAcademyCourses } from '@/lib/academy-durable'
+import { actorOrNull } from '@/lib/platform/auth'
+import { DurableModuleUnavailable } from '@/components/DurableModuleUnavailable'
 import type { AcademyCourse } from '@/data/academy-types'
 
 export const dynamic = 'force-dynamic'
@@ -35,13 +38,22 @@ const LEVELS: { level: AcademyCourse['level']; caption: string }[] = [
   { level: 'Foundation',   caption: 'Where every agent starts. Do these in order.' },
   { level: 'Practitioner', caption: 'Applied to your own database, your own listings, your own market.' },
   { level: 'Advanced',     caption: 'Specialist work, and knowing where an assistant has to stop.' },
+  { level: 'Brokerage',    caption: 'Courses created from supplied RCRE material and independently approved.' },
 ]
+
 
 export default async function ClassroomPage() {
   const user = await currentUser()
   if (!user) redirect('/login')
 
-  const catalog = courses()
+  const actor = await actorOrNull()
+  if (!actor) redirect('/login')
+  let catalog: ReturnType<typeof courses>
+  try {
+    const [config, durable] = await Promise.all([academyConfigDurable(actor), academyCatalog(actor)])
+    const authored = durable.courses.filter(course => 'source' in course && course.source === 'rcre-authored' && course.state === 'published').map(course => ({ id: course.id, order: course.order, title: course.title, slug: course.id, description: course.description, cover: undefined, level: 'Brokerage' as const, lessonCount: durable.lessons.filter(lesson => lesson.courseId === course.id).length, promptCount: 0, resourceCount: 'resources' in course ? course.resources.length : 0, publicPreview: false }))
+    catalog = orderAcademyCourses([...courses(), ...authored], config.order)
+  } catch { return <DurableModuleUnavailable title="Classroom" detail="Course catalog is temporarily unavailable." /> }
 
   // Lesson artwork for the continue card, verified on disk here because
   // `publicAsset` needs a filesystem and the browser has none. Sending the map

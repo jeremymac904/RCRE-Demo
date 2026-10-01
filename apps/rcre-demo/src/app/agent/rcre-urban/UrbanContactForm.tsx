@@ -28,14 +28,14 @@ export function UrbanContactForm({ agent }: Props) {
   const [referenceId, setReferenceId] = useState('')
   const [inquiryType, setInquiryType] = useState('general')
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setBusy(true)
     setError('')
     const form = e.currentTarget
     const f = new FormData(form)
 
-    const result = captureLead({
+    const result = await captureLead({
       agentSlug: agent.slug,
       type: 'buyer',
       name: f.get('name') as string || undefined,
@@ -52,7 +52,7 @@ export function UrbanContactForm({ agent }: Props) {
       form.reset()
       setInquiryType('general')
     } else {
-      setError('Your inquiry could not be recorded. Please try again.')
+      setError(result.error || 'Your request could not be saved. Please try again.')
     }
     setBusy(false)
   }
@@ -61,13 +61,13 @@ export function UrbanContactForm({ agent }: Props) {
     return (
       <div className="urban-success" role="status">
         <h3 style={{ fontWeight: 600, marginBottom: '0.75rem', color: 'var(--urban-primary)' }}>
-          Inquiry recorded.
+          Request saved locally for review.
         </h3>
         <p style={{ fontSize: '0.85rem', color: 'var(--urban-muted)', marginBottom: '0.5rem' }}>
           Reference: <span style={{ fontFamily: 'var(--urban-font-mono)' }}>{referenceId}</span>
         </p>
         <p style={{ fontSize: '0.78rem', color: 'var(--urban-muted)' }}>
-          This is a local review environment. No appointment is confirmed.
+          No appointment is confirmed.
         </p>
         <button
           onClick={() => { setDone(false); setReferenceId('') }}

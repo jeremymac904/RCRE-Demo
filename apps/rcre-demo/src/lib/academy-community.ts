@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readRecords, getRecord, putRecord, deleteRecord } from './platform/store'
 import { academyManager,academyConfig } from './academy-service'
 import type { PlatformActor } from './platform/auth'
-export type Post={attachments?:{id:string;name:string}[];id:string;organizationId:string;ownerId:string;author:string;category:string;title:string;body:string;lessonId:string;draft:boolean;pinned:boolean;createdAt:string;likes:string[];comments:{id:string;ownerId:string;author:string;body:string;at:string}[]}
+export type Post={attachments?:{id:string;name:string}[];video?:{provider:'youtube';videoId:string;title:string;summary:string;watchUrl:string;thumbnailUrl?:string;discussionPrompt:string;source:'manual_approved_metadata'};id:string;organizationId:string;ownerId:string;author:string;category:string;title:string;body:string;lessonId:string;draft:boolean;pinned:boolean;createdAt:string;likes:string[];comments:{id:string;ownerId:string;author:string;body:string;at:string}[]}
 export function communityPosts(a:PlatformActor){return readRecords<Post>('community_post').filter(p=>p.organizationId===a.organizationId&&(!p.draft||p.ownerId===a.id)).sort((a,b)=>Number(b.pinned)-Number(a.pinned)||b.createdAt.localeCompare(a.createdAt))}
 const clean=(v:unknown,max=10000)=>String(v||'').trim().slice(0,max)
 export function communityAction(a:PlatformActor,b:Record<string,unknown>){const old=b.id?getRecord<Post>('community_post',String(b.id)):null;if(old&&old.organizationId!==a.organizationId)throw new Error('Post unavailable')

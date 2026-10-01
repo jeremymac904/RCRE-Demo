@@ -1,3 +1,4 @@
+import { academyPersistenceAvailable } from '@/lib/academy-service'
 import { createReadStream, statSync, realpathSync } from 'node:fs'
 import { Readable } from 'node:stream'
 import path from 'node:path'
@@ -5,8 +6,10 @@ import { actorOrNull } from '@/lib/platform/auth'
 import { academy } from '@/data/academy'
 import { academyAssetPath, byteRange } from '@/lib/academy-media'
 import { courseAllowed,publicCourseAllowed } from '@/lib/academy-service'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 export const runtime='nodejs'
 export async function GET(req:Request,{params}:{params:Promise<{asset:string[]}>}) {
+ if(!academyPersistenceAvailable()){await recordCaughtRouteFailure(req, '/api/academy/media/[...asset]', null, 503, new Error('AcademyStorageUnavailable'));return Response.json({error:'Training resources are unavailable until durable production storage is connected.'},{status:503})}
  const a=await actorOrNull()
  const {asset}=await params;const href='/academy/'+asset.join('/')
  const lessons=academy.lessons.filter(l=>l.resources.some(r=>r.href===href)||l.video?.src===href||l.video?.captions===href)

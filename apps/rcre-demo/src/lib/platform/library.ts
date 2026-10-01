@@ -6,7 +6,7 @@ import {z} from 'zod'
 import {AccessError,assertCapability,type PlatformActor} from './auth'
 import {getRecord,putRecord,readRecords,storageRoot,transaction,deleteRecord} from './store'
 import {audit,canEditMarketing,canReadMarketing} from './service'
-export interface LibraryAsset {id:string;organizationId:string;ownerId:string;name:string;mime:string;size:number;sha256:string;version:number;previousId:string|null;createdAt:string;archived:boolean;source:string;license:string;tags:string;market:string;audience:string;contentId?:string}
+export interface LibraryAsset extends Record<string, unknown> {id:string;organizationId:string;ownerId:string;name:string;mime:string;size:number;sha256:string;version:number;previousId:string|null;createdAt:string;archived:boolean;source:string;license:string;tags:string;market:string;audience:string;contentId?:string}
 const directory=path.join(storageRoot,'library-assets')
 export function listAssets(a:PlatformActor){assertCapability(a,'marketing');return readRecords<LibraryAsset>('library_assets').filter(r=>canEditMarketing(a,r)||readRecords<any>('marketing').some(c=>canReadMarketing(a,c)&&c.assetIds?.includes(r.id)))}
 export function assetFor(a:PlatformActor,id:string){const r=listAssets(a).find(r=>r.id===id);if(!r)throw new AccessError('Asset not found',404);return r}

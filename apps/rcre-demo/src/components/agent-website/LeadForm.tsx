@@ -54,7 +54,7 @@ export function LeadForm({
     const f = new FormData(form)
 
     try {
-      const result = captureLead({
+      const result = await captureLead({
         agentSlug,
         type,
         name: f.get('name') as string || undefined,
@@ -74,7 +74,7 @@ export function LeadForm({
         form.reset()
         setType(initialType)
       } else {
-        setError('Your inquiry could not be saved. Please try again.')
+        setError(result.error || 'Your request could not be saved. Please try again.')
       }
     } catch {
       setError('Connection unavailable. Please try again.')
@@ -95,13 +95,13 @@ export function LeadForm({
         }}
       >
         <h3 style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#166534' }}>
-          Thank you — your inquiry is recorded.
+          Thank you — your request has been saved locally.
         </h3>
         <p style={{ fontSize: '0.875rem', color: '#166534', marginBottom: '1rem' }}>
           Reference: {referenceId}
         </p>
         <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem' }}>
-          This is a local review environment. No message has been sent and no appointment is confirmed.
+          No message was sent and no appointment is confirmed.
         </p>
         <button
           onClick={() => { setDone(false); setReferenceId('') }}

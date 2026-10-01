@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 /**
  * RCRE Suburban Family — Home Page
  * Route: /agent/family
@@ -16,9 +17,9 @@ import { SuburbanContactForm } from './SuburbanContactForm'
 import './rcre-suburban.css'
 
 export const metadata: Metadata = {
-  title: 'Jordan Mercer | RCRE Suburban Family, St. Johns County & Jacksonville Suburbs',
-  description:
-    'Jordan Mercer — Suburban Family specialist with RCRE Group, serving families in St. Johns County, Jacksonville suburbs, and Birmingham with school-district expertise.',
+  robots: { index: false, follow: false },
+  title: process.env.NODE_ENV === 'production' ? 'Page not found | RCRE Group' : 'Jordan Mercer | RCRE Suburban Family, St. Johns County & Jacksonville Suburbs',
+  description: process.env.NODE_ENV === 'production' ? 'The requested page is unavailable.' : 'Jordan Mercer — Suburban Family specialist with RCRE Group, serving families in St. Johns County, Jacksonville suburbs, and Birmingham with school-district expertise.',
 }
 
 const SUBURBAN_CONFIG = {
@@ -131,6 +132,7 @@ const TESTIMONIAL = {
 }
 
 export default function SuburbanHomePage() {
+  if (process.env.NODE_ENV === 'production') notFound()
   const agent = getExampleAgent('rcre-signature-demo')!
   const seo = buildHomeSEO(agent, SUBURBAN_CONFIG)
 

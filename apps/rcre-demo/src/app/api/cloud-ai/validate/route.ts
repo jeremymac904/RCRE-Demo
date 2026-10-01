@@ -9,13 +9,12 @@ export const dynamic = 'force-dynamic'
 
 const schema = z.object({
   config: z.object({
-    provider: z.string(),
-    baseUrl: z.string().optional(),
-    apiKey: z.string().optional(),
-    model: z.string(),
-    maxTokens: z.number().optional(),
-    temperature: z.number().optional(),
-  }) as z.ZodType<CloudProviderConfig>,
+    provider: z.literal('openrouter'),
+    model: z.literal('openrouter/free'),
+    baseUrl: z.literal('https://openrouter.ai/api/v1').optional(),
+    maxTokens: z.number().int().min(1).max(2000).optional(),
+    temperature: z.number().min(0).max(2).optional(),
+  }).strict() as z.ZodType<CloudProviderConfig>,
 })
 
 export async function POST(req: NextRequest) {

@@ -1,7 +1,8 @@
 import { actorOrNull } from '@/lib/platform/auth'
-import { progressFor } from '@/lib/academy-service'
+import { academyCatalog, academyConfigDurable, academyProgress, orderAcademyCourses } from '@/lib/academy-durable'
+import { DurableModuleUnavailable } from '@/components/DurableModuleUnavailable'
 import { AcademyProgressProvider } from '@/components/AcademyProgressProvider'
-import { ACADEMY_PROGRESS, allLessonsInOrder, courses } from '@/lib/academy'
+import { allLessonsInOrder, courses } from '@/lib/academy'
 
 /**
  * The Training shell.
@@ -30,20 +31,17 @@ import { ACADEMY_PROGRESS, allLessonsInOrder, courses } from '@/lib/academy'
  */
 export default async function TrainingLayout({ children }: { children: React.ReactNode }) {
   const actor = await actorOrNull()
-  const progress = actor ? progressFor(actor) : { completedLessonIds: [] }
-  const curriculum = {
-    lessons: allLessonsInOrder().map(l => ({
-      id: l.id,
-      courseId: l.courseId,
-      order: l.order,
-      title: l.title,
-    })),
-    courses: courses().map(c => ({
-      id: c.id,
-      title: c.title,
-      lessonCount: c.lessonCount,
-    })),
-  }
+  if (!actor) return <>{children}</>
+  let progress: Awaited<ReturnType<typeof academyProgress>>
+  try { progress = await academyProgress(actor) }
+  catch { return <DurableModuleUnavailable title="Training" detail="The training library is temporarily unavailable. Progress and completion status are not being read from local demo storage." /> }
+  let curriculum
+  try {
+    const [catalog, config] = await Promise.all([academyCatalog(actor), academyConfigDurable(actor)])
+    const customCourses = catalog.courses.filter(course => 'source' in course && course.source === 'rcre-authored').map(course => ({ id: course.id, order: course.order, title: course.title, lessonCount: catalog.lessons.filter(lesson => lesson.courseId === course.id).length }))
+    const orderedCourses = orderAcademyCourses([...courses(), ...customCourses], config.order)
+    curriculum = { lessons: [...allLessonsInOrder().map(l => ({ id: l.id, courseId: l.courseId, order: l.order, title: l.title })), ...catalog.lessons.map(l => ({ id: l.id, courseId: l.courseId, order: l.order, title: l.title }))], courses: orderedCourses.map(c => ({ id: c.id, title: c.title, lessonCount: c.lessonCount })) }
+  } catch { return <DurableModuleUnavailable title="Training" detail="The training catalog is temporarily unavailable." /> }
 
   return (
     <AcademyProgressProvider curriculum={curriculum} seed={progress}>

@@ -43,7 +43,7 @@ export default function AgentContactClient({ agent }: Props) {
                 agentSlug={agent.slug}
                 type="general"
                 title={`Message ${agent.name.split(' ')[0]}`}
-                subtitle="Share your timeline and what you're looking for. Use synthetic contact details in this review environment."
+                subtitle="Share your timeline and what you're looking for. Your request is saved locally for review. No message is sent automatically."
                 showTypeSelect
               />
             </div>

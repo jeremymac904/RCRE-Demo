@@ -102,8 +102,8 @@ describe('recruiting data', () => {
 
 describe('audit log', () => {
   it('records events and restricts reads to brokers', async () => {
-    await repo.recordAudit({
-      organizationId: ORG_ID, actorUserId: AGENT_A, actorKind: 'mcp',
+    await repo.recordAudit(agentA, {
+      organizationId: ORG_ID, actorUserId: AGENT_A, actorKind: 'user',
       action: 'get_my_today', effect: 'read', allowed: true,
     })
     expect((await repo.listAudit(broker)).length).toBe(1)

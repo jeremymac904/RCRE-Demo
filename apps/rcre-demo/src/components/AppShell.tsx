@@ -37,6 +37,8 @@ const BROKER_NAV: NavItem[] = [
   { href: '/pipeline',   label: 'Pipeline' },
 ]
 
+const DEMO_RUNTIME = process.env.NODE_ENV !== 'production'
+
 export function AppShell({
   user, children,
 }: {
@@ -99,7 +101,7 @@ export function AppShell({
 
       {open && (
         <div className="animate-slide-down border-b border-hair bg-ink-raised px-4 py-4 lg:hidden">
-          {navLinks}<div className="flex flex-wrap gap-4 py-4 text-sm">{['team_leader','managing_broker','broker_owner'].includes(role)&&<Link href="/admin/mls">MLS / IDX</Link>}<Link href="/settings">Settings</Link><Link href="/workspace-search">Search workspace</Link><Link href="/notifications">Notifications</Link><Link href="/approvals">Approvals</Link>{['agent','team_leader','managing_broker','broker_owner','marketing_admin'].includes(role)&&<Link href="/calendar">Calendar</Link>}<Link href="/">Website</Link></div>
+          {navLinks}<div className="flex flex-wrap gap-4 py-4 text-sm"><Link href="/swag">Swag &amp; brand resources</Link>{['team_leader','managing_broker','broker_owner'].includes(role)&&<Link href="/admin/mls">MLS / IDX</Link>}<Link href="/settings">Settings</Link><Link href="/google-workspace">Google Workspace</Link><Link href="/workspace-search">Search workspace</Link><Link href="/notifications">Notifications</Link><Link href="/approvals">Approvals</Link>{['agent','team_leader','managing_broker','broker_owner','marketing_admin'].includes(role)&&<Link href="/calendar">Calendar</Link>}<Link href="/">Website</Link></div>
           <div className="divider mt-4 space-y-3 pt-4">
             <ThemeToggle />
             <Link prefetch={false} href="/api/session" className="block text-[0.8125rem] text-chalk-muted hover:text-chalk">
@@ -120,8 +122,10 @@ export function AppShell({
             {navLinks}
             <nav aria-label="Workspace tools" className="mt-5 pt-4 border-t border-hair flex flex-col gap-2 text-sm text-chalk-muted">
               {['agent','broker_owner','managing_broker','team_leader'].includes(role)&&<>{['agent','team_leader','managing_broker','broker_owner','marketing_admin'].includes(role)&&<Link href="/calendar">Calendar</Link>}<Link href="/listings">Listings</Link></>}
+              <Link href="/swag">Swag &amp; brand resources</Link>
               <Link href="/workspace-search">Search workspace</Link><Link href="/notifications">Notifications</Link><Link href="/approvals">Approvals</Link>
               <Link href="/settings">Settings</Link>
+              <Link href="/google-workspace">Google Workspace</Link>
               {['team_leader','managing_broker','broker_owner'].includes(role)&&<Link href="/admin/mls">MLS / IDX</Link>}{role==='broker_owner'&&<><Link href="/integrations">Integrations</Link><Link href="/admin/website">Website studio</Link><Link href="/transactions">Transactions</Link><Link href="/admin/audit">Audit trail</Link></>}
               <Link href="/">Public website</Link>
             </nav>
@@ -130,10 +134,10 @@ export function AppShell({
           <div className="shrink-0 space-y-3.5">
             <ThemeToggle />
             <div className="flex items-center gap-1.5">
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-brass-fill" />
+              {DEMO_RUNTIME && <><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-brass-fill" />
               <span className="text-micro uppercase tracking-[0.12em] text-chalk-faint">
-                Demo environment
-              </span>
+                Demo environment · changes may reset
+              </span></>}
             </div>
             <div className="divider pt-3.5">
               <div className="flex items-center gap-3">

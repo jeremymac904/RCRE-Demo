@@ -5,15 +5,15 @@
  * No server-only imports (next/headers, server-only, etc.) here.
  */
 
-import type { CloudProviderConfig, CloudProvider } from './providers'
-import { defaultModelFor } from './providers'
+import type { CloudProviderConfig, CloudProvider, PortalAIProvider } from './providers'
+import { assertFreeOnlyConfig, defaultModelFor, OPENROUTER_API_BASE, OPENROUTER_FREE_MODEL } from './providers'
 
 // ---------------------------------------------------------------------------
 // Stored config types
 // ---------------------------------------------------------------------------
 
 export interface StoredAIConfig {
-  provider: 'deterministic' | 'ollama' | 'hermes' | 'cloud'
+  provider: PortalAIProvider
   cloud?: CloudProviderConfig
   model?: string
   temperature?: number
@@ -25,7 +25,7 @@ export interface StoredAIConfig {
 }
 
 export interface ClientAIConfig {
-  provider: 'deterministic' | 'ollama' | 'hermes' | 'cloud'
+  provider: PortalAIProvider
   cloud?: Omit<CloudProviderConfig, 'apiKey'> & { apiKey?: string } // masked in storage
   temperature?: number
   maxTokens?: number
@@ -36,7 +36,6 @@ export interface ClientAIConfig {
 export interface CloudConfigInput {
   provider: CloudProvider
   baseUrl?: string
-  apiKey?: string
   model?: string
   maxTokens?: number
   temperature?: number
@@ -49,7 +48,7 @@ export interface ValidationResult {
 }
 
 export interface FullAIConfig {
-  provider: 'deterministic' | 'ollama' | 'hermes' | 'cloud'
+  provider: PortalAIProvider
   cloud?: CloudProviderConfig
   model?: string
   temperature?: number
@@ -76,7 +75,9 @@ export function readClientPrefs(): ClientAIConfig | null {
   try {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as ClientAIConfig
+    const parsed = JSON.parse(raw) as Partial<ClientAIConfig>
+    if (parsed.provider !== 'deterministic' && parsed.provider !== 'cloud') return { provider: 'deterministic' }
+    return parsed as ClientAIConfig
   } catch {
     return null
   }
@@ -110,14 +111,16 @@ export function saveClientPrefs(prefs: Partial<ClientAIConfig>): void {
  * Validates the model is specified.
  */
 export function buildCloudConfig(input: CloudConfigInput): CloudProviderConfig {
-  return {
+  const config: CloudProviderConfig = {
     provider: input.provider,
-    baseUrl: input.baseUrl,
-    apiKey: input.apiKey,
+    baseUrl: input.baseUrl || OPENROUTER_API_BASE,
     model: input.model || defaultModelFor(input.provider),
     maxTokens: input.maxTokens,
     temperature: input.temperature,
   }
+  assertFreeOnlyConfig(config)
+  if (config.model !== OPENROUTER_FREE_MODEL) throw new Error('Only openrouter/free is allowed')
+  return config
 }
 
 /**
@@ -126,7 +129,7 @@ export function buildCloudConfig(input: CloudConfigInput): CloudProviderConfig {
  */
 export async function mergeAIConfigs(
   storeConfig: {
-    provider: 'deterministic' | 'ollama' | 'hermes'
+    provider: PortalAIProvider
     endpoint: string
     model: string
     sharing: boolean

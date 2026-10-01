@@ -13,8 +13,9 @@ import { actorOrNull } from '@/lib/platform/auth'
 import { AppShell } from '@/components/AppShell'
 import { THEME_CATALOG, type AgentWebsiteTheme } from '@/lib/agent-website/types'
 import { getWebsiteState, getAgentProfile } from '@/lib/agent-website/agent-service'
+import { loadAgentWebsite } from '@/lib/agent-website/lifecycle'
 import { completenessScore } from '@/lib/agent-website/seo'
-import { getWebsiteConfig } from '@/lib/agent-website/agent-service'
+import type { AgentProfile, AgentWebsiteConfig } from '@/lib/agent-website/types'
 import './website.css'
 
 export const dynamic = 'force-dynamic'
@@ -26,15 +27,21 @@ export default async function WebsitePortalPage() {
   if (!actor || !user) redirect('/login')
 
   // Get current agent's website state
-  const state = getWebsiteState(user.id)
-  const profile = getAgentProfile(user.id)
-  const config = state?.config
-
-  const score = state?.config ? completenessScore(profile!, config!).score : 0
-  const issues = state?.completenessIssues ?? []
-  const publishState = state?.publishState ?? 'draft'
+  const durable = process.env.NODE_ENV === 'production' ? await loadAgentWebsite(actor) : null
+  const state = process.env.NODE_ENV === 'production' ? null : getWebsiteState(user.id)
+  const storedProfile = durable?.profile ?? null
+  const canonical = durable?.canonical
+  const profile: AgentProfile | null = process.env.NODE_ENV === 'production'
+    ? canonical ? { ...canonical, title: String(storedProfile?.professionalTitle ?? 'REALTOR®'), phone: String(storedProfile?.phone ?? ''), email: durable?.member?.email ?? '', license: Array.isArray(storedProfile?.licenses) ? (storedProfile!.licenses as Array<{number?:string;state?:string}>).map(item => `${item.number ?? ''}${item.state ? ` (${item.state})` : ''}`).join(' · ') : '', market: Array.isArray(storedProfile?.markets) ? (storedProfile!.markets as string[]).join(' · ') : user.market, bio: String(storedProfile?.biography ?? '') } as AgentProfile : null
+    : getAgentProfile(user.id)
+  const config = (durable?.website ?? state?.config) as AgentWebsiteConfig | null | undefined
+  const score = config && profile ? completenessScore(profile, config).score : 0
+  const issues = state?.completenessIssues ?? (profile && config ? completenessScore(profile, config).issues : [])
+  const publishState = config?.published ? 'published' : 'draft'
   const currentTheme = config?.theme ?? 'rcre-signature'
   const themeMeta = THEME_CATALOG[currentTheme as AgentWebsiteTheme]
+  const siteSlug = config?.slug ?? (storedProfile?.websiteSlug as string | undefined) ?? ''
+  const previewHref = siteSlug ? `/agent/${siteSlug}` : '/website/settings'
 
   return (
     <AppShell user={user}>
@@ -47,7 +54,7 @@ export default async function WebsitePortalPage() {
               <h1 className="wp-title">My Agent Website</h1>
             </div>
             <div className="wp-header-actions">
-              <Link href={`/agent/${user.id}`} target="_blank" className="wp-btn-outline">
+              <Link href={previewHref} target="_blank" className="wp-btn-outline">
                 Preview Site
               </Link>
             </div>
@@ -104,19 +111,16 @@ export default async function WebsitePortalPage() {
                 </svg>
                 Edit Website Settings
               </Link>
-              <Link href={`/agent/${user.id}`} target="_blank" className="wp-btn-secondary">
+              <Link href={previewHref} target="_blank" className="wp-btn-secondary">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                   <circle cx="12" cy="12" r="3" />
                 </svg>
                 Preview Website
               </Link>
-              <button className="wp-btn-disabled" disabled title="Coming soon — configure your domain first">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-                </svg>
-                Publish (Coming Soon)
-              </button>
+              <Link href="/website/settings" className="wp-btn-secondary">
+                {publishState === 'published' ? 'Manage publication' : 'Configure and publish'}
+              </Link>
             </div>
           </section>
 

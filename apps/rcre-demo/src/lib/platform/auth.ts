@@ -1,6 +1,6 @@
 import 'server-only'
 import { cookies } from 'next/headers'
-import { createHmac, createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHmac, createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import { getRecord, putRecord, readRecords } from './store'
 
 export type PlatformRole = 'agent' | 'team_leader' | 'managing_broker' | 'broker_owner' | 'transaction_coordinator' | 'marketing_admin' | 'trainer'
@@ -59,11 +59,8 @@ export class AccessError extends Error {
 // ---------------------------------------------------------------------------
 // Signed session tokens (serverless-safe)
 // ---------------------------------------------------------------------------
-// Sessions live in a signed cookie so they survive Netlify function cold
-// starts (where /tmp is wiped). The SQLite `sessions` table is still
-// maintained for the in-app session list and revocation. The cookie itself
-// is the source of truth for "is this actor signed in" — server-side
-// validation only requires reading the cookie.
+// Signed cookies carry identity, while a durable server-side session row is
+// required for each request so revocation, expiry, and deactivation take effect immediately.
 
 const SESSION_TTL_MS = 12 * 3600000
 const SESSION_VERSION = 'v1'
@@ -104,26 +101,29 @@ function verify(payload: string, signature: string): boolean {
 interface SessionPayload {
   v: string
   actorId: string
+  sessionId: string
   exp: number
   iat: number
 }
 
-function encodeSession(actorId: string, ttlMs = SESSION_TTL_MS): string {
+function encodeSession(actorId: string, sessionId: string, ttlMs = SESSION_TTL_MS): string {
   const now = Date.now()
-  const payload: SessionPayload = { v: SESSION_VERSION, actorId, iat: now, exp: now + ttlMs }
+  const payload: SessionPayload = { v: SESSION_VERSION, actorId, sessionId, iat: now, exp: now + ttlMs }
   const body = b64url(Buffer.from(JSON.stringify(payload), 'utf8'))
   const sig = sign(body)
   return `${body}.${sig}`
 }
 
 function decodeSession(token: string): SessionPayload | null {
-  const [body, sig] = token.split('.')
+  const parts = token.split('.')
+  if (parts.length !== 2) return null
+  const [body, sig] = parts
   if (!body || !sig) return null
   if (!verify(body, sig)) return null
   try {
     const payload = JSON.parse(b64urlDecode(body).toString('utf8')) as SessionPayload
     if (payload.v !== SESSION_VERSION) return null
-    if (typeof payload.actorId !== 'string' || typeof payload.exp !== 'number') return null
+    if (typeof payload.actorId !== 'string' || typeof payload.sessionId !== 'string' || typeof payload.exp !== 'number') return null
     if (payload.exp < Date.now()) return null
     return payload
   } catch {
@@ -132,7 +132,13 @@ function decodeSession(token: string): SessionPayload | null {
 }
 
 export function demoEnabled() {
-  return process.env.RCRE_APP_MODE === 'local' || process.env.NODE_ENV !== 'production' || process.env.RCRE_DEMO_ENABLED === '1'
+  // Deploy-time flags must never re-enable persona authentication in production.
+  return process.env.NODE_ENV !== 'production'
+}
+
+export function sessionCookieOptions() {
+  // Lax is required for the top-level GET back from Google's OIDC callback.
+  return { httpOnly: true as const, sameSite: 'lax' as const, path: '/', maxAge: SESSION_TTL_MS / 1000, secure: process.env.NODE_ENV === 'production' }
 }
 
 export function createSession(id: string) {
@@ -140,10 +146,11 @@ export function createSession(id: string) {
   const actor = PERSONAS.find((p) => p.id === id) ?? getRecord<{ actor: PlatformActor }>('members', id)?.actor
   if (!actor) throw new AccessError('Unknown persona', 400)
   if (getRecord<any>('members', id)?.disabled) throw new AccessError('Membership inactive')
-  const token = encodeSession(id)
-  // Mirror in SQLite for the in-app session list and revocation.
+  const sessionId = randomUUID()
+  const token = encodeSession(id, sessionId)
+  // Signed cookies are accepted only while their server-side revocation row exists.
   putRecord('sessions', {
-    id: token.slice(0, 64),
+    id: sessionId,
     actorId: id,
     createdAt: new Date().toISOString(),
     expiresAt: Date.now() + SESSION_TTL_MS,
@@ -153,13 +160,24 @@ export function createSession(id: string) {
 }
 
 export async function actorOrNull(): Promise<PlatformActor | null> {
-  if (!demoEnabled()) return null
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return null
+  if (!demoEnabled()) {
+    try {
+      const { getAuthPersistence, hashSecret, platformActor } = await import('@/lib/auth/persistence')
+      const actor = await (await getAuthPersistence()).validateSession(hashSecret(token))
+      return actor ? platformActor(actor) : null
+    } catch {
+      // Production identity fails closed when PostgreSQL or auth state is unavailable.
+      return null
+    }
+  }
   // Primary path: signed cookie payload.
   const payload = decodeSession(token)
   if (payload) {
+    const session = getRecord<{ actorId: string; expiresAt: number; revoked: boolean }>('sessions', payload.sessionId)
+    if (!session || session.actorId !== payload.actorId || session.revoked || session.expiresAt <= Date.now()) return null
     return resolveActiveActor(payload.actorId)
   }
   // Fallback: legacy SHA-256 token still in SQLite from before this update.
@@ -202,20 +220,44 @@ export async function revokeSession() {
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return
-  cookieStore.delete(SESSION_COOKIE)
-  // Best-effort SQLite mirror cleanup.
+  if (!demoEnabled()) {
+    // Do not report logout as successful if the durable revocation write failed.
+    // A copied bearer cookie must stop working before the browser cookie is cleared.
+    const { getAuthPersistence, hashSecret } = await import('@/lib/auth/persistence')
+    await (await getAuthPersistence()).revokeSession(hashSecret(token))
+    cookieStore.delete(SESSION_COOKIE)
+    return
+  }
+  // Server-side revocation is checked by actorOrNull on every authenticated request.
   try {
-    const s = getRecord<{ id: string; revoked: boolean }>('sessions', token.slice(0, 64))
+    const payload = decodeSession(token)
+    const s = payload ? getRecord<{ id: string; revoked: boolean }>('sessions', payload.sessionId) : getRecord<{ id: string; revoked: boolean }>('sessions', legacyHashToken(token) ?? '')
     if (s) putRecord('sessions', { ...s, revoked: true })
   } catch {
-    // SQLite may be unavailable on cold start — that is fine, the cookie
-    // deletion is what actually ends the session.
+    // Server-side state remains the authority for acceptance.
   }
+  cookieStore.delete(SESSION_COOKIE)
+}
+
+/** Issue an opaque, hashed-at-rest PostgreSQL session after verified OIDC. */
+export async function issueDurableSession(actorId: string, metadata: { userAgent?: string | null; ip?: string | null } = {}) {
+  const { createHash } = await import('node:crypto')
+  const { getAuthPersistence, hashSecret, opaqueSecret } = await import('@/lib/auth/persistence')
+  const token = opaqueSecret(32)
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
+  const digest = (value: string | null | undefined) => createHash('sha256').update(value ?? '').digest('hex')
+  const result = await (await getAuthPersistence()).issueSession({
+    userId: actorId, tokenHash: hashSecret(token), expiresAt, deviceLabel: 'Web browser',
+    userAgentHash: digest(metadata.userAgent), ipHash: digest(metadata.ip),
+  })
+  if (!result) throw new AccessError('Your RCRE account is not active. Contact an administrator.', 403)
+  return { token, expiresAt, sessionId: result.sessionId }
 }
 
 export function can(a: PlatformActor, c: string): boolean {
   if (c === 'ai' || c.startsWith('ai.') || c === 'personal' || c === 'community.read' || c === 'academy.read') return true
   if (a.role === 'broker_owner') return true
+  if (c === 'settings.people') return a.role === 'managing_broker'
   const leadership = ['team_leader', 'managing_broker'].includes(a.role)
   if (c.startsWith('transactions.')) return ['agent', 'team_leader', 'managing_broker', 'transaction_coordinator'].includes(a.role)
   if (c === 'calendar' && a.role === 'marketing_admin') return true
@@ -244,6 +286,16 @@ export function scopedOwner(a: PlatformActor, ownerId: string, officeId?: string
   if (a.role === 'agent') return ownerId === a.id
   if (['team_leader', 'managing_broker'].includes(a.role)) return officeId === a.officeId
   return false
+}
+export function authorizeMemberChange(actor: PlatformActor, target: PlatformActor, change: { role: PlatformRole; officeId?: string; teamId?: string }) {
+  assertCapability(actor, 'settings.people')
+  if (target.organizationId !== actor.organizationId) throw new AccessError('Member not found', 404)
+  if (target.id === actor.id) throw new AccessError('You cannot modify your own role')
+  if (actor.role === 'broker_owner') return
+  if (actor.role !== 'managing_broker' || target.officeId !== actor.officeId) throw new AccessError('Member is outside your office', 403)
+  if (['broker_owner', 'managing_broker', 'marketing_admin'].includes(target.role)) throw new AccessError('This leadership or cross-brokerage role cannot be changed here', 403)
+  if (!['agent', 'team_leader', 'transaction_coordinator'].includes(change.role)) throw new AccessError('This role requires brokerage owner approval', 403)
+  if (change.officeId !== actor.officeId || change.teamId !== actor.officeId) throw new AccessError('Office and team must remain within your assigned office', 403)
 }
 export function sessionList(a: PlatformActor) {
   return readRecords<{ id: string; actorId: string; createdAt: string; expiresAt: number; revoked: boolean }>('sessions')

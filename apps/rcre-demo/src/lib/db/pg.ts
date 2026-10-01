@@ -2,8 +2,8 @@ import 'server-only'
 import { Pool, type PoolClient } from 'pg'
 import { env } from '@/lib/config/env'
 import {
-  PermissionDeniedError, canSeeRecruiting, canSeeWholeBrokerage,
-  type Actor, type Repository,
+  DomainRecordConflictError, PermissionDeniedError, canSeeRecruiting, canSeeWholeBrokerage,
+  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type DomainRecordQueryOptions, type PublicContentProjection, type PublicAgentProfileProjection, type Repository, type TransactionDomainRecordInput, type MlsProviderState, type MlsProviderComplianceInput,
 } from './repository'
 import { withRlsSession } from './rls'
 import type {
@@ -31,24 +31,16 @@ import type {
  * application predicates. The second failure is silent, which is what makes it
  * dangerous.
  *
- * Reads that legitimately precede an actor — `getOrganization`, `getUser`,
- * which are how an actor is resolved in the first place — pass `null` context
- * explicitly and are marked at the call site. They must stay few and obvious.
+ * There are no unscoped bootstrap reads. Identity-provider claims must resolve
+ * to a trusted actor before repository access; every query, including identity
+ * lookups, is scoped through RLS.
  *
  * NOT YET EXERCISED against a real database — no Postgres instance is
  * provisioned and doing so is outside the current authorization. Structure and
  * SQL are written; the MemoryRepository is what the MVP currently runs on.
  */
-/**
- * Stand-in user id for audit rows a human did not cause — webhook ingestion,
- * scheduled jobs. It is a real UUID rather than an empty string so the RLS
- * context validator cannot mistake a system write for a missing context, which
- * is the failure that would silently drop the row.
- */
-const SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000'
-
 let pool: Pool | null = null
-function getPool(): Pool {
+export function getPgPool(): Pool {
   if (!pool) {
     if (!env.databaseUrl) throw new Error('DATABASE_URL is not configured')
     pool = new Pool({ connectionString: env.databaseUrl, max: 10 })
@@ -61,10 +53,37 @@ function personScope(actor: Actor, alias = 'p'): { sql: string; params: unknown[
   if (canSeeWholeBrokerage(actor.role)) {
     return { sql: `${alias}.organization_id = $1`, params: [actor.organizationId] }
   }
+  if (actor.role === 'managing_broker') {
+    return { sql: `${alias}.organization_id = $1 and ${alias}.assigned_user_id in (select rcre_scoped_user_ids())`, params: [actor.organizationId] }
+  }
   return {
     sql: `${alias}.organization_id = $1 and ${alias}.assigned_user_id = $2`,
     params: [actor.organizationId, actor.userId],
   }
+}
+
+const MAX_DOMAIN_JSON_BYTES = 256 * 1024
+
+function validateDomainKey(collection: string, recordId: string): void {
+  if (!/^[a-z][a-z0-9_.-]{0,79}$/i.test(collection)) {
+    throw new TypeError('Domain collection must be 1-80 safe characters')
+  }
+  if (typeof recordId !== 'string' || recordId.length < 1 || recordId.length > 200) {
+    throw new TypeError('Domain record id must be 1-200 characters')
+  }
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
+}
+
+function transactionCollection(value: string): boolean { return /^(transactions|transaction_[A-Za-z0-9_.-]{1,72})$/.test(value) }
+
+function canWriteDomainOwner(actor: Actor, ownerUserId: string | null): boolean {
+  const admin = ['owner', 'broker', 'staff', 'managing_broker'].includes(actor.role)
+  return ownerUserId === null ? ['owner', 'broker'].includes(actor.role)
+    : ownerUserId === actor.userId || admin
 }
 
 export class PgRepository implements Repository {
@@ -77,11 +96,11 @@ export class PgRepository implements Repository {
    * deliberately.
    */
   private async q<T>(
-    actor: Actor | null,
+    actor: Actor,
     text: string,
     params: unknown[] = [],
   ): Promise<T[]> {
-    const client: PoolClient = await getPool().connect()
+    const client: PoolClient = await getPgPool().connect()
     try {
       return await withRlsSession<T[]>(client, actor, async c => {
         const res = (await c.query(text, params)) as { rows?: unknown[] }
@@ -92,35 +111,144 @@ export class PgRepository implements Repository {
     }
   }
 
-  async getOrganization(id: string): Promise<Organization | null> {
-    // Bootstrap read: resolves the org an actor belongs to, so it precedes the
-    // actor. Returns one row by primary key; carries no person-scoped data.
-    const rows = await this.q<Organization>(null,
-      `select id, name, slug, fub_account_id as "fubAccountId"
-         from organizations where id = $1`, [id])
+  async getPublicContentProjection(organizationId: string, path: string): Promise<PublicContentProjection | null> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId) || !path.startsWith('/') || path.length > 240) return null
+    const rows = (await getPgPool().query(
+      `select id, status, revision, published from rcre_public_content_projection($1::uuid, $2::text)`,
+      [organizationId, path],
+    ) as { rows?: PublicContentProjection[] }).rows ?? []
     return rows[0] ?? null
   }
 
-  async getUser(id: string): Promise<User | null> {
-    // Bootstrap read: this is how an Actor is built. Same reasoning as above.
-    const rows = await this.q<User>(null,
+  async listPublicContentProjections(organizationId: string): Promise<PublicContentProjection[]> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId)) return []
+    return (await getPgPool().query(
+      `select id, status, revision, published from rcre_public_content_projection($1::uuid, null::text)`,
+      [organizationId],
+    ) as { rows?: PublicContentProjection[] }).rows ?? []
+  }
+
+  async listPublicAgentProfiles(organizationId: string): Promise<PublicAgentProfileProjection[]> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId)) return []
+    return (await getPgPool().query(
+      `select verified_person_id as "verifiedPersonId", profile, person, website_slug as "websiteSlug" from rcre_public_agent_profiles_v2($1::uuid)`,
+      [organizationId],
+    ) as { rows?: PublicAgentProfileProjection[] }).rows ?? []
+  }
+
+  private assertMlsAdmin(actor: Actor) {
+    if (!['owner', 'broker', 'managing_broker'].includes(actor.role)) throw new PermissionDeniedError('mls_provider_config', 'brokerage administrator required')
+  }
+
+  async listMlsProviderStates(actor: Actor): Promise<MlsProviderState[]> {
+    const rows = await this.q<MlsProviderState>(actor, `
+      select c.code as "providerCode", coalesce(p.status, 'not_configured') as status,
+        coalesce(p.connection_mode, 'live_query') as "connectionMode", coalesce(p.secret_configured, false) as "secretConfigured",
+        p.selected_access_path as "selectedAccessPath", p.credential_ref as "credentialRef",
+        p.last_connection_test_at as "lastConnectionTestAt", p.last_connection_error as "lastConnectionError",
+        case when mc.id is null then null else jsonb_build_object(
+          'approvalState', mc.approval_state, 'requiredAttribution', mc.required_attribution,
+          'requiredDisclaimer', mc.required_disclaimer, 'copyrightText', mc.copyright_text,
+          'listingBrokerageRules', mc.listing_brokerage_rules, 'refreshRequirements', mc.refresh_requirements,
+          'photoRules', mc.photo_rules, 'permittedStatuses', mc.permitted_statuses,
+          'soldDisplayAllowed', mc.sold_display_allowed, 'openHouseRules', mc.open_house_rules,
+          'searchIndexingAllowed', mc.search_indexing_allowed, 'approvedSource', mc.approved_source,
+          'approvedAt', mc.approved_at, 'approvedBy', mc.approved_by) end as compliance
+      from mls_provider_catalog c
+      left join mls_providers p on p.provider_code = c.code and p.organization_id = $1
+      left join mls_provider_compliance mc on mc.provider_id = p.id and mc.organization_id = p.organization_id
+      where c.code = any($2::text[]) order by c.code`,
+      [actor.organizationId, ['realmls_flexmls','stellar_mls','miami_realtors','greater_alabama_mls']])
+    return rows
+  }
+
+  async saveMlsProviderCompliance(actor: Actor, input: MlsProviderComplianceInput): Promise<MlsProviderState> {
+    this.assertMlsAdmin(actor)
+    const client = await getPgPool().connect()
+    try {
+      return await withRlsSession(client, actor, async scoped => {
+        const providers = (await scoped.query(`insert into mls_providers (organization_id, provider_code, status)
+          values ($1, $2, 'ready_for_connection') on conflict (organization_id, provider_code) do update
+          set status = case when mls_providers.status = 'disabled' then 'disabled' else 'ready_for_connection' end, updated_at = now()
+          returning id, provider_code as "providerCode", status, connection_mode as "connectionMode", secret_configured as "secretConfigured",
+            selected_access_path as "selectedAccessPath", credential_ref as "credentialRef", last_connection_test_at as "lastConnectionTestAt", last_connection_error as "lastConnectionError"`,
+          [actor.organizationId, input.providerCode]) as { rows?: Record<string, unknown>[] }).rows ?? []
+        const provider = providers[0]
+        if (!provider) throw new Error('MLS provider catalog entry is unavailable')
+        const compliance = (await scoped.query(`insert into mls_provider_compliance
+          (organization_id, provider_id, approval_state, required_attribution, required_disclaimer, copyright_text,
+           listing_brokerage_rules, refresh_requirements, photo_rules, permitted_statuses, sold_display_allowed,
+           open_house_rules, search_indexing_allowed, approved_source, approved_at, approved_by)
+          values ($1, $2, 'approved', $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9::text[], $10, $11::jsonb, $12, $13, now(), $14)
+          on conflict (organization_id, provider_id) do update set approval_state='approved', required_attribution=excluded.required_attribution,
+           required_disclaimer=excluded.required_disclaimer, copyright_text=excluded.copyright_text, listing_brokerage_rules=excluded.listing_brokerage_rules,
+           refresh_requirements=excluded.refresh_requirements, photo_rules=excluded.photo_rules, permitted_statuses=excluded.permitted_statuses,
+           sold_display_allowed=excluded.sold_display_allowed, open_house_rules=excluded.open_house_rules, search_indexing_allowed=excluded.search_indexing_allowed,
+           approved_source=excluded.approved_source, approved_at=excluded.approved_at, approved_by=excluded.approved_by, updated_at=now()
+          returning approval_state as "approvalState", required_attribution as "requiredAttribution", required_disclaimer as "requiredDisclaimer", copyright_text as "copyrightText",
+           listing_brokerage_rules as "listingBrokerageRules", refresh_requirements as "refreshRequirements", photo_rules as "photoRules", permitted_statuses as "permittedStatuses",
+           sold_display_allowed as "soldDisplayAllowed", open_house_rules as "openHouseRules", search_indexing_allowed as "searchIndexingAllowed", approved_source as "approvedSource",
+           approved_at as "approvedAt", approved_by as "approvedBy"`, [actor.organizationId, provider.id, input.requiredAttribution, input.requiredDisclaimer, input.copyrightText, JSON.stringify(input.listingBrokerageRules), JSON.stringify(input.refreshRequirements), JSON.stringify(input.photoRules), input.permittedStatuses, input.soldDisplayAllowed, JSON.stringify(input.openHouseRules), input.searchIndexingAllowed, input.agreementReference, actor.userId]) as { rows?: Record<string, unknown>[] }).rows ?? []
+        await scoped.query(`insert into audit_events (organization_id, actor_user_id, actor_kind, action, target_type, target_id, effect, allowed, detail)
+          values ($1, $2, 'user', 'mls.compliance_terms_recorded', 'mls_provider', $3, 'write', true, $4::jsonb)`,
+          [actor.organizationId, actor.userId, input.providerCode, JSON.stringify({ providerCode: input.providerCode, termsRecorded: true })])
+        return { ...provider, compliance: compliance[0] } as unknown as MlsProviderState
+      })
+    } finally { client.release() }
+  }
+
+  async recordMlsProviderConnection(actor: Actor, providerCode: string, ok: boolean, message: string): Promise<MlsProviderState> {
+    this.assertMlsAdmin(actor)
+    const client = await getPgPool().connect()
+    try {
+      const updated = await withRlsSession(client, actor, async scoped => {
+        const rows = (await scoped.query(`update mls_providers set status = case when status = 'disabled' then 'disabled' when $3 then 'connected' else 'degraded' end,
+          last_connection_test_at = now(), last_connection_error = case when $3 then null else left($4, 500) end, updated_at = now()
+          where organization_id = $1 and provider_code = $2 returning provider_code as "providerCode", status, connection_mode as "connectionMode",
+          secret_configured as "secretConfigured", selected_access_path as "selectedAccessPath", credential_ref as "credentialRef",
+          last_connection_test_at as "lastConnectionTestAt", last_connection_error as "lastConnectionError"`,
+          [actor.organizationId, providerCode, ok, message]) as { rows?: Record<string, unknown>[] }).rows ?? []
+        if (!rows[0]) throw new Error('MLS provider configuration is not saved')
+        await scoped.query(`insert into audit_events (organization_id, actor_user_id, actor_kind, action, target_type, target_id, effect, allowed, detail)
+          values ($1, $2, 'user', 'mls.connection_tested', 'mls_provider', $3, 'write', true, $4::jsonb)`,
+          [actor.organizationId, actor.userId, providerCode, JSON.stringify({ providerCode, outcome: ok ? 'connected' : 'failed' })])
+        return rows[0]
+      })
+      const all = await this.listMlsProviderStates(actor)
+      return all.find(row => row.providerCode === providerCode) ?? updated as unknown as MlsProviderState
+    } finally { client.release() }
+  }
+
+  async getOrganization(actor: Actor, id: string): Promise<Organization | null> {
+    if (id !== actor.organizationId) return null
+    const rows = await this.q<Organization>(actor,
+      `select id, name, slug, fub_account_id as "fubAccountId"
+         from organizations where id = $1 and id = $2`, [actor.organizationId, id])
+    return rows[0] ?? null
+  }
+
+  async getUser(actor: Actor, id: string): Promise<User | null> {
+    const scopeByRls = canSeeWholeBrokerage(actor.role) || actor.role === 'managing_broker'
+    const own = scopeByRls ? '' : ' and id = $3'
+    const params = scopeByRls ? [actor.organizationId, id] : [actor.organizationId, id, actor.userId]
+    const rows = await this.q<User>(actor,
       `select id, organization_id as "organizationId", email, full_name as "fullName",
-              role, fub_user_id as "fubUserId", is_active as "isActive"
-         from users where id = $1`, [id])
+              role, fub_user_id as "fubUserId", is_active as "isActive", office_id as "officeId"
+         from users where organization_id = $1 and id = $2${own}`, params)
     return rows[0] ?? null
   }
 
   async listUsers(actor: Actor): Promise<User[]> {
-    if (canSeeWholeBrokerage(actor.role)) {
+    if (canSeeWholeBrokerage(actor.role) || actor.role === 'managing_broker') {
       return this.q<User>(actor, 
         `select id, organization_id as "organizationId", email, full_name as "fullName",
-                role, fub_user_id as "fubUserId", is_active as "isActive"
+                role, fub_user_id as "fubUserId", is_active as "isActive", office_id as "officeId"
            from users where organization_id = $1 order by full_name`,
         [actor.organizationId])
     }
     return this.q<User>(actor, 
       `select id, organization_id as "organizationId", email, full_name as "fullName",
-              role, fub_user_id as "fubUserId", is_active as "isActive"
+              role, fub_user_id as "fubUserId", is_active as "isActive", office_id as "officeId"
          from users where organization_id = $1 and id = $2`,
       [actor.organizationId, actor.userId])
   }
@@ -244,24 +372,10 @@ export class PgRepository implements Repository {
       [actor.organizationId])
   }
 
-  async recordAudit(e: AuditEvent): Promise<void> {
-    // The audit row carries its own actor, so reconstruct the context the RLS
-    // insert policy checks rather than writing outside a session.
-    //
-    // `organizationId` is legitimately null for system-level events — migration
-    // 0003 makes the column nullable for exactly this case and notes those rows
-    // are reachable only by the ingestion role. We pass a null context there
-    // rather than inventing a tenant: under RLS the insert will be refused
-    // unless the connection genuinely holds that role, which is the correct
-    // and visible outcome. Fabricating an org id would make a cross-tenant
-    // audit row look like it belonged to someone.
-    const actor: Actor | null = e.organizationId
-      ? {
-          userId: e.actorUserId ?? SYSTEM_ACTOR_ID,
-          organizationId: e.organizationId,
-          role: 'owner',
-        }
-      : null
+  async recordAudit(actor: Actor, e: AuditEvent): Promise<void> {
+    if (e.organizationId !== actor.organizationId || e.actorUserId !== actor.userId) {
+      throw new PermissionDeniedError('recordAudit', 'audit identity must match the trusted actor')
+    }
     await this.q(actor,
       `insert into audit_events
          (organization_id, actor_user_id, actor_kind, action, target_type, target_id,
@@ -282,6 +396,308 @@ export class PgRepository implements Repository {
               target_id as "targetId", effect, allowed, denied_reason as "deniedReason",
               detail, occurred_at as "occurredAt"
          from audit_events where organization_id = $1
-        order by occurred_at desc limit $2`, [actor.organizationId, limit])
+        order by occurred_at desc limit $2`, [actor.organizationId, Math.max(1, Math.min(limit, 500))])
+  }
+
+  private domainRecordColumns = `organization_id as "organizationId", collection,
+    record_id as "recordId", owner_user_id as "ownerUserId", data, version,
+    created_at as "createdAt", updated_at as "updatedAt"`
+
+  async getDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, recordId: string,
+  ): Promise<DomainRecord<T> | null> {
+    validateDomainKey(collection, recordId)
+    const rows = await this.q<DomainRecord<T>>(actor,
+      `select ${this.domainRecordColumns} from rcre_domain_records
+        where organization_id = $1 and collection = $2 and record_id = $3`,
+      [actor.organizationId, collection, recordId])
+    return rows[0] ?? null
+  }
+
+  async listDomainRecords<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, options: DomainRecordListOptions = {},
+  ): Promise<DomainRecord<T>[]> {
+    validateDomainKey(collection, 'list')
+    const limit = Math.max(1, Math.min(Math.trunc(options.limit ?? 50), 200))
+    const offset = Math.max(0, Math.trunc(options.offset ?? 0))
+    return this.q<DomainRecord<T>>(actor,
+      `select ${this.domainRecordColumns} from rcre_domain_records
+        where organization_id = $1 and collection = $2
+        order by updated_at desc, record_id asc limit $3 offset $4`,
+      [actor.organizationId, collection, limit, offset])
+  }
+
+  async queryDomainRecords<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, options: DomainRecordQueryOptions,
+  ): Promise<{ records: DomainRecord<T>[]; total: number }> {
+    validateDomainKey(collection, 'query')
+    const limit = Math.max(1, Math.min(Math.trunc(options.limit ?? 50), 100))
+    const offset = Math.max(0, Math.trunc(options.offset ?? 0))
+    const search = String(options.search ?? '').trim().slice(0, 200).toLocaleLowerCase()
+    const stage = options.stage?.slice(0, 100) || null
+    const source = options.source?.slice(0, 200) || null
+    const ownerId = options.ownerId?.slice(0, 100) || null
+    const officeId = options.officeId?.slice(0, 100) || null
+    const sort = options.sort ?? 'newest'
+    const orderBy: Record<NonNullable<DomainRecordQueryOptions['sort']>, string> = {
+      newest: `data->>'receivedAt' desc nulls last, record_id asc`,
+      oldest: `data->>'receivedAt' asc nulls last, record_id asc`,
+      name: `lower(coalesce(data->>'firstName','')), lower(coalesce(data->>'lastName','')), record_id asc`,
+      stage: `lower(coalesce(data->>'stage','')), record_id asc`,
+      source: `lower(coalesce(data->>'source','')), record_id asc`,
+    }
+    const order = orderBy[sort] ?? orderBy.newest
+    const result = await this.q<{ total: number | string; records: DomainRecord<T>[] }>(actor,
+      `with filtered as materialized (
+         select ${this.domainRecordColumns}
+           from rcre_domain_records
+          where organization_id = $1 and collection = $2
+            and (
+              $3::text = ''
+              or position($3 in lower(concat_ws(' ', data->>'firstName', data->>'lastName', data->>'email', data->>'phone', data->>'source', data->>'location', data->>'stage'))) > 0
+              or exists (select 1 from jsonb_array_elements_text(
+                case when jsonb_typeof(data->'tags') = 'array' then data->'tags' else '[]'::jsonb end) tag where position($3 in lower(tag)) > 0)
+            )
+            and coalesce(data->>'sourceDeleted', 'false') <> 'true'
+            and ($4::text is null or data->>'stage' = $4)
+            and ($5::text is null or data->>'source' = $5)
+            and ($6::text is null or data->>'ownerId' = $6)
+            and ($7::text is null or data->>'officeId' = $7)
+       )
+       select (select count(*)::int from filtered) as total,
+              coalesce((select jsonb_agg(to_jsonb(page_row)) from (select * from filtered order by ${order} limit $8 offset $9) page_row), '[]'::jsonb) as records`,
+      [actor.organizationId, collection, search, stage, source, ownerId, officeId, limit, offset])
+    return { records: result[0]?.records ?? [], total: Number(result[0]?.total ?? 0) }
+  }
+
+  async putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: DomainRecordInput<T>,
+  ): Promise<DomainRecord<T>> {
+    if (transactionCollection(input.collection)) throw new PermissionDeniedError('putDomainRecord', 'transaction records require the participant-checked transaction write API')
+    validateDomainKey(input.collection, input.recordId)
+    const ownerUserId = input.ownerUserId ?? null
+    if (!canWriteDomainOwner(actor, ownerUserId) && !(actor.role === 'marketing_admin' && input.collection === 'public_content')) {
+      throw new PermissionDeniedError('putDomainRecord', 'record owner is outside this actor scope')
+    }
+    if (!isPlainRecord(input.data)) throw new TypeError('Domain data must be a JSON object')
+    const json = JSON.stringify(input.data)
+    if (Buffer.byteLength(json, 'utf8') > MAX_DOMAIN_JSON_BYTES) {
+      throw new RangeError('Domain record exceeds the 256 KB limit')
+    }
+    const rows = input.createOnly
+      ? await this.q<DomainRecord<T>>(actor,
+        `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
+         values ($1, $2, $3, $4, $5::jsonb)
+         on conflict (organization_id, collection, record_id) do nothing
+         returning ${this.domainRecordColumns}`,
+        [actor.organizationId, input.collection, input.recordId, ownerUserId, json])
+      : input.expectedVersion === undefined
+        ? await this.q<DomainRecord<T>>(actor,
+          `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
+           values ($1, $2, $3, $4, $5::jsonb)
+           on conflict (organization_id, collection, record_id) do update
+             set owner_user_id = excluded.owner_user_id, data = excluded.data,
+                 version = rcre_domain_records.version + 1, updated_at = now()
+           returning ${this.domainRecordColumns}`,
+          [actor.organizationId, input.collection, input.recordId, ownerUserId, json])
+        : await this.q<DomainRecord<T>>(actor,
+        `update rcre_domain_records set owner_user_id = $4, data = $5::jsonb,
+             version = version + 1, updated_at = now()
+         where organization_id = $1 and collection = $2 and record_id = $3 and version = $6
+         returning ${this.domainRecordColumns}`,
+        [actor.organizationId, input.collection, input.recordId, ownerUserId, json, input.expectedVersion])
+    if (!rows[0]) throw new DomainRecordConflictError(input.collection, input.recordId)
+    return rows[0]
+  }
+
+  async putDomainRecordsAtomic(
+    actor: Actor, inputs: DomainRecordInput[], auditEvents: AuditEvent[] = [],
+  ): Promise<DomainRecord[]> {
+    if (inputs.length < 1 || inputs.length > 100) throw new RangeError('Atomic write must contain 1 to 100 records')
+    const keys = new Set<string>()
+    for (const input of inputs) {
+      validateDomainKey(input.collection, input.recordId)
+      const key = `${input.collection}\u0000${input.recordId}`
+      if (keys.has(key)) throw new TypeError('Atomic write contains duplicate record identities')
+      keys.add(key)
+      const ownerUserId = input.ownerUserId ?? null
+      if (!canWriteDomainOwner(actor, ownerUserId) && !(actor.role === 'marketing_admin' && input.collection === 'public_content')) throw new PermissionDeniedError('putDomainRecordsAtomic', 'record owner is outside this actor scope')
+      if (!isPlainRecord(input.data)) throw new TypeError('Domain data must be a JSON object')
+      if (Buffer.byteLength(JSON.stringify(input.data), 'utf8') > MAX_DOMAIN_JSON_BYTES) throw new RangeError('Domain record exceeds the 256 KB limit')
+      if (input.createOnly && input.expectedVersion !== undefined) throw new TypeError('Insert-only records cannot specify an expected version')
+    }
+    const client = await getPgPool().connect()
+    try {
+      return await withRlsSession(client, actor, async scoped => {
+        const result: DomainRecord[] = []
+        for (const input of inputs) {
+          const ownerUserId = input.ownerUserId ?? null
+          let rows: DomainRecord[]
+          try {
+            if (input.createOnly) {
+              rows = (await scoped.query(
+                `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
+                 values ($1, $2, $3, $4, $5::jsonb) returning ${this.domainRecordColumns}`,
+                [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data)],
+              ) as { rows?: DomainRecord[] }).rows ?? []
+            } else if (input.expectedVersion !== undefined) {
+              rows = (await scoped.query(
+                `update rcre_domain_records set owner_user_id = $4, data = $5::jsonb,
+                   version = version + 1, updated_at = now()
+                 where organization_id = $1 and collection = $2 and record_id = $3 and version = $6
+                 returning ${this.domainRecordColumns}`,
+                [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data), input.expectedVersion],
+              ) as { rows?: DomainRecord[] }).rows ?? []
+            } else {
+              rows = (await scoped.query(
+                `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
+                 values ($1, $2, $3, $4, $5::jsonb)
+                 on conflict (organization_id, collection, record_id) do update
+                   set owner_user_id = excluded.owner_user_id, data = excluded.data,
+                       version = rcre_domain_records.version + 1, updated_at = now()
+                 returning ${this.domainRecordColumns}`,
+                [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data)],
+              ) as { rows?: DomainRecord[] }).rows ?? []
+            }
+          } catch (error) {
+            if (input.createOnly && typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') {
+              throw new DomainRecordConflictError(input.collection, input.recordId)
+            }
+            throw error
+          }
+          if (!rows[0]) throw new DomainRecordConflictError(input.collection, input.recordId)
+          result.push(rows[0])
+        }
+        for (const event of auditEvents) {
+          if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) {
+            throw new PermissionDeniedError('putDomainRecordsAtomic', 'audit identity must match the trusted actor')
+          }
+          await scoped.query(
+            `insert into audit_events
+              (organization_id, actor_user_id, actor_kind, action, target_type, target_id,
+               effect, allowed, denied_reason, detail)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [event.organizationId, event.actorUserId, event.actorKind, event.action, event.targetType ?? null,
+              event.targetId ?? null, event.effect, event.allowed, event.deniedReason ?? null,
+              JSON.stringify(event.detail ?? {})],
+          )
+        }
+        return result
+      })
+    } finally {
+      client.release()
+    }
+  }
+
+  async putTransactionDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: TransactionDomainRecordInput<T>, auditEvents: AuditEvent[] = [],
+  ): Promise<DomainRecord<T>> {
+    if (!transactionCollection(input.collection) || input.data.organizationId !== actor.organizationId) {
+      throw new PermissionDeniedError('putTransactionDomainRecord', 'invalid transaction record scope')
+    }
+    validateDomainKey(input.collection, input.recordId)
+    if (!isPlainRecord(input.data) || Buffer.byteLength(JSON.stringify(input.data), 'utf8') > MAX_DOMAIN_JSON_BYTES) throw new TypeError('Transaction domain data is invalid or too large')
+    const broker = canSeeWholeBrokerage(actor.role)
+    const managingBroker = actor.role === 'managing_broker'
+    const client = await getPgPool().connect()
+    try {
+      return await withRlsSession(client, actor, async scoped => {
+        let officeId: string | null = null
+        if (managingBroker) {
+          const officeRows = (await scoped.query(
+            `select office_id as "officeId" from users where organization_id = $1 and id = $2`,
+            [actor.organizationId, actor.userId],
+          ) as { rows?: { officeId: string | null }[] }).rows ?? []
+          officeId = officeRows[0]?.officeId ?? null
+          if (!officeId) throw new PermissionDeniedError('putTransactionDomainRecord', 'managing broker has no authorized office')
+          const assignedIds = [String(input.data.ownerId ?? ''), String(input.data.tcId ?? '')].filter(Boolean)
+          if (input.data.officeId !== officeId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction is outside the managing broker office')
+          if (assignedIds.length) {
+            const assignmentRows = (await scoped.query(
+              `select id, platform_role as role from users where organization_id = $1 and office_id = $2 and id = any($3::uuid[])`,
+              [actor.organizationId, officeId, assignedIds],
+            ) as { rows?: { id: string; role: string }[] }).rows ?? []
+            if (assignmentRows.length !== new Set(assignedIds).size) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction assignment must remain within the managing broker office')
+            if (input.data.tcId && !assignmentRows.some(user => user.id === input.data.tcId && user.role === 'transaction_coordinator')) {
+              throw new PermissionDeniedError('putTransactionDomainRecord', 'only an office transaction coordinator may be assigned')
+            }
+          }
+        }
+        const parentId = input.collection === 'transactions' ? input.recordId : String(input.data.transactionId ?? '')
+        let parent: Record<string, unknown> | null = null
+        if (input.collection !== 'transactions') {
+          if (!parentId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction child record requires a parent')
+          const parentRows = (await scoped.query(
+            `select data from rcre_domain_records where organization_id = $1 and collection = 'transactions' and record_id = $2 for share`,
+            [actor.organizationId, parentId],
+          ) as { rows?: { data: Record<string, unknown> }[] }).rows ?? []
+          parent = parentRows[0]?.data ?? null
+          if (!parent) throw new PermissionDeniedError('putTransactionDomainRecord', 'parent transaction is not visible')
+          for (const field of ['ownerId', 'tcId', 'teamId'] as const) {
+            if (input.data[field] !== parent[field]) throw new PermissionDeniedError('putTransactionDomainRecord', 'child participant fields must match the parent transaction')
+          }
+          const participant = parent.ownerId === actor.userId || (actor.role === 'transaction_coordinator' && parent.tcId === actor.userId)
+          if (!broker && !participant && actor.role !== 'team_lead') throw new PermissionDeniedError('putTransactionDomainRecord', 'actor is not an authorized transaction participant')
+        }
+        const existingRows = (await scoped.query(
+          `select ${this.domainRecordColumns} from rcre_domain_records where organization_id = $1 and collection = $2 and record_id = $3 for update`,
+          [actor.organizationId, input.collection, input.recordId],
+        ) as { rows?: DomainRecord<T>[] }).rows ?? []
+        const existing = existingRows[0]
+        if (input.createOnly && existing) throw new DomainRecordConflictError(input.collection, input.recordId)
+        if (input.expectedVersion !== undefined && (!existing || input.expectedVersion !== existing.version)) throw new DomainRecordConflictError(input.collection, input.recordId)
+        const ownerUserId = input.ownerUserId ?? null
+        if (input.collection === 'transactions' && input.data.ownerId !== ownerUserId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction owner and repository owner must match')
+        if (existing) {
+          const old = existing.data as Record<string, unknown>
+          const isOwner = old.ownerId === actor.userId
+          const isTc = actor.role === 'transaction_coordinator' && old.tcId === actor.userId
+          const isTeamScoped = actor.role === 'team_lead'
+          if (managingBroker && old.officeId !== officeId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction is outside the managing broker office')
+          if (!broker && !managingBroker && !isOwner && !isTc && !isTeamScoped) throw new PermissionDeniedError('putTransactionDomainRecord', 'actor is not a transaction participant')
+          if (!broker && !managingBroker && (input.data.ownerId !== old.ownerId || input.data.tcId !== old.tcId || input.data.teamId !== old.teamId || ownerUserId !== existing.ownerUserId)) {
+            throw new PermissionDeniedError('putTransactionDomainRecord', 'only brokerage administrators may change transaction ownership or participant assignment')
+          }
+        } else if (input.collection === 'transactions' && !broker && !managingBroker && (input.data.ownerId !== actor.userId || input.data.tcId)) {
+          throw new PermissionDeniedError('putTransactionDomainRecord', 'agents may create only transactions they own; coordinator assignment is a broker action')
+        } else if (ownerUserId !== actor.userId && !broker && !managingBroker) {
+          throw new PermissionDeniedError('putTransactionDomainRecord', 'new transaction records must be owned by the actor')
+        }
+        let rows: DomainRecord<T>[]
+        if (existing) {
+          rows = (await scoped.query(
+            `update rcre_domain_records set owner_user_id = $4, data = $5::jsonb, version = version + 1, updated_at = now()
+             where organization_id = $1 and collection = $2 and record_id = $3 and version = $6 returning ${this.domainRecordColumns}`,
+            [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data), existing.version],
+          ) as { rows?: DomainRecord<T>[] }).rows ?? []
+        } else {
+          rows = (await scoped.query(
+            `insert into rcre_domain_records (organization_id, collection, record_id, owner_user_id, data)
+             values ($1,$2,$3,$4,$5::jsonb) returning ${this.domainRecordColumns}`,
+            [actor.organizationId, input.collection, input.recordId, ownerUserId, JSON.stringify(input.data)],
+          ) as { rows?: DomainRecord<T>[] }).rows ?? []
+        }
+        if (!rows[0]) throw new DomainRecordConflictError(input.collection, input.recordId)
+        for (const event of auditEvents) {
+          if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) throw new PermissionDeniedError('putTransactionDomainRecord', 'audit identity must match the trusted actor')
+          await scoped.query(
+            `insert into audit_events (organization_id, actor_user_id, actor_kind, action, target_type, target_id, effect, allowed, denied_reason, detail)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [event.organizationId, event.actorUserId, event.actorKind, event.action, event.targetType ?? null, event.targetId ?? null, event.effect, event.allowed, event.deniedReason ?? null, JSON.stringify(event.detail ?? {})],
+          )
+        }
+        return rows[0]
+      })
+    } finally { client.release() }
+  }
+
+  async deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean> {
+    if (transactionCollection(collection)) throw new PermissionDeniedError('deleteDomainRecord', 'transaction history is retained; archive the transaction instead')
+    validateDomainKey(collection, recordId)
+    const rows = await this.q<{ recordId: string }>(actor,
+      `delete from rcre_domain_records
+        where organization_id = $1 and collection = $2 and record_id = $3
+        returning record_id as "recordId"`, [actor.organizationId, collection, recordId])
+    return rows.length > 0
   }
 }

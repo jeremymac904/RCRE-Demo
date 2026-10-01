@@ -1,3 +1,19 @@
 import { actorOrNull } from '@/lib/platform/auth'
-import { loadAttachment } from '@/lib/academy-attachments'
-export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){const a=await actorOrNull();if(!a)return Response.json({error:'Sign in required'},{status:401});try{const {record:r,bytes}=loadAttachment(a,(await params).id);return new Response(bytes,{headers:{'Content-Type':r.type,'Content-Disposition':`attachment; filename="${r.name}"`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Length':String(r.bytes)}})}catch{return Response.json({error:'Attachment unavailable'},{status:404})}}
+import { downloadAcademyAsset } from '@/lib/academy-durable'
+import { StorageError } from '@/lib/storage'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
+
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  let actor: import('@/lib/platform/auth').PlatformActor | null = null
+  try {
+    actor = await actorOrNull()
+    if (!actor) return Response.json({ error: 'Sign in required' }, { status: 401 })
+    const { asset, bytes } = await downloadAcademyAsset(actor, (await params).id, 'community-attachment')
+    return new Response(Uint8Array.from(bytes), { headers: { 'Content-Type': asset.contentType, 'Content-Disposition': `attachment; filename="${encodeURIComponent(asset.filename)}"`, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store', 'Content-Length': String(bytes.length) } })
+  } catch (error) {
+    const status = error instanceof StorageError ? error.status : 500
+    const response = Response.json({ error: status >= 500 ? 'File service is temporarily unavailable.' : error instanceof Error ? error.message : 'Attachment unavailable' }, { status })
+    await recordCaughtRouteFailure(request, '/api/community/attachments/[id]', actor, status, error)
+    return response
+  }
+}

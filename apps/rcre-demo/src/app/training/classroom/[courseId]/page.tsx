@@ -1,5 +1,5 @@
 import { actorOrNull } from '@/lib/platform/auth'
-import { courseAllowed } from '@/lib/academy-service'
+import { academyCatalog, academyCourseAccessible } from '@/lib/academy-durable'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { currentUser } from '@/lib/session'
@@ -31,17 +31,27 @@ export const dynamic = 'force-dynamic'
  * resume block, which read this browser's record — so pressing Back from a
  * lesson shows the row already ticked.
  */
-export default async function CoursePage({
-  params,
-}: { params: Promise<{ courseId: string }> }) {
+import { DurableModuleUnavailable } from '@/components/DurableModuleUnavailable'
+
+export default async function CoursePage({ params }: { params: Promise<{ courseId: string }> }) {
   const user = await currentUser()
   if (!user) redirect('/login')
 
   const { courseId } = await params
   const actor = await actorOrNull()
-  if (!actor || !courseAllowed(actor, courseId)) redirect('/training?denied=course')
+  if (!actor) redirect('/login')
+  let durableCatalog
+  try {
+    if (!await academyCourseAccessible(actor, courseId)) redirect('/training?denied=course')
+    durableCatalog = await academyCatalog(actor)
+  } catch { return <DurableModuleUnavailable title="Classroom" detail="The training library is temporarily unavailable." /> }
   const course = courseById(courseId)
-  if (!course) notFound()
+  if (!course) {
+    const authored = durableCatalog.courses.find(item => item.id === courseId && 'source' in item && item.source === 'rcre-authored')
+    if (!authored) notFound()
+    const authoredLessons = durableCatalog.lessons.filter(item => item.courseId === courseId).sort((a, b) => a.order - b.order)
+    return <AppShell user={user}><div className="mx-auto max-w-4xl px-6 py-10 lg:px-12 lg:py-14"><BackLink fallback="/training/classroom" fallbackLabel="Classroom"/><header className="mt-8 border-b border-hair pb-8"><p className="eyebrow mb-2">{authored.category}</p><h1 className="font-display text-h2 font-600 text-chalk">{authored.title}</h1><p className="mt-3 max-w-prose text-lead text-chalk-muted">{authored.description}</p><p className="mt-4 text-label text-chalk-faint">{authoredLessons.length} {authoredLessons.length === 1 ? 'lesson' : 'lessons'}</p><AcademyCourseResume courseId={authored.id} courseTitle={authored.title}/></header><section className="mt-8"><h2 className="eyebrow mb-2">Lessons</h2><ul className="divide-y divide-hair border-b border-hair">{authoredLessons.map(lesson=><li key={lesson.id}><Link href={`/training/classroom/${courseId}/${lesson.id}`} className="block py-5 hover:text-brass"><span className="text-label text-chalk-faint">Lesson {lesson.order}</span><span className="mt-1 block font-display text-h4 text-chalk">{lesson.title}</span><span className="mt-1 block text-body text-chalk-muted">{lesson.description}</span></Link></li>)}</ul></section></div></AppShell>
+  }
 
   const lessons = lessonsFor(course.id)
   const cover = publicAsset(course.cover)

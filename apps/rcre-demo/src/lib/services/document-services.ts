@@ -4,13 +4,14 @@ import type {PlatformActor} from '@/lib/platform/auth'
 import {putRecord,readRecords,transaction} from '@/lib/platform/store'
 import {documents,requireTransaction,hash} from './transactions'
 export const SIGNATURE_WIDTH_PERCENT=24,SIGNATURE_HEIGHT_PERCENT=7
+export class DocumentProviderUnavailableError extends Error { readonly status=503; constructor(message:string){super(message);this.name='DocumentProviderUnavailableError'} }
 export interface PDFPageInfo {page:number;width:number;height:number;rotation:number}
 export interface SignaturePreparation {id:string;transactionId:string;organizationId:string;ownerId:string;documentId:string;documentHash:string;documentVersion:number;pages:PDFPageInfo[];recipients:{name:string;email:string;order:number}[];fields:{recipient:number;page:number;x:number;y:number}[];state:'prepared'|'reviewed'|'blocked';version:number;reviewedBy?:string;payloadHash?:string;updatedAt:string}
 export interface SigningAdapter {status():Promise<{available:boolean;reason:string}>;createRequest(preparation:SignaturePreparation):Promise<{remoteId:string;signerUrls:string[]}>;verifyCompletion(remoteId:string):Promise<{completed:boolean;evidenceHash:string|null}>}
 export interface DocumentProcessingAdapter {extractText(bytes:Buffer):Promise<string>}
 export class UnconfiguredDocumenso implements SigningAdapter {
  async status(){return {available:false,reason:'No project-contained Documenso engine, API key, signer session or callback verification is configured. Actual signing is blocked.'}}
- async createRequest(_p:SignaturePreparation):Promise<{remoteId:string;signerUrls:string[]}>{throw new Error((await this.status()).reason)}
+ async createRequest(_p:SignaturePreparation):Promise<{remoteId:string;signerUrls:string[]}>{throw new DocumentProviderUnavailableError((await this.status()).reason)}
  async verifyCompletion(_id:string){return {completed:false,evidenceHash:null}}
 }
 export class UnconfiguredStirling implements DocumentProcessingAdapter {async extractText(_bytes:Buffer):Promise<string>{throw new Error('Stirling PDF extraction unavailable: a project-contained verified service is required. Upload plain text excerpts for local inspection coordination.')}}

@@ -51,7 +51,7 @@ export interface DemoUser {
   /** Real public headshot from rcregroup.com, where one was obtainable. */
   photo?: string
   /** Synthetic. Clearly labelled wherever displayed. */
-  stats: { activeClients: number; pipelineValue: number; ytdClosings: number; avgResponseMinutes: number; trainingPct: number }
+  stats?: { activeClients: number; pipelineValue: number; ytdClosings: number; avgResponseMinutes: number; trainingPct: number } | null
 }
 
 export const USERS: DemoUser[] = [

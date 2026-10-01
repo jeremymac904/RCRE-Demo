@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { academyAssetPath } from '@/lib/academy-media'
 import { AcademyLessonTools } from '@/components/AcademyLessonTools'
 import { actorOrNull } from '@/lib/platform/auth'
-import { courseAllowed } from '@/lib/academy-service'
+import { academyCatalog, academyCourseAccessible } from '@/lib/academy-durable'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { currentUser } from '@/lib/session'
@@ -37,18 +37,29 @@ export const dynamic = 'force-dynamic'
  * so a mismatched pair 404s rather than rendering a lesson under a course it
  * does not belong to and offering the wrong neighbours.
  */
-export default async function LessonPage({
-  params,
-}: { params: Promise<{ courseId: string; lessonId: string }> }) {
+import { DurableModuleUnavailable } from '@/components/DurableModuleUnavailable'
+
+export default async function LessonPage({ params }: { params: Promise<{ courseId: string; lessonId: string }> }) {
   const user = await currentUser()
   if (!user) redirect('/login')
 
   const { courseId, lessonId } = await params
   const actor = await actorOrNull()
-  if (!actor || !courseAllowed(actor, courseId)) redirect('/training?denied=course')
+  if (!actor) redirect('/login')
+  let durableCatalog
+  try { if (!await academyCourseAccessible(actor, courseId)) redirect('/training?denied=course'); durableCatalog = await academyCatalog(actor) }
+  catch { return <DurableModuleUnavailable title="Classroom" detail="The training library is temporarily unavailable." /> }
   const course = courseById(courseId)
   const lesson = lessonById(lessonId)
-  if (!course || !lesson || lesson.courseId !== course.id) notFound()
+  if (!course || !lesson || lesson.courseId !== course.id) {
+    const authoredCourse = durableCatalog.courses.find(item => item.id === courseId && 'source' in item && item.source === 'rcre-authored')
+    const authoredLessons = durableCatalog.lessons.filter(item => item.courseId === courseId).sort((a, b) => a.order - b.order)
+    const authoredLesson = authoredLessons.find(item => item.id === lessonId)
+    if (!authoredCourse || !authoredLesson) notFound()
+    const index = authoredLessons.findIndex(item => item.id === authoredLesson.id), previous = authoredLessons[index - 1], next = authoredLessons[index + 1]
+    const resources = authoredLesson.resources.map(resource => ({ kind: 'download' as const, title: resource.name, href: `/api/academy/uploads/${resource.id}`, bytes: resource.size }))
+    return <AppShell user={user}><div className="mx-auto max-w-6xl px-6 py-10 lg:px-12 lg:py-14"><BackLink fallback={`/training/classroom/${courseId}`} fallbackLabel={authoredCourse.title}/><div className="mt-8 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10"><aside className="mb-6 min-w-0"><p className="eyebrow">{authoredCourse.title}</p><nav aria-label="Course lessons" className="mt-3 space-y-2">{authoredLessons.map(item=><Link key={item.id} href={`/training/classroom/${courseId}/${item.id}`} aria-current={item.id===authoredLesson.id?'page':undefined} className={item.id===authoredLesson.id?'block rounded border border-hair-brass p-3 text-brass':'block rounded border border-hair p-3 text-chalk-muted'}>{item.order}. {item.title}</Link>)}</nav></aside><article className="min-w-0"><header className="mb-6"><p className="eyebrow mb-2">Lesson {authoredLesson.order} of {authoredLessons.length}</p><h1 className="font-display text-h2 font-600 text-chalk">{authoredLesson.title}</h1></header><section className="mt-8"><h2 className="eyebrow mb-3">In this lesson</h2><p className="max-w-prose whitespace-pre-wrap text-lead text-chalk-muted">{authoredLesson.description}</p></section>{resources.length>0&&<section className="mt-10"><h2 className="eyebrow mb-3">Resources</h2><AcademyResourceList resources={resources}/></section>}<section className="mt-10 border-t border-hair pt-8"><AcademyMarkComplete lessonId={authoredLesson.id} lessonTitle={authoredLesson.title} nextHref={next?`/training/classroom/${courseId}/${next.id}`:undefined} nextTitle={next?.title}/></section><nav aria-label="Lesson navigation" className="mt-10 flex flex-col gap-6 border-t border-hair pt-8 sm:flex-row sm:justify-between">{previous?<Link href={`/training/classroom/${courseId}/${previous.id}`} className="text-body">← {previous.title}</Link>:<span/>}{next&&<Link href={`/training/classroom/${courseId}/${next.id}`} className="text-body sm:text-right">{next.title} →</Link>}</nav></article></div></div></AppShell>
+  }
 
   // Neighbours walk the whole curriculum, so the last lesson of a course leads
   // into the next course rather than dead-ending. Static ordering, so it is

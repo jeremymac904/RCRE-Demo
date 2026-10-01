@@ -23,6 +23,10 @@ export interface Actor {
   userId: string
   organizationId: string
   role: UserRole
+  /** Test/local repositories may receive verified team scope; Postgres resolves it from RLS membership. */
+  teamIds?: string[]
+  /** Verified office scope for Managing Broker repository operations. */
+  officeId?: string
 }
 
 /** Roles that may see the whole brokerage book. */
@@ -39,9 +43,91 @@ export function canSeeRecruiting(role: UserRole): boolean {
   return RECRUITING_ROLES.has(role)
 }
 
+export interface PublicContentProjection {
+  id: string
+  status: 'published' | 'archived'
+  revision: number
+  published?: Record<string, unknown>
+}
+
+export interface MlsProviderState {
+  providerCode: string
+  status: string
+  connectionMode: 'live_query' | 'incremental_mirror' | 'hybrid'
+  secretConfigured: boolean
+  selectedAccessPath: string | null
+  credentialRef: string | null
+  lastConnectionTestAt: string | null
+  lastConnectionError: string | null
+  compliance: null | { approvalState: 'pending_approval' | 'approved' | 'rejected'; requiredAttribution: string | null; requiredDisclaimer: string | null; copyrightText: string | null; listingBrokerageRules: Record<string, unknown>; refreshRequirements: Record<string, unknown>; photoRules: Record<string, unknown>; permittedStatuses: string[]; soldDisplayAllowed: boolean | null; openHouseRules: Record<string, unknown>; searchIndexingAllowed: boolean | null; approvedSource: string | null; approvedAt: string | null; approvedBy: string | null }
+}
+export interface MlsProviderComplianceInput { providerCode: string; agreementReference: string; requiredAttribution: string; requiredDisclaimer: string; copyrightText: string; listingBrokerageRules: Record<string, unknown>; refreshRequirements: Record<string, unknown>; photoRules: Record<string, unknown>; permittedStatuses: string[]; soldDisplayAllowed: boolean; openHouseRules: Record<string, unknown>; searchIndexingAllowed: boolean; approvedBy: string }
+
+export interface PublicAgentProfileProjection {
+  verifiedPersonId: string
+  profile: Record<string, unknown>
+  /** Present only for an approved canonical_people record. */
+  person?: Record<string, unknown>
+  /** Public URL slug for canonical identities with a published personal site. */
+  websiteSlug?: string
+}
+
+export interface DomainRecord<T extends Record<string, unknown> = Record<string, unknown>> {
+  organizationId: string
+  collection: string
+  recordId: string
+  /** Null means organization-visible data, writable only by brokerage administrators. */
+  ownerUserId: string | null
+  data: T
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DomainRecordInput<T extends Record<string, unknown> = Record<string, unknown>> {
+  collection: string
+  recordId: string
+  ownerUserId?: string | null
+  data: T
+  /** Optional optimistic concurrency check; omit only for create-or-replace operations. */
+  expectedVersion?: number
+  /** Insert only; used for race-safe idempotency keys. */
+  createOnly?: boolean
+}
+
+export interface TransactionDomainRecordInput<T extends Record<string, unknown> = Record<string, unknown>> extends DomainRecordInput<T> {
+  collection: 'transactions' | `transaction_${string}`
+}
+
+const TRANSACTION_COLLECTION = /^(transactions|transaction_[A-Za-z0-9_.-]{1,72})$/
+function isTransactionCollection(value: string): boolean { return TRANSACTION_COLLECTION.test(value) }
+
+export interface DomainRecordListOptions {
+  limit?: number
+  offset?: number
+}
+
+export interface DomainRecordQueryOptions extends DomainRecordListOptions {
+  search?: string
+  stage?: string
+  source?: string
+  ownerId?: string
+  officeId?: string
+  sort?: 'newest' | 'oldest' | 'name' | 'stage' | 'source'
+}
+
 export interface Repository {
-  getOrganization(id: string): Promise<Organization | null>
-  getUser(id: string): Promise<User | null>
+  /** Narrow anonymous-read projection: returns only public published content and archived path tombstones. */
+  getPublicContentProjection(organizationId: string, path: string): Promise<PublicContentProjection | null>
+  listPublicContentProjections(organizationId: string): Promise<PublicContentProjection[]>
+  /** Narrow anonymous projection of active, public canonical agent profiles. */
+  listPublicAgentProfiles?(organizationId: string): Promise<PublicAgentProfileProjection[]>
+  listMlsProviderStates(actor: Actor): Promise<MlsProviderState[]>
+  saveMlsProviderCompliance(actor: Actor, input: MlsProviderComplianceInput): Promise<MlsProviderState>
+  recordMlsProviderConnection(actor: Actor, providerCode: string, ok: boolean, message: string): Promise<MlsProviderState>
+
+  getOrganization(actor: Actor, id: string): Promise<Organization | null>
+  getUser(actor: Actor, id: string): Promise<User | null>
   listUsers(actor: Actor): Promise<User[]>
 
   /** People visible to this actor. Agents see only their own assigned book. */
@@ -54,8 +140,39 @@ export interface Repository {
   listDeals(actor: Actor): Promise<Deal[]>
   listRecruitingProspects(actor: Actor): Promise<RecruitingProspect[]>
 
-  recordAudit(event: AuditEvent): Promise<void>
+  recordAudit(actor: Actor, event: AuditEvent): Promise<void>
   listAudit(actor: Actor, limit?: number): Promise<(AuditEvent & { occurredAt: string })[]>
+
+  /** Durable JSONB bridge for domain services migrating from the legacy platform store. */
+  getDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, recordId: string,
+  ): Promise<DomainRecord<T> | null>
+  listDomainRecords<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, options?: DomainRecordListOptions,
+  ): Promise<DomainRecord<T>[]>
+  /** Database-side filtering/count/paging for operational collections; optional for legacy test adapters. */
+  queryDomainRecords?<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, options: DomainRecordQueryOptions,
+  ): Promise<{ records: DomainRecord<T>[]; total: number }>
+  putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: DomainRecordInput<T>,
+  ): Promise<DomainRecord<T>>
+  /** Commit a set of domain records in one database transaction or not at all. */
+  putDomainRecordsAtomic(
+    actor: Actor, inputs: DomainRecordInput[], auditEvents?: AuditEvent[],
+  ): Promise<DomainRecord[]>
+  deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean>
+  /** Transaction-only write path enforces participant scope and immutable assignment fields. */
+  putTransactionDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: TransactionDomainRecordInput<T>, auditEvents?: AuditEvent[],
+  ): Promise<DomainRecord<T>>
+}
+
+export class DomainRecordConflictError extends Error {
+  constructor(readonly collection: string, readonly recordId: string) {
+    super('Domain record version conflict or create-only collision')
+    this.name = 'DomainRecordConflictError'
+  }
 }
 
 /** Thrown when an actor requests something outside their scope. */
@@ -90,6 +207,8 @@ export function emptySeed(): MemorySeed {
 
 export class MemoryRepository implements Repository {
   private audit: (AuditEvent & { occurredAt: string })[] = []
+  private domainRecords = new Map<string, DomainRecord>()
+  private mlsProviderStates = new Map<string, MlsProviderState & { organizationId: string }>()
 
   constructor(private seed: MemorySeed) {}
 
@@ -97,23 +216,96 @@ export class MemoryRepository implements Repository {
     return rows.filter(r => r.organizationId === actor.organizationId)
   }
 
-  async getOrganization(id: string) {
+  /** Resolve office scope from the canonical seeded user, never from caller input alone. */
+  private managingOfficeId(actor: Actor): string | null {
+    if (actor.role !== 'managing_broker') return null
+    const canonical = this.seed.users.find(user => user.id === actor.userId && user.organizationId === actor.organizationId)
+    if (!canonical?.officeId || (actor.officeId && actor.officeId !== canonical.officeId)) return null
+    return canonical.officeId
+  }
+
+  private officeUserIds(actor: Actor): Set<string> {
+    const officeId = this.managingOfficeId(actor)
+    if (!officeId) return new Set()
+    return new Set(this.seed.users.filter(user => user.organizationId === actor.organizationId && user.officeId === officeId).map(user => user.id))
+  }
+
+  async getPublicContentProjection(organizationId: string, path: string): Promise<PublicContentProjection | null> {
+    if (!path.startsWith('/') || path.length > 240) return null
+    const row = this.domainRecords.get(this.domainKey(organizationId, 'public_content', path))
+    const data = row?.data
+    if (!data || !['published', 'archived'].includes(String(data.status))) return null
+    return { id: path, status: data.status as 'published' | 'archived', revision: Number(data.revision) || 0,
+      ...(data.status === 'published' && data.published && typeof data.published === 'object' ? { published: structuredClone(data.published) as Record<string, unknown> } : {}) }
+  }
+
+  async listPublicContentProjections(organizationId: string): Promise<PublicContentProjection[]> {
+    return [...this.domainRecords.values()].filter(row => row.organizationId === organizationId && row.collection === 'public_content' && ['published', 'archived'].includes(String(row.data.status)))
+      .map(row => ({ id: row.recordId, status: row.data.status as 'published' | 'archived', revision: Number(row.data.revision) || 0,
+        ...(row.data.status === 'published' && row.data.published && typeof row.data.published === 'object' ? { published: structuredClone(row.data.published) as Record<string, unknown> } : {}) }))
+  }
+
+  async listPublicAgentProfiles(organizationId: string): Promise<PublicAgentProfileProjection[]> {
+    if (!organizationId) return []
+    const out: PublicAgentProfileProjection[] = []
+    for (const row of this.domainRecords.values()) {
+      if (row.organizationId !== organizationId || row.collection !== 'member_profiles' || row.data.publicVisible !== true) continue
+      const user = this.seed.users.find(member => member.id === row.recordId && member.organizationId === organizationId)
+      const slug = row.data.verifiedPersonId
+      if (!user || !user.isActive || typeof slug !== 'string' || !slug) continue
+      const canonical = this.domainRecords.get(this.domainKey(organizationId, 'canonical_people', slug))
+      if (!canonical) {
+        out.push({ verifiedPersonId: slug, profile: structuredClone(row.data) })
+        continue
+      }
+      const person = canonical.data
+      const website = this.domainRecords.get(this.domainKey(organizationId, 'agent_websites', user.id))
+      if (canonical.ownerUserId !== user.id || person.userId !== user.id || person.slug !== slug || person.id !== slug || person.status !== 'active' || person.publicVisible !== true || !website || website.ownerUserId !== user.id || website.data.published !== true || typeof website.data.slug !== 'string') continue
+      out.push({ verifiedPersonId: slug, profile: structuredClone(row.data), person: structuredClone(person), websiteSlug: String(website.data.slug) })
+    }
+    return out
+  }
+
+  private assertMlsAdmin(actor: Actor) { if (!['owner', 'broker', 'managing_broker'].includes(actor.role)) throw new PermissionDeniedError('mls_provider_config', 'brokerage administrator required') }
+  async listMlsProviderStates(actor: Actor): Promise<MlsProviderState[]> { return [...this.mlsProviderStates.values()].filter(row => row.organizationId === actor.organizationId).map(({ organizationId: _org, ...row }) => structuredClone(row)) }
+  async saveMlsProviderCompliance(actor: Actor, input: MlsProviderComplianceInput): Promise<MlsProviderState> {
+    this.assertMlsAdmin(actor); const key = `${actor.organizationId}:${input.providerCode}`; const old = this.mlsProviderStates.get(key);
+    const state: MlsProviderState & { organizationId: string } = { ...(old ?? { providerCode: input.providerCode, status: 'ready_for_connection', connectionMode: 'live_query', secretConfigured: false, selectedAccessPath: null, credentialRef: null, lastConnectionTestAt: null, lastConnectionError: null }), organizationId: actor.organizationId, status: 'ready_for_connection', compliance: { approvalState: 'approved', requiredAttribution: input.requiredAttribution, requiredDisclaimer: input.requiredDisclaimer, copyrightText: input.copyrightText, listingBrokerageRules: input.listingBrokerageRules, refreshRequirements: input.refreshRequirements, photoRules: input.photoRules, permittedStatuses: input.permittedStatuses, soldDisplayAllowed: input.soldDisplayAllowed, openHouseRules: input.openHouseRules, searchIndexingAllowed: input.searchIndexingAllowed, approvedSource: input.agreementReference, approvedAt: new Date().toISOString(), approvedBy: actor.userId } };
+    this.mlsProviderStates.set(key, state); this.audit.push({ organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'user', action: 'mls.compliance_terms_recorded', targetType: 'mls_provider', targetId: input.providerCode, effect: 'write', allowed: true, detail: { providerCode: input.providerCode, termsRecorded: true }, occurredAt: new Date().toISOString() }); const { organizationId: _org, ...result } = state; return structuredClone(result)
+  }
+  async recordMlsProviderConnection(actor: Actor, providerCode: string, ok: boolean, message: string): Promise<MlsProviderState> {
+    this.assertMlsAdmin(actor); const key = `${actor.organizationId}:${providerCode}`; const old = this.mlsProviderStates.get(key); if (!old) throw new Error('MLS provider configuration is not saved');
+    const state = { ...old, status: old.status === 'disabled' ? 'disabled' : ok ? 'connected' : 'degraded', lastConnectionTestAt: new Date().toISOString(), lastConnectionError: ok ? null : message }; this.mlsProviderStates.set(key, state); this.audit.push({ organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'user', action: 'mls.connection_tested', targetType: 'mls_provider', targetId: providerCode, effect: 'write', allowed: true, detail: { providerCode, outcome: ok ? 'connected' : 'failed' }, occurredAt: new Date().toISOString() }); const { organizationId: _org, ...result } = state; return structuredClone(result)
+  }
+
+  async getOrganization(actor: Actor, id: string) {
+    if (id !== actor.organizationId) return null
     return this.seed.organizations.find(o => o.id === id) ?? null
   }
 
-  async getUser(id: string) {
-    return this.seed.users.find(u => u.id === id) ?? null
+  async getUser(actor: Actor, id: string) {
+    const user = this.seed.users.find(u => u.id === id && u.organizationId === actor.organizationId)
+    if (!user) return null
+    const officeId = this.managingOfficeId(actor)
+    if (!canSeeWholeBrokerage(actor.role) && !(officeId && user.officeId === officeId) && user.id !== actor.userId) return null
+    return user
   }
 
   async listUsers(actor: Actor) {
     const inOrg = this.sameOrg(actor, this.seed.users)
     if (canSeeWholeBrokerage(actor.role)) return inOrg
+    const officeId = this.managingOfficeId(actor)
+    if (officeId) return inOrg.filter(u => u.officeId === officeId)
     return inOrg.filter(u => u.id === actor.userId)
   }
 
   async listPeople(actor: Actor) {
     const inOrg = this.sameOrg(actor, this.seed.people).filter(p => !p.deletedInFub)
     if (canSeeWholeBrokerage(actor.role)) return inOrg
+    if (actor.role === 'managing_broker') {
+      const officeUserIds = this.officeUserIds(actor)
+      return inOrg.filter(person => person.assignedUserId !== null && officeUserIds.has(person.assignedUserId))
+    }
     // An agent sees ONLY the people assigned to them. This mirrors FUB's own
     // permission model, where an agent's API key reaches only their contacts.
     return inOrg.filter(p => p.assignedUserId === actor.userId)
@@ -150,18 +342,30 @@ export class MemoryRepository implements Repository {
   async listTasks(actor: Actor) {
     const inOrg = this.sameOrg(actor, this.seed.tasks)
     if (canSeeWholeBrokerage(actor.role)) return inOrg
+    if (actor.role === 'managing_broker') {
+      const officeUserIds = this.officeUserIds(actor)
+      return inOrg.filter(task => task.assignedUserId !== null && officeUserIds.has(task.assignedUserId))
+    }
     return inOrg.filter(t => t.assignedUserId === actor.userId)
   }
 
   async listAppointments(actor: Actor) {
     const inOrg = this.sameOrg(actor, this.seed.appointments)
     if (canSeeWholeBrokerage(actor.role)) return inOrg
+    if (actor.role === 'managing_broker') {
+      const officeUserIds = this.officeUserIds(actor)
+      return inOrg.filter(item => item.assignedUserId !== null && officeUserIds.has(item.assignedUserId))
+    }
     return inOrg.filter(a => a.assignedUserId === actor.userId)
   }
 
   async listDeals(actor: Actor) {
     const inOrg = this.sameOrg(actor, this.seed.deals)
     if (canSeeWholeBrokerage(actor.role)) return inOrg
+    if (actor.role === 'managing_broker') {
+      const officeUserIds = this.officeUserIds(actor)
+      return inOrg.filter(deal => deal.ownerUserId !== null && officeUserIds.has(deal.ownerUserId))
+    }
     return inOrg.filter(d => d.ownerUserId === actor.userId)
   }
 
@@ -169,21 +373,224 @@ export class MemoryRepository implements Repository {
     if (!canSeeRecruiting(actor.role)) {
       throw new PermissionDeniedError('listRecruitingProspects', `role '${actor.role}' may not read recruiting data`)
     }
-    return this.sameOrg(actor, this.seed.recruitingProspects)
+    const inOrg = this.sameOrg(actor, this.seed.recruitingProspects)
+    return inOrg
   }
 
-  async recordAudit(event: AuditEvent) {
+  async recordAudit(actor: Actor, event: AuditEvent) {
+    if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) {
+      throw new PermissionDeniedError('recordAudit', 'audit identity must match the trusted actor')
+    }
     this.audit.push({ ...event, occurredAt: new Date().toISOString() })
   }
 
   async listAudit(actor: Actor, limit = 100) {
-    if (!canSeeWholeBrokerage(actor.role)) {
-      throw new PermissionDeniedError('listAudit', 'only owners and brokers may read the audit log')
+    if (!canSeeWholeBrokerage(actor.role) && actor.role !== 'managing_broker') {
+      throw new PermissionDeniedError('listAudit', 'only brokerage leadership may read the audit log')
     }
+    const officeUserIds = actor.role === 'managing_broker' ? this.officeUserIds(actor) : null
     return this.audit
-      .filter(a => a.organizationId === actor.organizationId)
+      .filter(a => a.organizationId === actor.organizationId && (!officeUserIds || (a.actorUserId !== null && officeUserIds.has(a.actorUserId))))
       .slice(-limit)
       .reverse()
+  }
+
+
+  private domainKey(organizationId: string, collection: string, recordId: string): string {
+    return `${organizationId}\u0000${collection}\u0000${recordId}`
+  }
+
+  private canSeeDomainRecord(actor: Actor, record: DomainRecord): boolean {
+    if (actor.organizationId !== record.organizationId) return false
+    if (canSeeWholeBrokerage(actor.role) || actor.role === 'staff') return true
+    if (actor.role === 'managing_broker') {
+      const officeId = this.managingOfficeId(actor)
+      if (!officeId) return record.ownerUserId === actor.userId
+      if (isTransactionCollection(record.collection)) {
+        if (record.collection === 'transactions') return record.data.officeId === officeId
+        const parentId = String(record.data.transactionId ?? '')
+        if (!parentId || (record.data.officeId !== undefined && record.data.officeId !== officeId)) return false
+        const parent = this.domainRecords.get(this.domainKey(actor.organizationId, 'transactions', parentId))
+        return parent?.data.officeId === officeId
+      }
+      if (record.ownerUserId === null) return !record.data.officeId || record.data.officeId === officeId
+      const owner = this.seed.users.find(user => user.id === record.ownerUserId && user.organizationId === actor.organizationId)
+      return owner?.officeId === officeId || record.ownerUserId === actor.userId
+    }
+    if (actor.role === 'marketing_admin' && ['marketing_campaigns', 'marketing_batches', 'marketing_schedule'].includes(record.collection)) return true
+    // Discussion is shared only when its parent post is published. Private
+    // drafts never expose comments or reactions to other members.
+    if (record.collection === 'community_comments' || record.collection === 'community_reactions') {
+      const post = this.domainRecords.get(this.domainKey(actor.organizationId, 'community_posts', String(record.data.postId ?? '')))
+      if (post && post.ownerUserId === null && post.data.draft !== true && post.data.deleted !== true) return true
+    }
+    if (record.ownerUserId === null) return true
+    if (record.ownerUserId === actor.userId) return true
+    if (isTransactionCollection(record.collection)) {
+      if (record.data.ownerId === actor.userId) return true
+      if (actor.role === 'transaction_coordinator' && record.data.tcId === actor.userId) return true
+      if (actor.role === 'team_lead' && actor.teamIds?.includes(String(record.data.teamId))) return true
+    }
+    // Team lead scope is intentionally not widened in this generic bridge. A
+    // future caller may supply an explicit allowed-owner list after team policy.
+    return false
+  }
+
+  async getDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, recordId: string,
+  ): Promise<DomainRecord<T> | null> {
+    const record = this.domainRecords.get(this.domainKey(actor.organizationId, collection, recordId))
+    if (!record || !this.canSeeDomainRecord(actor, record)) return null
+    return structuredClone(record) as DomainRecord<T>
+  }
+
+  async listDomainRecords<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, collection: string, options: DomainRecordListOptions = {},
+  ): Promise<DomainRecord<T>[]> {
+    const limit = Math.max(1, Math.min(options.limit ?? 50, 200))
+    const offset = Math.max(0, options.offset ?? 0)
+    return [...this.domainRecords.values()]
+      .filter(record => record.collection === collection && this.canSeeDomainRecord(actor, record))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.recordId.localeCompare(b.recordId))
+      .slice(offset, offset + limit)
+      .map(record => structuredClone(record) as DomainRecord<T>)
+  }
+
+  async putDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: DomainRecordInput<T>,
+  ): Promise<DomainRecord<T>> {
+    if (isTransactionCollection(input.collection)) throw new PermissionDeniedError('putDomainRecord', 'transaction records require the participant-checked transaction write API')
+    const ownerUserId = input.ownerUserId ?? null
+    const owner = ownerUserId ? this.seed.users.find(user => user.id === ownerUserId && user.organizationId === actor.organizationId) : null
+    const officeId = this.managingOfficeId(actor)
+    const officeManaged = Boolean(officeId) && owner?.officeId === officeId
+    const mayWriteShared = ownerUserId === null && canSeeWholeBrokerage(actor.role)
+    const mayWriteCms = actor.role === 'marketing_admin' && input.collection === 'public_content'
+    const mayWriteOwned = mayWriteCms || ownerUserId === actor.userId
+      || officeManaged
+      || (['owner', 'broker', 'staff'].includes(actor.role) && ownerUserId !== null)
+    if (!mayWriteShared && !mayWriteOwned) {
+      throw new PermissionDeniedError('putDomainRecord', 'record owner is outside this actor scope')
+    }
+    const key = this.domainKey(actor.organizationId, input.collection, input.recordId)
+    const prior = this.domainRecords.get(key)
+    if (prior && !this.canSeeDomainRecord(actor, prior)) throw new PermissionDeniedError('putDomainRecord', 'existing record is outside this actor scope')
+    if (input.createOnly && prior) throw new DomainRecordConflictError(input.collection, input.recordId)
+    if (input.expectedVersion !== undefined && (!prior || input.expectedVersion !== prior.version)) {
+      throw new DomainRecordConflictError(input.collection, input.recordId)
+    }
+    const now = new Date().toISOString()
+    const record: DomainRecord<T> = {
+      organizationId: actor.organizationId, collection: input.collection,
+      recordId: input.recordId, ownerUserId, data: structuredClone(input.data),
+      version: (prior?.version ?? 0) + 1, createdAt: prior?.createdAt ?? now, updatedAt: now,
+    }
+    this.domainRecords.set(key, record as DomainRecord)
+    return structuredClone(record)
+  }
+
+  async putDomainRecordsAtomic(
+    actor: Actor, inputs: DomainRecordInput[], auditEvents: AuditEvent[] = [],
+  ): Promise<DomainRecord[]> {
+    if (inputs.some(input => isTransactionCollection(input.collection))) throw new PermissionDeniedError('putDomainRecordsAtomic', 'transaction records require the participant-checked transaction write API')
+    if (inputs.length < 1 || inputs.length > 100) throw new RangeError('Atomic write must contain 1 to 100 records')
+    const now = new Date().toISOString()
+    const staged = inputs.map(input => {
+      const ownerUserId = input.ownerUserId ?? null
+      const owner = ownerUserId ? this.seed.users.find(user => user.id === ownerUserId && user.organizationId === actor.organizationId) : null
+      const officeId = this.managingOfficeId(actor)
+      const officeManaged = Boolean(officeId) && owner?.officeId === officeId
+      const mayWriteShared = ownerUserId === null && canSeeWholeBrokerage(actor.role)
+      const mayWriteCms = actor.role === 'marketing_admin' && input.collection === 'public_content'
+      const mayWriteOwned = mayWriteCms || ownerUserId === actor.userId || officeManaged || (['owner', 'broker', 'staff'].includes(actor.role) && ownerUserId !== null)
+      if (!mayWriteShared && !mayWriteOwned) throw new PermissionDeniedError('putDomainRecordsAtomic', 'record owner is outside this actor scope')
+      const key = this.domainKey(actor.organizationId, input.collection, input.recordId)
+      const prior = this.domainRecords.get(key)
+      if (prior && !this.canSeeDomainRecord(actor, prior)) throw new PermissionDeniedError('putDomainRecordsAtomic', 'existing record is outside this actor scope')
+      if (input.createOnly && prior) throw new DomainRecordConflictError(input.collection, input.recordId)
+      if (input.expectedVersion !== undefined && (!prior || input.expectedVersion !== prior.version)) throw new DomainRecordConflictError(input.collection, input.recordId)
+      return { key, prior, input, ownerUserId }
+    })
+    if (new Set(staged.map(item => item.key)).size !== staged.length) throw new TypeError('Atomic write contains duplicate record identities')
+    const records: DomainRecord[] = staged.map(({ prior, input, ownerUserId }) => ({
+      organizationId: actor.organizationId, collection: input.collection, recordId: input.recordId,
+      ownerUserId, data: structuredClone(input.data), version: (prior?.version ?? 0) + 1,
+      createdAt: prior?.createdAt ?? now, updatedAt: now,
+    } as DomainRecord))
+    for (const event of auditEvents) {
+      if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) throw new PermissionDeniedError('putDomainRecordsAtomic', 'audit identity must match the trusted actor')
+    }
+    for (let index = 0; index < staged.length; index++) this.domainRecords.set(staged[index].key, records[index])
+    this.audit.push(...auditEvents.map(event => ({ ...event, occurredAt: now })))
+    return records.map(record => structuredClone(record))
+  }
+
+  async putTransactionDomainRecord<T extends Record<string, unknown> = Record<string, unknown>>(
+    actor: Actor, input: TransactionDomainRecordInput<T>, auditEvents: AuditEvent[] = [],
+  ): Promise<DomainRecord<T>> {
+    if (!isTransactionCollection(input.collection) || input.data.organizationId !== actor.organizationId) throw new PermissionDeniedError('putTransactionDomainRecord', 'invalid transaction record scope')
+    const ownerUserId = input.ownerUserId ?? null
+    if (input.collection === 'transactions' && input.data.ownerId !== ownerUserId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction owner and repository owner must match')
+    const key = this.domainKey(actor.organizationId, input.collection, input.recordId)
+    const prior = this.domainRecords.get(key)
+    if (input.createOnly && prior) throw new DomainRecordConflictError(input.collection, input.recordId)
+    if (input.expectedVersion !== undefined && (!prior || prior.version !== input.expectedVersion)) throw new DomainRecordConflictError(input.collection, input.recordId)
+    const broker = canSeeWholeBrokerage(actor.role)
+    const officeId = this.managingOfficeId(actor)
+    const officeManager = Boolean(officeId)
+    if (officeManager) {
+      const assignedIds = [String(input.data.ownerId ?? ''), String(input.data.tcId ?? '')].filter(Boolean)
+      const officeUsers = this.seed.users.filter(user => user.organizationId === actor.organizationId && user.officeId === officeId)
+      const officeUserIds = new Set(officeUsers.map(user => user.id))
+      if (input.data.officeId !== officeId || assignedIds.some(id => !officeUserIds.has(id))) {
+        throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction assignment must remain within the managing broker office')
+      }
+      if (input.data.tcId && !officeUsers.some(user => user.id === input.data.tcId && user.role === 'transaction_coordinator')) {
+        throw new PermissionDeniedError('putTransactionDomainRecord', 'only an office transaction coordinator may be assigned')
+      }
+    }
+    if (prior) {
+      const existing = prior.data
+      const isOwner = existing.ownerId === actor.userId
+      const isAssignedTc = existing.tcId === actor.userId && actor.role === 'transaction_coordinator'
+      const isTeamLead = actor.role === 'team_lead' && actor.teamIds?.includes(String(existing.teamId))
+      if (officeManager && existing.officeId !== officeId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction is outside the managing broker office')
+      if (!broker && !officeManager && !isOwner && !isAssignedTc && !isTeamLead) throw new PermissionDeniedError('putTransactionDomainRecord', 'actor is not a transaction participant')
+      if (!broker && !officeManager && (input.data.ownerId !== existing.ownerId || input.data.tcId !== existing.tcId || input.data.teamId !== existing.teamId || ownerUserId !== prior.ownerUserId)) {
+        throw new PermissionDeniedError('putTransactionDomainRecord', 'only brokerage administrators may reassign transaction ownership or participants')
+      }
+    } else {
+      if (officeManager && input.data.officeId !== officeId) throw new PermissionDeniedError('putTransactionDomainRecord', 'transaction is outside the managing broker office')
+      if (ownerUserId !== actor.userId && !broker && !officeManager) throw new PermissionDeniedError('putTransactionDomainRecord', 'new transaction records must be owned by the actor')
+      const transactionId = input.collection === 'transactions' ? input.recordId : String(input.data.transactionId ?? '')
+      if (input.collection !== 'transactions') {
+        const parent = this.domainRecords.get(this.domainKey(actor.organizationId, 'transactions', transactionId))
+        if (!parent) throw new PermissionDeniedError('putTransactionDomainRecord', 'parent transaction is unavailable')
+        const data = parent.data
+        const participant = data.ownerId === actor.userId || (actor.role === 'transaction_coordinator' && data.tcId === actor.userId) || (actor.role === 'team_lead' && actor.teamIds?.includes(String(data.teamId)))
+        if (!broker && !officeManager && !participant) throw new PermissionDeniedError('putTransactionDomainRecord', 'actor is not a transaction participant')
+        for (const field of ['ownerId', 'tcId', 'teamId'] as const) if (input.data[field] !== data[field]) throw new PermissionDeniedError('putTransactionDomainRecord', 'child record participant fields must match the parent transaction')
+      } else if (!broker && !officeManager && (input.data.ownerId !== actor.userId || input.data.tcId)) {
+        throw new PermissionDeniedError('putTransactionDomainRecord', 'agents may create only transactions they own; only brokerage administrators may assign a coordinator')
+      }
+    }
+    const now = new Date().toISOString()
+    const record: DomainRecord<T> = { organizationId: actor.organizationId, collection: input.collection, recordId: input.recordId, ownerUserId, data: structuredClone(input.data), version: (prior?.version ?? 0) + 1, createdAt: prior?.createdAt ?? now, updatedAt: now }
+    for (const event of auditEvents) if (event.organizationId !== actor.organizationId || event.actorUserId !== actor.userId) throw new PermissionDeniedError('putTransactionDomainRecord', 'audit identity must match the trusted actor')
+    this.domainRecords.set(key, record as DomainRecord)
+    this.audit.push(...auditEvents.map(event => ({ ...event, occurredAt: now })))
+    return structuredClone(record)
+  }
+
+  async deleteDomainRecord(actor: Actor, collection: string, recordId: string): Promise<boolean> {
+    if (isTransactionCollection(collection)) throw new PermissionDeniedError('deleteDomainRecord', 'transaction history is retained; archive the transaction instead')
+    const key = this.domainKey(actor.organizationId, collection, recordId)
+    const prior = this.domainRecords.get(key)
+    if (!prior || !this.canSeeDomainRecord(actor, prior)) return false
+    if (prior.ownerUserId !== actor.userId && !canSeeWholeBrokerage(actor.role)) {
+      throw new PermissionDeniedError('deleteDomainRecord', 'record owner is outside this actor scope')
+    }
+    return this.domainRecords.delete(key)
   }
 
   /** Test helper — direct access to the seed for assertions. */

@@ -4,11 +4,11 @@
  * Route: /website/settings
  *
  * Agent-facing website configuration form.
- * No actual persistence — console.log + mock save feedback.
+ * Persists website configuration and publication through the authenticated server API.
  * Tabs: Profile | Template | Markets | SEO | Domain
  */
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { THEME_CATALOG, type AgentWebsiteTheme } from '@/lib/agent-website/types'
 import '../website.css'
@@ -46,37 +46,75 @@ interface SettingsValues {
   linkedin: string
   instagram: string
   facebook: string
+  websiteSlug: string
+  version: number
+  published: boolean
 }
 
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('Profile')
   const [saved, setSaved] = useState(false)
   const [values, setValues] = useState<SettingsValues>({
-    name: 'Marcus Webb',
-    title: 'New Construction REALTOR®',
-    tagline: 'New construction, without the surprises.',
-    bio: 'Marcus Webb has closed over forty new construction transactions in the Jacksonville market.',
-    phone: '(904) 555-0287',
-    email: 'marcus.webb@rcregroup.com',
-    markets: ['Nocatee', 'Silverleaf', 'Durbin Creek', 'Jacksonville New Development', 'St. Johns County'],
-    specialties: ['New Construction', 'Builder Representation', 'Pre-Construction', 'Design Center', 'Warranty Review'],
-    theme: 'rcre-new-construction',
-    seoTitle: 'Marcus Webb | RCRE New Construction, Northeast Florida',
-    seoDescription: 'Marcus Webb — New Construction REALTOR® with RCRE Group, specializing in builder representation in Nocatee, Silverleaf, and Durbin Creek.',
-    heroImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1600&q=80',
-    customDomain: '',
-    linkedin: 'https://linkedin.com/in/marcus-webb-rcre',
-    instagram: '',
-    facebook: '',
+    name: '', title: '', tagline: '', bio: '', phone: '', email: '', markets: [], specialties: [],
+    theme: 'rcre-signature', seoTitle: '', seoDescription: '', heroImage: '', customDomain: '',
+    linkedin: '', instagram: '', facebook: '', websiteSlug: '', version: 0, published: false,
   })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
-  function handleSave(e: FormEvent) {
+  useEffect(() => {
+    let active = true
+    fetch('/api/agent/website', { cache: 'no-store' }).then(async response => {
+      if (!response.ok) throw new Error('Website settings are unavailable right now.')
+      return response.json()
+    }).then(data => {
+      if (!active) return
+      const profile = data.profile ?? {}
+      const website = data.website ?? {}
+      const canonical = data.canonical ?? {}
+      const social = profile.socialLinks ?? {}
+      setValues({
+        name: canonical.name ?? data.member?.name ?? '', title: canonical.title ?? profile.professionalTitle ?? '',
+        tagline: website.tagline ?? '', bio: canonical.bio ?? profile.biography ?? '', phone: canonical.phone ?? profile.phone ?? '',
+        email: canonical.email ?? data.member?.email ?? '', markets: website.markets ?? canonical.markets ?? profile.markets ?? [],
+        specialties: website.specialties ?? canonical.specialties ?? profile.specialties ?? [], theme: website.theme ?? 'rcre-signature',
+        seoTitle: website.seoTitle ?? '', seoDescription: website.seoDescription ?? '', heroImage: website.heroImage ?? '',
+        customDomain: website.customDomain ?? '', linkedin: social.linkedin ?? canonical.socialLinks?.linkedin ?? '', instagram: social.instagram ?? canonical.socialLinks?.instagram ?? '',
+        facebook: social.facebook ?? canonical.socialLinks?.facebook ?? '', websiteSlug: website.slug ?? profile.websiteSlug ?? canonical.slug ?? '',
+        version: data.version ?? 0, published: website.published ?? false,
+      })
+    }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Website settings are unavailable right now.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  async function handleSave(e: FormEvent) {
     e.preventDefault()
-    // In production: PATCH /api/agent/website/settings
-    console.log('Settings saved:', values)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    setSaving(true); setError('')
+    try {
+      const response = await fetch('/api/agent/website', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: values.websiteSlug, theme: values.theme, markets: values.markets, specialties: values.specialties, headline: values.tagline, tagline: values.tagline, biography: values.bio, socialLinks: { linkedin: values.linkedin, instagram: values.instagram, facebook: values.facebook }, heroImage: values.heroImage, seoTitle: values.seoTitle, seoDescription: values.seoDescription, customDomain: values.customDomain, version: values.version }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error ?? 'Website settings could not be saved.')
+      setValues(value => ({ ...value, version: result.version, published: result.published }))
+      setSaved(true); setTimeout(() => setSaved(false), 3000)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Website settings could not be saved.') }
+    finally { setSaving(false) }
   }
+
+  async function togglePublication() {
+    setError('')
+    try {
+      const response = await fetch('/api/agent/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publish: !values.published, version: values.version }) })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error ?? 'Website status could not be updated.')
+      setValues(value => ({ ...value, published: result.published, version: result.version }))
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Website status could not be updated.') }
+  }
+
 
   function toggleMarket(m: string) {
     setValues((v) => ({
@@ -109,13 +147,15 @@ function SettingsPage() {
         </div>
       </div>
 
+      {error && <p role="alert" style={{ padding: '0.75rem 1rem', borderRadius: 8, background: '#fff1f0', color: '#9f2d24', marginBottom: '1rem' }}>{error}</p>}
+      {loading && <p role="status">Loading your saved website settings…</p>}
       {/* Toast */}
       {saved && (
         <div style={{ background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem', color: '#065f46', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          Settings saved successfully.
+          Website settings saved.
         </div>
       )}
 
@@ -159,7 +199,7 @@ function SettingsPage() {
                   <input
                     type="text"
                     value={values.name}
-                    onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
+                    readOnly
                     className="wp-input"
                   />
                 </div>
@@ -168,7 +208,7 @@ function SettingsPage() {
                   <input
                     type="text"
                     value={values.title}
-                    onChange={(e) => setValues((v) => ({ ...v, title: e.target.value }))}
+                    readOnly
                     className="wp-input"
                   />
                 </div>
@@ -203,11 +243,11 @@ function SettingsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--color-text)' }}>Phone</label>
-                  <input type="tel" value={values.phone} onChange={(e) => setValues((v) => ({ ...v, phone: e.target.value }))} className="wp-input" />
+                  <input type="tel" value={values.phone} readOnly className="wp-input" />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--color-text)' }}>Email</label>
-                  <input type="email" value={values.email} onChange={(e) => setValues((v) => ({ ...v, email: e.target.value }))} className="wp-input" />
+                  <input type="email" value={values.email} readOnly className="wp-input" />
                 </div>
               </div>
 
@@ -407,10 +447,10 @@ function SettingsPage() {
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--color-text)' }}>Canonical URL (preview)</label>
                 <div style={{ padding: '0.625rem 0.875rem', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--color-muted)' }}>
-                  rcregroup.com/agent/marcus-webb
+                  rcregroup.com/agent/{values.websiteSlug || 'your-agent-name'}
                 </div>
                 <p style={{ fontSize: '0.72rem', color: 'var(--color-muted)', marginTop: '0.25rem' }}>
-                  Your canonical URL is determined by your agent profile slug. It cannot be changed here.
+                  The RCRE path is stored with your website settings and must be unique within the brokerage.
                 </p>
               </div>
             </div>
@@ -424,69 +464,42 @@ function SettingsPage() {
               Domain Configuration
             </h2>
             <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', marginBottom: '1.5rem' }}>
-              Connect your own domain name, or use your free RCRE subdomain.
+              Configure your RCRE website path. Custom domains require brokerage activation.
             </p>
 
             <div style={{ display: 'grid', gap: '1.5rem' }}>
               {/* Status */}
               <div style={{ padding: '1rem 1.25rem', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '8px' }}>
                 <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#92400e', marginBottom: '0.25rem' }}>
-                  Status: Not configured
+                  Status: {values.published ? 'Published' : 'Draft'}
                 </p>
                 <p style={{ fontSize: '0.8rem', color: '#b45309' }}>
-                  Your website is using the default RCRE platform URL. Configure a custom domain to publish on your own URL.
+                  Custom domains are not connected yet. Your RCRE website path will be available after publication.
                 </p>
               </div>
 
-              {/* Subdomain preview */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--color-text)' }}>Your free subdomain</label>
-                <div style={{ padding: '0.75rem 1rem', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span style={{ fontSize: '0.9rem', fontFamily: 'monospace', color: 'var(--color-muted)' }}>https://</span>
-                  <span style={{ fontSize: '0.9rem', fontFamily: 'monospace', color: 'var(--color-primary)', fontWeight: 700 }}>marcus-webb</span>
-                  <span style={{ fontSize: '0.9rem', fontFamily: 'monospace', color: 'var(--color-muted)' }}>.rcregroup.com</span>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--color-text)' }}>RCRE website path</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>/agent/</span><input value={values.websiteSlug} onChange={e => setValues(v => ({ ...v, websiteSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') }))} className="wp-input" pattern="[a-z0-9-]{3,80}" maxLength={80} required aria-label="Agent website URL path" />
                 </div>
               </div>
 
-              {/* Custom domain */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--color-text)' }}>Custom domain</label>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <input
-                    type="text"
-                    value={values.customDomain}
-                    onChange={(e) => setValues((v) => ({ ...v, customDomain: e.target.value }))}
-                    className="wp-input"
-                    placeholder="agents.yourdomain.com"
-                  />
-                </div>
-                <p style={{ fontSize: '0.72rem', color: 'var(--color-muted)', marginTop: '0.375rem' }}>
-                  Point your domain&apos;s CNAME record to <code style={{ background: 'var(--color-bg)', padding: '1px 4px', borderRadius: '3px' }}>platform.rcregroup.com</code>.
-                  Allow up to 24 hours for DNS propagation.
-                </p>
-              </div>
-
-              {/* DNS instructions */}
               <div style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '1.25rem' }}>
-                <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '0.75rem' }}>
-                  DNS Setup Instructions
-                </p>
-                <ol style={{ fontSize: '0.82rem', color: 'var(--color-muted)', lineHeight: 1.8, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                  <li>Log in to your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.)</li>
-                  <li>Navigate to DNS settings for your domain</li>
-                  <li>Add a CNAME record: Host = <code style={{ background: 'var(--color-surface)', padding: '1px 4px', borderRadius: '3px' }}>agents</code>, Points to = <code style={{ background: 'var(--color-surface)', padding: '1px 4px', borderRadius: '3px' }}>platform.rcregroup.com</code>, TTL = 3600</li>
-                  <li>Save and wait for propagation (up to 24 hours)</li>
-                  <li>Return here and enter your custom domain above</li>
-                </ol>
+                <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '0.5rem' }}>Custom domains</p>
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-muted)' }}>Custom domain routing is not configured. The RCRE hosted path is the supported website URL for this account.</p>
               </div>
             </div>
           </div>
         )}
 
         {/* Save button */}
-        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="submit" className="wp-btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem' }}>
-            Save Settings
+        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+          <button type="button" onClick={togglePublication} disabled={loading || saving || !values.version} className="wp-btn-secondary">
+            {values.published ? 'Unpublish website' : 'Publish website'}
+          </button>
+          <button type="submit" disabled={loading || saving} className="wp-btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem' }}>
+            {saving ? 'Saving…' : 'Save Settings'}
           </button>
         </div>
       </form>
