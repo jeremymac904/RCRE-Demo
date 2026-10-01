@@ -117,9 +117,9 @@ function deterministicUuid(value: string) {
   return `${raw.slice(0,8)}-${raw.slice(8,12)}-${raw.slice(12,16)}-${raw.slice(16,20)}-${raw.slice(20)}`
 }
 
-function leadAttribution(input: IntakeFields, source: string, inquiryId: string, capturedAt: string) {
+function leadAttribution(input: IntakeFields, source: string, inquiryId: string, capturedAt: string, siteOwnerId?: string) {
   return {
-    id: inquiryId, source, kind: input.kind, agentWebsiteSlug: input.agentSlug,
+    id: inquiryId, source, kind: input.kind, agentWebsiteSlug: input.agentSlug, siteOwnerId,
     listingId: input.listingId, providerId: input.providerId, mlsListingId: input.mlsListingId,
     propertyAddress: input.propertyAddress, landingPage: input.landingPage, referrer: input.referrer,
     utmSource: input.utmSource, utmMedium: input.utmMedium, utmCampaign: input.utmCampaign,
@@ -143,7 +143,7 @@ async function durableOwner(input: IntakeFields, repository: Repository, actor: 
     throw new IntakeError('We cannot receive requests right now. Please contact the office directly.', 503)
   }
   const users = await repository.listUsers(actor)
-  let rosterMatch = input.agentSlug ? publicAgents.find(agent => agent.slug === input.agentSlug) : null
+  let rosterMatch = null as (typeof publicAgents)[number] | null
   let candidate = undefined as (typeof users)[number] | undefined
   let candidateProfile: Record<string, any> | undefined
 
@@ -158,18 +158,33 @@ async function durableOwner(input: IntakeFields, repository: Repository, actor: 
       for (const profileRow of profiles) {
         const profile = profileRow.data
         if (String(profile.websiteSlug ?? '').trim().toLowerCase() !== slug || profile.publicVisible !== true
-          || profile.active === false || profile.disabled === true) continue
-        const canonical = typeof profile.verifiedPersonId === 'string'
-          ? publicAgents.find(person => person.slug === profile.verifiedPersonId)
-          : undefined
-        if (!canonical) continue
+          || profile.active === false || profile.disabled === true || profileRow.ownerUserId !== profileRow.recordId
+          || profileRow.organizationId !== actor.organizationId) continue
+        const verifiedPersonId = typeof profile.verifiedPersonId === 'string' ? profile.verifiedPersonId : ''
+        if (!verifiedPersonId) continue
+        const canonicalRow = await repository.getDomainRecord<Record<string, any>>(actor, 'canonical_people', verifiedPersonId)
+        const staticCanonical = !canonicalRow ? publicAgents.find(person => person.slug === verifiedPersonId) : undefined
+        // Dynamic identities require their owner-bound canonical row to be approved.
+        // Existing roster records remain compatible while their canonical rows migrate.
+        const dynamicCanonical = canonicalRow?.data
+        if (canonicalRow && (canonicalRow.organizationId !== actor.organizationId
+          || canonicalRow.ownerUserId !== profileRow.recordId
+          || dynamicCanonical?.id !== verifiedPersonId || dynamicCanonical?.slug !== verifiedPersonId
+          || dynamicCanonical?.userId !== profileRow.recordId
+          || dynamicCanonical?.organizationId !== actor.organizationId
+          || dynamicCanonical?.status !== 'active' || dynamicCanonical?.publicVisible !== true)) continue
+        if (!canonicalRow && !staticCanonical) continue
         const site = await repository.getDomainRecord<Record<string, any>>(actor, 'agent_websites', profileRow.recordId)
-        if (!site || site.ownerUserId !== profileRow.recordId || site.data.published !== true
+        if (!site || site.organizationId !== actor.organizationId || site.ownerUserId !== profileRow.recordId
+          || (site.data.ownerUserId && site.data.ownerUserId !== profileRow.recordId)
+          || (site.data.organizationId && site.data.organizationId !== actor.organizationId)
+          || site.data.published !== true
           || String(site.data.slug ?? '').trim().toLowerCase() !== slug) continue
         const member = users.find(user => user.id === profileRow.recordId && user.isActive
-          && ['agent', 'team_lead', 'broker', 'owner'].includes(user.role))
+          && user.organizationId === actor.organizationId
+          && ['agent', 'team_lead', 'managing_broker', 'broker', 'owner'].includes(user.role))
         if (!member) continue
-        rosterMatch = canonical
+        rosterMatch = staticCanonical ?? null
         candidate = member
         candidateProfile = profile
         break
@@ -192,7 +207,7 @@ async function durableOwner(input: IntakeFields, repository: Repository, actor: 
   const owner = users.find(user => user.id === routeId && user.isActive)
   const profileRecord = owner && !candidateProfile ? await repository.getDomainRecord<Record<string, any>>(actor, 'member_profiles', owner.id) : null
   const profile = candidateProfile ?? profileRecord?.data
-  const allowedRoles = ['agent', 'team_lead', 'broker', 'owner']
+  const allowedRoles = ['agent', 'team_lead', 'managing_broker', 'broker', 'owner']
   if (!owner || !profile || !allowedRoles.includes(String(profile.role ?? owner.role))
     || profile.active === false || profile.disabled === true
     || (input.agentSlug && (profile.publicVisible !== true || profile.websiteSlug?.trim().toLowerCase() !== input.agentSlug.trim().toLowerCase()))
@@ -217,7 +232,7 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
   const now = new Date().toISOString()
   const source = input.agentSlug ? 'Agent Website' : input.listingId ? 'Property Search' : (input.kind === 'recruiting' ? 'Join RCRE' : 'RCRE Website')
   const inquiry = {
-    id: inquiryId, organizationId: actor.organizationId, ownerId: owner.id, officeId: profile.officeId,
+    id: inquiryId, organizationId: actor.organizationId, ownerId: owner.id, sourceOwnerId: owner.id, siteOwnerId: input.agentSlug ? owner.id : undefined, officeId: profile.officeId,
     kind: input.kind, name: input.name.trim(), email: input.email.trim().toLowerCase(), phone: input.phone?.trim() ?? '',
     message: input.message?.trim() ?? '', market: input.market ?? rosterMatch?.market ?? profile.market ?? '', source,
     consent: input.consent === true, agentWebsiteSlug: input.agentSlug, listingId: input.listingId,
@@ -250,7 +265,7 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
     receivedAt: now, stageEnteredAt: now, firstTouchAt: null, lastTouchAt: null, lastInboundAt: now,
     lastOutboundAt: null, timeline: [], priority: null, reasons: [], tags: [], consent: inquiry.consent,
   }
-  const attribution = leadAttribution(input, source, inquiryId, now)
+  const attribution = leadAttribution(input, source, inquiryId, now, input.agentSlug ? owner.id : undefined)
   const event = { id: `inquiry:${inquiryId}`, at: now, kind: 'inquiry', direction: 'inbound', label: `New ${source} inquiry`, source: 'RCRE' }
   const priorTimeline = Array.isArray(contact.timeline) ? contact.timeline : []
   const priorTouches = Array.isArray(contact.leadAttribution?.touches) ? contact.leadAttribution.touches : []
@@ -265,12 +280,15 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
   // the portal. These IDs deliberately match DurableNotificationService's
   // stable IDs so retries and later service reads resolve to the same records.
   const notificationKey = `website-lead:${inquiryId}`
-  const notificationId = digest(`inbox\0${actor.organizationId}\0${owner.id}\0${notificationKey}`)
-  const outboxId = digest(`outbox\0${actor.organizationId}\0${owner.id}\0${notificationKey}`)
-  const idempotencyKeyHash = digest(`idempotency\0${actor.organizationId}\0${owner.id}\0${notificationKey}`)
+  // Duplicate emails keep their existing CRM assignment. That assigned owner is
+  // the authorized recipient for this inquiry and its notification; website
+  // attribution is retained separately on the inquiry and contact timeline.
+  const notificationId = digest(`inbox\0${actor.organizationId}\0${contactOwnerId}\0${notificationKey}`)
+  const outboxId = digest(`outbox\0${actor.organizationId}\0${contactOwnerId}\0${notificationKey}`)
+  const idempotencyKeyHash = digest(`idempotency\0${actor.organizationId}\0${contactOwnerId}\0${notificationKey}`)
   const [preferences, personalSettings] = await Promise.all([
-    repository.getDomainRecord<Record<string, any>>(actor, 'notification_preferences', owner.id),
-    repository.getDomainRecord<Record<string, any>>(actor, 'platform_settings', `personal:${owner.id}`),
+    repository.getDomainRecord<Record<string, any>>(actor, 'notification_preferences', contactOwnerId),
+    repository.getDomainRecord<Record<string, any>>(actor, 'platform_settings', `personal:${contactOwnerId}`),
   ])
   const preferenceData = preferences?.data
   const notificationEnabled = preferenceData?.eventTypes?.website_lead !== false
@@ -291,7 +309,7 @@ export async function persistIntakeDurable(input: IntakeFields, repository: Repo
   try {
     await repository.putDomainRecordsAtomic(actor, [
       { collection: 'public_inquiries', recordId: inquiryId, ownerUserId: contactOwnerId,
-        data: { ...inquiry, ownerId: contactOwnerId, officeId: contactOfficeId, bodyHash }, ...(priorInquiry ? { expectedVersion: priorInquiry.version } : { createOnly: true }) },
+        data: { ...inquiry, ownerId: contactOwnerId, routedOwnerId: contactOwnerId, sourceOwnerId: owner.id, siteOwnerId: input.agentSlug ? owner.id : undefined, officeId: contactOfficeId, contactId, bodyHash }, ...(priorInquiry ? { expectedVersion: priorInquiry.version } : { createOnly: true }) },
       { collection: 'crm_contacts', recordId: contactId, ownerUserId: contactOwnerId,
         data: nextContact, ...(existing ? { expectedVersion: existing.version } : { createOnly: true }) },
       { collection: 'notification_inbox', recordId: notificationId, ownerUserId: contactOwnerId,

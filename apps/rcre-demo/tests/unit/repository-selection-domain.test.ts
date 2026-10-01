@@ -93,7 +93,7 @@ describe('durable repository bridge contract', () => {
     ])
     expect(names).toContain('0005_identity_sessions_invitations.sql')
     expect(names).toContain('0010_agent_website_lifecycle.sql')
-    expect(names.at(-1)).toBe('0026_canonical_public_agent_directory.sql')
+    expect(names.at(-1)).toBe('0027_managing_broker_invitation_market_guard.sql')
     const runner = readFileSync(join(process.cwd(), 'src/lib/db/migrate.mjs'), 'utf8')
     expect(runner).toMatch(/sha256/)
     expect(runner).toMatch(/pg_advisory_lock/)

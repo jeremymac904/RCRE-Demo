@@ -25,9 +25,22 @@ describe('production readiness repair migrations', () => {
       '0024_canonical_agent_website_projection.sql',
       '0025_canonical_agent_identity_records.sql',
       '0026_canonical_public_agent_directory.sql',
+      '0027_managing_broker_invitation_market_guard.sql',
     ])
   })
 
+
+  it('binds Managing Broker invitation market to the persisted state in PostgreSQL', () => {
+    const sql = read('0027_managing_broker_invitation_market_guard.sql')
+    expect(sql).toMatch(/create or replace function rcre_auth_create_invitation/i)
+    expect(sql).toMatch(/manager_state\s+text/i)
+    expect(sql).toMatch(/lower\(trim\(u\.office_id\)\)[\s\S]*?then 'Alabama'[\s\S]*?then 'Florida'/i)
+    expect(sql).toMatch(/p_market is distinct from manager_state/i)
+    expect(sql).toMatch(/create or replace function rcre_auth_resend_invitation/i)
+    expect(sql).toMatch(/target_market is distinct from manager_state/i)
+    expect(sql).toMatch(/for update/i)
+    expect(sql).toMatch(/raise exception 'not authorized' using errcode='42501'/i)
+  })
 
   it('limits anonymous roster reads to active public canonical profiles and returns only profile-safe fields', () => {
     const sql = read('0023_public_agent_roster_projection.sql')

@@ -24,30 +24,40 @@ function invitationEmail(input: { email: string; name: string; token: string; ex
 
 function escapeHtml(value: string): string { return value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!) }
 
-function validateAdmin(actor: PlatformActor, role: PlatformRole, officeId: string) {
+function managingBrokerState(actor: PlatformActor): 'Alabama' | 'Florida' | null {
+  const officeState = actor.officeId.toLowerCase() === 'al' ? 'Alabama'
+    : actor.officeId.toLowerCase() === 'fl' ? 'Florida' : null
+  const actorState = actor.market === 'Alabama' || actor.market === 'Florida' ? actor.market : null
+  if (officeState && actorState && officeState !== actorState) return null
+  return officeState ?? actorState
+}
+
+function validateAdmin(actor: PlatformActor, role: PlatformRole, officeId: string, market?: string) {
   assertCapability(actor, 'settings.people')
-  if (actor.role === 'managing_broker' && (officeId !== actor.officeId || !['agent','team_leader','transaction_coordinator'].includes(role))) {
+  if (actor.role === 'managing_broker' && (officeId !== actor.officeId || !['agent','team_leader','transaction_coordinator'].includes(role)
+    || (market !== undefined && market !== managingBrokerState(actor)))) {
     throw new AccessError('This invitation requires brokerage owner approval.', 403)
   }
   if (!['broker_owner','managing_broker'].includes(actor.role)) throw new AccessError('Only brokerage leadership may invite members.', 403)
 }
 
 export async function createInvitation(actor: PlatformActor, input: { email: string; name: string; role: PlatformRole; officeId: string; teamId?: string; market?: string }) {
-  validateAdmin(actor, input.role, input.officeId)
+  const market = input.market ?? (actor.role === 'managing_broker' ? managingBrokerState(actor) ?? '' : input.officeId)
+  validateAdmin(actor, input.role, input.officeId, market)
   const token = opaqueSecret(32)
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60_000)
   const idempotencyKey = `${randomUUID()}:${hashSecret(token)}`
   const payload = encryptMailPayload(invitationEmail({ email: input.email.trim().toLowerCase(), name: input.name.trim(), token, expiresAt, resend: false, key: idempotencyKey }))
   const created = await (await getAuthPersistence()).createInvitation(actor, {
     email: input.email.trim().toLowerCase(), name: input.name.trim(), role: input.role,
-    officeId: input.officeId, teamId: input.teamId ?? input.officeId, market: input.market ?? input.officeId,
+    officeId: input.officeId, teamId: input.teamId ?? input.officeId, market,
     tokenHash: hashSecret(token), expiresAt, payload, idempotencyKey,
   })
   return { id: created.invitationId, status: 'queued', expiresAt: expiresAt.toISOString() }
 }
 
-export async function resendInvitation(actor: PlatformActor, invitation: { id: string; email: string; name: string; role: PlatformRole; officeId: string }) {
-  validateAdmin(actor, invitation.role, invitation.officeId)
+export async function resendInvitation(actor: PlatformActor, invitation: { id: string; email: string; name: string; role: PlatformRole; officeId: string; market: string }) {
+  validateAdmin(actor, invitation.role, invitation.officeId, invitation.market)
   const token = opaqueSecret(32)
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60_000)
   const idempotencyKey = `${invitation.id}:${hashSecret(token)}`
@@ -60,8 +70,12 @@ export async function resendInvitation(actor: PlatformActor, invitation: { id: s
 }
 
 export async function invitationById(actor: PlatformActor, id: string) {
-  const rows = await (await getAuthPersistence()).listInvitations(actor)
-  return rows.find(item => item.id === id) ?? null
+  const persistence = await getAuthPersistence()
+  const [rows, members] = await Promise.all([persistence.listInvitations(actor), persistence.listMembers(actor)])
+  const item = rows.find(row => row.id === id)
+  if (!item) return null
+  const member = members.find(row => row.email.trim().toLowerCase() === item.email.trim().toLowerCase())
+  return { ...item, market: member?.market ?? '' }
 }
 
 export async function listInvitations(actor: PlatformActor) {

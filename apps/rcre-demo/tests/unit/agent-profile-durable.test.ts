@@ -1,17 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { MemoryRepository, emptySeed } from '@/lib/db/repository'
 import { repositoryActor } from '@/lib/platform/onboarding'
-import { PERSONAS } from '@/lib/platform/auth'
+import { PERSONAS, type PlatformActor } from '@/lib/platform/auth'
 import { listAdminAgentProfilesDurable, saveAdminAgentProfileDurable } from '@/lib/platform/agent-profiles-durable'
 
 const owner = PERSONAS.find(person => person.role === 'broker_owner')!
 const ownerContext = repositoryActor(owner)
+const floridaManager: PlatformActor = { ...PERSONAS.find(person => person.role === 'managing_broker')!, id: 'u-fl-manager', userId: 'u-fl-manager', role: 'managing_broker', market: 'Florida', officeId: 'fl', teamId: 'fl' }
 
 function seeded() {
   const seed = emptySeed()
   seed.users.push(
     { id: owner.id, organizationId: owner.organizationId, email: 'owner@example.test', fullName: owner.name, role: 'owner', fubUserId: null, isActive: true, officeId: 'all' },
     { id: 'u-sarah', organizationId: owner.organizationId, email: 'sarah@example.test', fullName: 'Sarah Brockner', role: 'agent', fubUserId: null, isActive: true, officeId: 'fl' },
+    { id: 'u-fl-manager', organizationId: owner.organizationId, email: 'fl-manager@example.test', fullName: 'Florida Manager', role: 'managing_broker', fubUserId: null, isActive: true, officeId: 'fl' },
+    { id: 'u-vito', organizationId: owner.organizationId, email: 'vito@example.test', fullName: 'Vito Lombardo', role: 'agent', fubUserId: null, isActive: true, officeId: 'fl' },
   )
   return new MemoryRepository(seed)
 }
@@ -36,6 +39,18 @@ describe('durable admin public agent profile', () => {
     expect(await repo.listAudit(ownerContext)).toHaveLength(1)
   })
 
+  it('uses the Managing Broker’s verified Florida state for profile visibility and editing', async () => {
+    const repo = seeded()
+    await repo.putDomainRecord(ownerContext, { collection: 'member_profiles', recordId: 'u-vito', ownerUserId: 'u-vito', data: { id: 'u-vito', verifiedPersonId: 'vito-lombardo', publicVisible: true, phone: '', professionalTitle: '', licenses: [], markets: ['Florida'], specialties: [], biography: '', socialLinks: {}, websiteTemplate: 'signature', version: 0 } })
+    const rows = await listAdminAgentProfilesDurable(floridaManager, repo)
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.every(row => row.market.includes('Florida'))).toBe(true)
+    const vito = rows.find(row => row.id === 'vito-lombardo')!
+    const saved = await saveAdminAgentProfileDurable(floridaManager, vito.id, profile(vito, { market: 'Florida', publicTitle: 'Florida REALTOR®' }), repo)
+    expect(saved.publicTitle).toBe('Florida REALTOR®')
+    await expect(saveAdminAgentProfileDurable(floridaManager, 'urban-garrett', profile(vito, { market: 'Florida' }), repo)).rejects.toThrow(/scope/i)
+  })
+
   it('rejects stale versions and keeps managing broker scope limited to Alabama', async () => {
     const repo = seeded()
     const current = (await listAdminAgentProfilesDurable(owner, repo)).find(row => row.id === 'urban-garrett')!
@@ -47,5 +62,11 @@ describe('durable admin public agent profile', () => {
     expect(rows.some(row => ['julio-arango', 'taquilla-allen'].includes(row.id))).toBe(false)
     const sarah = (await listAdminAgentProfilesDurable(owner, repo)).find(row => row.id === 'sarah-brockner')!
     await expect(saveAdminAgentProfileDurable(taquilla, 'sarah-brockner', profile(sarah, { market: 'Alabama' }), repo)).rejects.toThrow(/scope/i)
+    const alabama = rows.find(row => row.id === 'urban-garrett')!
+    const savedBefore = await repo.getDomainRecord<any>(ownerContext, 'agent_profile_overlays', `${owner.organizationId}:urban-garrett`)
+    await expect(saveAdminAgentProfileDurable(taquilla, 'urban-garrett', profile(alabama, { version: savedBefore!.version, market: 'Florida' }), repo)).rejects.toThrow(/market is outside/i)
+    await expect(saveAdminAgentProfileDurable(taquilla, 'urban-garrett', profile(alabama, { version: savedBefore!.version, market: 'Alabama & Florida' }), repo)).rejects.toThrow(/market is outside/i)
+    const savedAfter = await repo.getDomainRecord<any>(ownerContext, 'agent_profile_overlays', `${owner.organizationId}:urban-garrett`)
+    expect(savedAfter).toEqual(savedBefore)
   })
 })

@@ -14,8 +14,17 @@ function assertScope(actor: PlatformActor, slug: string, market: string) {
   assertCapability(actor, 'settings.people')
   if (actor.role === 'managing_broker') {
     const protectedSlug = slug === 'julio-arango' || slug === 'taquilla-allen' || slug === 'margie-olsen-alvarez'
-    if (protectedSlug || !market.includes('Alabama')) throw new AccessError('This canonical profile is outside your authorized scope', 403)
+    const state = managingBrokerState(actor)
+    if (protectedSlug || !state || !market.includes(state)) throw new AccessError('This canonical profile is outside your authorized scope', 403)
   }
+}
+
+function managingBrokerState(actor: PlatformActor): 'Alabama' | 'Florida' | null {
+  const officeState = actor.officeId.toLowerCase() === 'al' ? 'Alabama'
+    : actor.officeId.toLowerCase() === 'fl' ? 'Florida' : null
+  const actorState = actor.market === 'Alabama' || actor.market === 'Florida' ? actor.market : null
+  if (officeState && actorState && officeState !== actorState) return null
+  return officeState ?? actorState
 }
 
 function normalizedLicenses(input: string, current: unknown, market: string) {
@@ -61,7 +70,8 @@ export async function listAdminAgentProfilesDurable(actor: PlatformActor, reposi
     const record = await repo.getDomainRecord<Record<string, unknown>>(context, 'agent_profile_overlays', profileId(actor.organizationId, person.slug))
     const profile = fromCanonical(person, actor.organizationId, record?.data)
     const protectedTarget = protectedSlugs.has(person.slug) || ['owner', 'broker', 'managing_broker'].includes(String(linkedUser?.role ?? ''))
-    const allowed = actor.role === 'broker_owner' || (actor.role === 'managing_broker' && !protectedTarget && profile.market.includes('Alabama'))
+    const state = actor.role === 'managing_broker' ? managingBrokerState(actor) : null
+    const allowed = actor.role === 'broker_owner' || (actor.role === 'managing_broker' && !!state && !protectedTarget && profile.market.includes(state))
     return allowed ? profile : null
   }))
   return people.filter((value): value is NonNullable<typeof value> => value !== null)
@@ -73,6 +83,10 @@ export async function saveAdminAgentProfileDurable(actor: PlatformActor, slug: s
   if (!person) throw new AccessError('Canonical RCRE person not found', 404)
   const value = agentProfileInput.parse(input)
   assertScope(actor, slug, person.market)
+  if (actor.role === 'managing_broker') {
+    const state = managingBrokerState(actor)
+    if (!state || value.market !== state) throw new AccessError('This profile market is outside your managing broker authority', 403)
+  }
   const expected = z.object({ version: z.number().int().min(0) }).parse(input).version
   const repo = repository ?? await getRepository(), context = repositoryActor(actor)
   const users = await repo.listUsers(context)

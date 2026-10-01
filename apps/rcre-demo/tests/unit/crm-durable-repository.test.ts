@@ -170,21 +170,86 @@ describe('durable public inquiry intake', () => {
     await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: mollyId, ownerUserId: mollyId, data: { slug: 'molly-homes', published: true } })
     await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: sarahId, ownerUserId: sarahId, data: { officeId: 'fl', market: 'Florida', role: 'agent', verifiedPersonId: 'sarah-brockner', websiteSlug: 'sarah-homes', publicVisible: true } })
     await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: sarahId, ownerUserId: sarahId, data: { slug: 'sarah-homes', published: true } })
+    // The source site owner's preference must not suppress a notice for an
+    // existing contact routed to a different, authorized CRM owner.
+    await repository.putDomainRecord(actor, { collection: 'notification_preferences', recordId: sarahId, ownerUserId: sarahId, data: { eventTypes: { website_lead: false } } })
 
     const first = await persistIntakeDurable({ submissionId: 'a0a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'property', name: 'Demo Client', market: 'Florida', agentSlug: 'molly-homes', consent: true, landingPage: '/homes/listing-1', email: ' Shared@Example.test ', utmSource: 'instagram', utmCampaign: 'lake-house' }, repository, actor)
     const second = await persistIntakeDurable({ kind: 'property', name: 'Demo Client', market: 'Florida', consent: true, landingPage: '/homes/listing-1', submissionId: 'b1c8b2a4-f352-49cf-b4c0-6ea4a71b9a00', email: 'shared@example.test', agentSlug: 'sarah-homes', listingId: undefined, providerId: undefined, mlsListingId: undefined, utmSource: 'google', utmMedium: 'cpc', utmCampaign: 'brand-search' }, repository, actor)
     const contacts = await repository.listDomainRecords<Record<string, any>>({ userId: brokerId, organizationId: org, role: 'broker' }, 'crm_contacts')
     expect(contacts).toHaveLength(1)
     expect(contacts[0]).toMatchObject({ ownerUserId: mollyId, data: {
-      source: 'Agent Website', leadAttribution: {
+      ownerId: mollyId, source: 'Agent Website', leadAttribution: {
         firstTouch: { source: 'Agent Website', utmSource: 'instagram', utmCampaign: 'lake-house' },
         latestTouch: { source: 'Agent Website', agentWebsiteSlug: 'sarah-homes', utmSource: 'google', utmMedium: 'cpc', utmCampaign: 'brand-search' },
       },
     } })
     expect(contacts[0].data.leadAttribution.touches.map((touch: any) => touch.id)).toEqual([first.id, second.id])
-    expect(await repository.getDomainRecord(actor, 'public_inquiries', second.id)).toMatchObject({ data: { ownerId: mollyId, agentWebsiteSlug: 'sarah-homes', utmCampaign: 'brand-search' } })
+    expect(await repository.getDomainRecord(actor, 'public_inquiries', second.id)).toMatchObject({ data: { ownerId: mollyId, routedOwnerId: mollyId, sourceOwnerId: sarahId, siteOwnerId: sarahId, agentWebsiteSlug: 'sarah-homes', utmCampaign: 'brand-search' }, ownerUserId: mollyId })
+    // The cross-agent inquiry follows the existing contact assignment for ACLs
+    // and notices, while the website owner remains explicit source attribution.
     expect(await repository.listDomainRecords({ userId: mollyId, organizationId: org, role: 'agent' }, 'notification_inbox')).toHaveLength(2)
     expect(await repository.listDomainRecords({ userId: sarahId, organizationId: org, role: 'agent' }, 'notification_inbox')).toHaveLength(0)
+  })
+
+  it('routes a newly onboarded canonical person when their public site is approved and published', async () => {
+    const repository = new MemoryRepository(seed())
+    const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
+    const ownerId = '20000000-0000-4000-8000-000000000004'
+    const personId = 'sarah-brockner-onboarded'
+    await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: ownerId, ownerUserId: ownerId, data: { officeId: 'fl', market: 'Florida', role: 'agent', active: true, verifiedPersonId: personId, websiteSlug: 'sarah-new-homes', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'canonical_people', recordId: personId, ownerUserId: ownerId, data: { id: personId, slug: personId, userId: ownerId, organizationId: org, name: 'Sarah Brockner', email: 'sarah@rcregroup.com', status: 'active', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: ownerId, ownerUserId: ownerId, data: { ownerUserId: ownerId, organizationId: org, slug: 'sarah-new-homes', published: true } })
+    const result = await persistIntakeDurable({ submissionId: 'c1a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'buyer', name: 'New Client', email: 'new-client@example.test', agentSlug: 'sarah-new-homes', landingPage: '/agent/sarah-new-homes', utmSource: 'instagram', consent: true }, repository, actor)
+    expect(result).toMatchObject({ status: 'saved', duplicate: false })
+    expect(await repository.getDomainRecord({ userId: ownerId, organizationId: org, role: 'agent' }, 'public_inquiries', result.id)).toMatchObject({ data: { ownerId, sourceOwnerId: ownerId, siteOwnerId: ownerId, agentWebsiteSlug: 'sarah-new-homes', source: 'Agent Website', landingPage: '/agent/sarah-new-homes', utmSource: 'instagram' }, ownerUserId: ownerId })
+    expect(await repository.listDomainRecords({ userId: ownerId, organizationId: org, role: 'agent' }, 'notification_inbox')).toHaveLength(1)
+  })
+
+  it('accepts leads for a Managing Broker who owns an active published canonical site', async () => {
+    const value = seed()
+    const managerId = '20000000-0000-4000-8000-000000000005'
+    value.users.push({ id: managerId, organizationId: org, email: 'taquilla@rcregroup.com', fullName: 'Taquilla Allen', role: 'managing_broker', fubUserId: null, isActive: true })
+    const repository = new MemoryRepository(value)
+    const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
+    const personId = 'taquilla-verified-dynamic'
+    await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: managerId, ownerUserId: managerId, data: { officeId: 'al', market: 'Alabama', verifiedPersonId: personId, websiteSlug: 'taquilla-alabama-homes', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'canonical_people', recordId: personId, ownerUserId: managerId, data: { id: personId, slug: personId, userId: managerId, organizationId: org, name: 'Taquilla Allen', status: 'active', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: managerId, ownerUserId: managerId, data: { ownerUserId: managerId, organizationId: org, slug: 'taquilla-alabama-homes', published: true } })
+    const result = await persistIntakeDurable({ submissionId: 'c4a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'buyer', name: 'New Client', email: 'manager-site-client@example.test', agentSlug: 'taquilla-alabama-homes', consent: true }, repository, actor)
+    expect(result).toMatchObject({ status: 'saved', duplicate: false })
+    expect(await repository.getDomainRecord({ userId: managerId, organizationId: org, role: 'managing_broker' }, 'public_inquiries', result.id)).toMatchObject({ data: { siteOwnerId: managerId, ownerId: managerId }, ownerUserId: managerId })
+  })
+
+  it.each([
+    ['pending approval', { status: 'pending_review', publicVisible: true }, true],
+    ['hidden', { status: 'active', publicVisible: false }, true],
+    ['inactive', { status: 'inactive', publicVisible: true }, true],
+    ['bound to a different organization', { status: 'active', publicVisible: true, organizationId: '10000000-0000-4000-8000-000000000099' }, true],
+    ['bound to a different member', { status: 'active', publicVisible: true, userId: agentId }, true],
+    ['on an unpublished website', { status: 'active', publicVisible: true }, false],
+  ])('rejects a dynamic website identity that is %s', async (_label, approval, published) => {
+    const repository = new MemoryRepository(seed())
+    const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
+    const ownerId = '20000000-0000-4000-8000-000000000004'
+    const personId = 'sarah-brockner-onboarded'
+    await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: ownerId, ownerUserId: ownerId, data: { officeId: 'fl', market: 'Florida', role: 'agent', verifiedPersonId: personId, websiteSlug: 'sarah-new-homes', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'canonical_people', recordId: personId, ownerUserId: ownerId, data: { id: personId, slug: personId, userId: ownerId, organizationId: org, name: 'Sarah Brockner', email: 'sarah@rcregroup.com', ...approval } })
+    await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: ownerId, ownerUserId: ownerId, data: { ownerUserId: ownerId, organizationId: org, slug: 'sarah-new-homes', published } })
+    await expect(persistIntakeDurable({ submissionId: 'c2a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'buyer', name: 'New Client', email: 'new-client@example.test', agentSlug: 'sarah-new-homes', consent: true }, repository, actor)).rejects.toMatchObject({ status: 503 })
+  })
+
+  it('rejects published dynamic sites whose member is inactive', async () => {
+    const value = seed()
+    value.users.find(user => user.id === '20000000-0000-4000-8000-000000000004')!.isActive = false
+    const repository = new MemoryRepository(value)
+    const actor = { userId: brokerId, organizationId: org, role: 'broker' as const }
+    const ownerId = '20000000-0000-4000-8000-000000000004'
+    const personId = 'sarah-brockner-onboarded'
+    await repository.putDomainRecord(actor, { collection: 'member_profiles', recordId: ownerId, ownerUserId: ownerId, data: { officeId: 'fl', market: 'Florida', role: 'agent', verifiedPersonId: personId, websiteSlug: 'sarah-new-homes', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'canonical_people', recordId: personId, ownerUserId: ownerId, data: { id: personId, slug: personId, userId: ownerId, organizationId: org, name: 'Sarah Brockner', email: 'sarah@rcregroup.com', status: 'active', publicVisible: true } })
+    await repository.putDomainRecord(actor, { collection: 'agent_websites', recordId: ownerId, ownerUserId: ownerId, data: { ownerUserId: ownerId, organizationId: org, slug: 'sarah-new-homes', published: true } })
+    await expect(persistIntakeDurable({ submissionId: 'c3a8b2a4-f352-49cf-b4c0-6ea4a71b9a00', kind: 'buyer', name: 'New Client', email: 'new-client@example.test', agentSlug: 'sarah-new-homes', consent: true }, repository, actor)).rejects.toMatchObject({ status: 503 })
   })
 
   it('converges concurrent distinct inquiries for one normalized email onto one CRM contact', async () => {

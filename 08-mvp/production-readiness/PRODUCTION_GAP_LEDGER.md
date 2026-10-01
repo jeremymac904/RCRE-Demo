@@ -365,11 +365,45 @@ This snapshot incorporates the canonical onboarding/site identity path, durable 
 - TypeScript: passed after the final feature edits.
 - ESLint: passed with `--quiet` and zero errors.
 - Production build: passed; Next.js compiled and generated 79/79 static pages, then completed trace collection.
-- Independent review: no concrete P0/P1 defect was found in the scoped auth/session/OIDC/invitation/site/MLS/profile checks; the bounded catchall review identified and helped wire the durable lead-alert path. The durable profile editor does not enumerate arbitrary new invitees in its static roster-specific screen, but the lifecycle admin supports those canonical profiles. This is not counted as a P1.
+- Independent review: the fresh reviewer identified the stale canonical-profile edge documented above, then verified the owner/org-checked repair and its regression tests. No remaining P0/P1 was found in the scoped auth/session/OIDC/invitation/site/MLS/profile paths. A separate catchall review identified and helped wire the durable lead-alert path.
 - `git diff --check` passes. No PostgreSQL server/client or container runtime is installed; migrations 0001–0026, RLS, tenant isolation, concurrent database writes, backups/restores, and storage scanning were not executed.
 - Rendered browser/accessibility QA was not performed. The prior user instruction requires the built-in browser only, and no browser-interaction tool is available in this session. Unit/build output is not presented as visual QA.
-- GitHub's repository connector confirms PR #2 is open, draft, and unmerged at `06a662c467a1f8c1dffcb3c664e6be3791616440`. The 86-file repair snapshot was pushed as a fast-forward commit through the authenticated GitHub API path; shell DNS remains unavailable.
+- GitHub's repository connector confirms PR #2 remains open, draft, unmerged and mergeable. Repair commits were pushed as fast-forward updates through the authenticated GitHub API path; shell DNS remains unavailable.
 
 **Production activation remains NO GO** until the external activation and live-proof gates above pass. This is not a code-incomplete P1 count; see `EXTERNAL_ACTIVATION_PACKET.md` for the exact grouped inputs and where to provide them.
 
 **Final verification addendum:** after the canonical-profile synchronization repair, the complete test suite passed at 1,013 / 2 skipped, TypeScript passed, ESLint `--quiet` exited successfully, and `next build` exited successfully, and `git diff --check` passed. The build retains existing non-fatal `<img>` optimization warnings. No browser visual inspection or database integration result is claimed.
+
+## Continued implementation snapshot — 2026-10-01
+
+This snapshot supersedes the P1 queue and verification counts above. PR #2 remains open, draft, and unmerged.
+
+### Current P1 disposition
+
+| Disposition | Count | IDs | Evidence / boundary |
+|---|---:|---|---|
+| **Code-incomplete P1** | **0** | — | The fresh post-snapshot findings (Managing Broker market scope on invitation create/resend, dynamic agent-site intake, and Managing Broker site-owner acceptance) are repaired and covered by focused regression tests. Cross-agent duplicate inquiries preserve CRM ownership and use the authorized owner's notification preferences. A separate reviewer rechecked these fixes, Florida profile scope, and canonical admin synchronization and found no remaining P0/P1 code defect in the reviewed paths. |
+| **Implementation complete; external activation or live operational proof pending** | **20** | P1-01–P1-05, P1-07–P1-21 | Local code, mocks, and test coverage exist. Live PostgreSQL/RLS and restore proof, hosted storage, real Google OIDC and email delivery, OpenRouter activation, optional Workspace, approved compliance content, production secrets, existing desktop runtime source, and real end-to-end activation remain external gates. |
+| **Closed locally** | **1** | P1-06 | Managing Broker agent-administration scope has local permission and negative-scope tests. |
+
+### Repairs and evidence added
+
+- Managing Broker invitation creation now binds the invitation market to the manager's authorized state. The database function also enforces the state boundary and migration 0027 adds this forward-only guard; the test suite now expects 0027 as the newest migration. Taquilla cannot invite a Florida-market member through her Alabama Managing Broker authority.
+- Managing Broker profile updates are rejected when markets exceed the manager's state scope, before any profile/canonical-person/audit write.
+- Public agent-site intake now resolves newly onboarded identities through the durable owner-bound canonical-person record, then verifies organization, identity, active status, public visibility, active same-organization membership, and the owner-bound published site. Static verified roster support remains.
+- When a new inquiry matches a contact assigned to another agent, the CRM assignment remains unchanged. Site owner, slug, and campaign attribution are retained on the inquiry/contact attribution; the existing CRM owner receives the notification using that owner's preference records. The other agent is not granted access to the contact.
+- Updated `EXTERNAL_ACTIVATION_PACKET.md` to include migration sequence 0001–0027. Migration 0027 is not applied; production migration execution remains pending a PostgreSQL runtime/project.
+
+### Local verification
+
+- Full unit suite: **1,027 passed, 2 skipped across 129 files**. The skipped cases require explicitly configured PostgreSQL integration URLs.
+- Focused public-intake, Managing Broker profile and invitation security review: **43 passed across 4 files** in the independent re-review. The complete suite above ran after all code edits.
+- TypeScript: passed.
+- ESLint: passed with `--quiet` (zero errors).
+- Production build: passed. Existing image optimization and hook-dependency warnings remain non-fatal.
+- `git diff --check`: passed before publication.
+- PostgreSQL migrations 0001–0027, RLS, tenant isolation, concurrency, backup/restore, ClamAV runtime, browser-rendered accessibility QA, and external provider workflows were not run. No PostgreSQL executable, Docker, Podman, or permitted browser interaction tool is available in this session. The Compose-based local PostgreSQL stack is documented but could not be started here. The production repair migration tests inspect migration order and SQL guard shape only; they do not substitute for PostgreSQL execution.
+
+### Remaining boundary
+
+There is no known code-only P1 left in this snapshot; the focused independent re-review found none in the repaired paths. One P2 remains unverified: rendered-browser and accessibility review cannot be performed under the active built-in-browser-only constraint because no browser-interaction tool is available. Production is still **NO GO** until the grouped external activation/live-proof gates in `EXTERNAL_ACTIVATION_PACKET.md` are completed and independently verified. No production system, provider, database, Netlify environment, or external communication was changed. PR #2 has not been merged.
