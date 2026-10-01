@@ -8,15 +8,18 @@ import { dependencyReadiness } from '@/lib/operations/readiness'
 import { getPgPool } from '@/lib/db/pg'
 import { getRepository } from '@/lib/db'
 import { productionHealthSnapshot } from '@/lib/operations/production-health'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 
 export const dynamic = 'force-dynamic'
 
 const countKinds = ['contacts', 'tasks', 'appointments', 'recruits', 'marketing', 'library_assets', 'transaction_records', 'transaction_drafts', 'academy_progress', 'community_post']
 
-export async function GET() {
+export async function GET(request: Request) {
+  let actor: Awaited<ReturnType<typeof requireActor>> | null = null
   try {
-    const actor = await requireActor()
-    assertCapability(actor, 'settings.audit')
+    const authorizedActor = await requireActor()
+    actor = authorizedActor
+    assertCapability(authorizedActor, 'settings.audit')
     if (isProduction) {
       const dependencies = dependencyReadiness()
       let database = { status: 'not_configured' as string, healthy: false }
@@ -24,14 +27,15 @@ export async function GET() {
         try {
           await getPgPool().query('select 1')
           database = { status: 'connected', healthy: true }
-        } catch {
+        } catch (error) {
           database = { status: 'unavailable', healthy: false }
+          await recordCaughtRouteFailure(request, '/api/data-health', actor, 503, error)
         }
       }
       let operations: Awaited<ReturnType<typeof productionHealthSnapshot>> | null = null
       if (database.healthy) {
-        try { operations = await productionHealthSnapshot(actor, await getRepository()) }
-        catch { /* Health reporting must not leak exception details or make unsupported claims. */ }
+        try { operations = await productionHealthSnapshot(authorizedActor, await getRepository()) }
+        catch (error) { await recordCaughtRouteFailure(request, '/api/data-health', actor, 503, error) }
       }
       const operationalView = operations ?? {
         worker: { status: 'not_configured', lastRun: null, fresh: false, note: 'No durable scheduled-worker heartbeat is registered.' },
@@ -81,10 +85,10 @@ export async function GET() {
         durable: false,
         note: storageRoot ? 'This health check is reading the local SQLite adapter; it does not verify hosted PostgreSQL.' : 'Durable brokerage storage is not configured for this runtime.',
       },
-      counts: Object.fromEntries(countKinds.map(kind => [kind, readRecords<any>(kind).filter(record => record.organizationId === actor.organizationId).length])),
+      counts: Object.fromEntries(countKinds.map(kind => [kind, readRecords<any>(kind).filter(record => record.organizationId === authorizedActor.organizationId).length])),
       worker,
       notifications: { inApp: 'available_locally', email: 'not_configured' },
-      auditPolicy: getSetting(actor, 'audit').value,
+      auditPolicy: getSetting(authorizedActor, 'audit').value,
       backups,
       databaseParity: 'Local SQLite adapter. Hosted PostgreSQL health and role/schema parity are not verified by this endpoint.',
     }, { headers: { 'Cache-Control': 'no-store' } })
@@ -93,6 +97,7 @@ export async function GET() {
       : error instanceof DurableStoreUnavailableError ? 503
       : typeof error === 'object' && error !== null && 'status' in error && typeof error.status === 'number' ? error.status
       : 500
+    await recordCaughtRouteFailure(request, '/api/data-health', actor, status, error)
     const message = error instanceof AccessError ? error.message
       : status === 503 ? 'Operational health is unavailable because durable storage is not configured.'
       : 'Operational health could not be read.'

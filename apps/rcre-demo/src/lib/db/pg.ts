@@ -3,7 +3,7 @@ import { Pool, type PoolClient } from 'pg'
 import { env } from '@/lib/config/env'
 import {
   DomainRecordConflictError, PermissionDeniedError, canSeeRecruiting, canSeeWholeBrokerage,
-  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type DomainRecordQueryOptions, type PublicContentProjection, type PublicAgentProfileProjection, type Repository, type TransactionDomainRecordInput,
+  type Actor, type DomainRecord, type DomainRecordInput, type DomainRecordListOptions, type DomainRecordQueryOptions, type PublicContentProjection, type PublicAgentProfileProjection, type Repository, type TransactionDomainRecordInput, type MlsProviderState, type MlsProviderComplianceInput,
 } from './repository'
 import { withRlsSession } from './rls'
 import type {
@@ -131,9 +131,92 @@ export class PgRepository implements Repository {
   async listPublicAgentProfiles(organizationId: string): Promise<PublicAgentProfileProjection[]> {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId)) return []
     return (await getPgPool().query(
-      `select verified_person_id as "verifiedPersonId", profile from rcre_public_agent_profiles($1::uuid)`,
+      `select verified_person_id as "verifiedPersonId", profile, person, website_slug as "websiteSlug" from rcre_public_agent_profiles_v2($1::uuid)`,
       [organizationId],
     ) as { rows?: PublicAgentProfileProjection[] }).rows ?? []
+  }
+
+  private assertMlsAdmin(actor: Actor) {
+    if (!['owner', 'broker', 'managing_broker'].includes(actor.role)) throw new PermissionDeniedError('mls_provider_config', 'brokerage administrator required')
+  }
+
+  async listMlsProviderStates(actor: Actor): Promise<MlsProviderState[]> {
+    const rows = await this.q<MlsProviderState>(actor, `
+      select c.code as "providerCode", coalesce(p.status, 'not_configured') as status,
+        coalesce(p.connection_mode, 'live_query') as "connectionMode", coalesce(p.secret_configured, false) as "secretConfigured",
+        p.selected_access_path as "selectedAccessPath", p.credential_ref as "credentialRef",
+        p.last_connection_test_at as "lastConnectionTestAt", p.last_connection_error as "lastConnectionError",
+        case when mc.id is null then null else jsonb_build_object(
+          'approvalState', mc.approval_state, 'requiredAttribution', mc.required_attribution,
+          'requiredDisclaimer', mc.required_disclaimer, 'copyrightText', mc.copyright_text,
+          'listingBrokerageRules', mc.listing_brokerage_rules, 'refreshRequirements', mc.refresh_requirements,
+          'photoRules', mc.photo_rules, 'permittedStatuses', mc.permitted_statuses,
+          'soldDisplayAllowed', mc.sold_display_allowed, 'openHouseRules', mc.open_house_rules,
+          'searchIndexingAllowed', mc.search_indexing_allowed, 'approvedSource', mc.approved_source,
+          'approvedAt', mc.approved_at, 'approvedBy', mc.approved_by) end as compliance
+      from mls_provider_catalog c
+      left join mls_providers p on p.provider_code = c.code and p.organization_id = $1
+      left join mls_provider_compliance mc on mc.provider_id = p.id and mc.organization_id = p.organization_id
+      where c.code = any($2::text[]) order by c.code`,
+      [actor.organizationId, ['realmls_flexmls','stellar_mls','miami_realtors','greater_alabama_mls']])
+    return rows
+  }
+
+  async saveMlsProviderCompliance(actor: Actor, input: MlsProviderComplianceInput): Promise<MlsProviderState> {
+    this.assertMlsAdmin(actor)
+    const client = await getPgPool().connect()
+    try {
+      return await withRlsSession(client, actor, async scoped => {
+        const providers = (await scoped.query(`insert into mls_providers (organization_id, provider_code, status)
+          values ($1, $2, 'ready_for_connection') on conflict (organization_id, provider_code) do update
+          set status = case when mls_providers.status = 'disabled' then 'disabled' else 'ready_for_connection' end, updated_at = now()
+          returning id, provider_code as "providerCode", status, connection_mode as "connectionMode", secret_configured as "secretConfigured",
+            selected_access_path as "selectedAccessPath", credential_ref as "credentialRef", last_connection_test_at as "lastConnectionTestAt", last_connection_error as "lastConnectionError"`,
+          [actor.organizationId, input.providerCode]) as { rows?: Record<string, unknown>[] }).rows ?? []
+        const provider = providers[0]
+        if (!provider) throw new Error('MLS provider catalog entry is unavailable')
+        const compliance = (await scoped.query(`insert into mls_provider_compliance
+          (organization_id, provider_id, approval_state, required_attribution, required_disclaimer, copyright_text,
+           listing_brokerage_rules, refresh_requirements, photo_rules, permitted_statuses, sold_display_allowed,
+           open_house_rules, search_indexing_allowed, approved_source, approved_at, approved_by)
+          values ($1, $2, 'approved', $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9::text[], $10, $11::jsonb, $12, $13, now(), $14)
+          on conflict (organization_id, provider_id) do update set approval_state='approved', required_attribution=excluded.required_attribution,
+           required_disclaimer=excluded.required_disclaimer, copyright_text=excluded.copyright_text, listing_brokerage_rules=excluded.listing_brokerage_rules,
+           refresh_requirements=excluded.refresh_requirements, photo_rules=excluded.photo_rules, permitted_statuses=excluded.permitted_statuses,
+           sold_display_allowed=excluded.sold_display_allowed, open_house_rules=excluded.open_house_rules, search_indexing_allowed=excluded.search_indexing_allowed,
+           approved_source=excluded.approved_source, approved_at=excluded.approved_at, approved_by=excluded.approved_by, updated_at=now()
+          returning approval_state as "approvalState", required_attribution as "requiredAttribution", required_disclaimer as "requiredDisclaimer", copyright_text as "copyrightText",
+           listing_brokerage_rules as "listingBrokerageRules", refresh_requirements as "refreshRequirements", photo_rules as "photoRules", permitted_statuses as "permittedStatuses",
+           sold_display_allowed as "soldDisplayAllowed", open_house_rules as "openHouseRules", search_indexing_allowed as "searchIndexingAllowed", approved_source as "approvedSource",
+           approved_at as "approvedAt", approved_by as "approvedBy"`, [actor.organizationId, provider.id, input.requiredAttribution, input.requiredDisclaimer, input.copyrightText, JSON.stringify(input.listingBrokerageRules), JSON.stringify(input.refreshRequirements), JSON.stringify(input.photoRules), input.permittedStatuses, input.soldDisplayAllowed, JSON.stringify(input.openHouseRules), input.searchIndexingAllowed, input.agreementReference, actor.userId]) as { rows?: Record<string, unknown>[] }).rows ?? []
+        await scoped.query(`insert into audit_events (organization_id, actor_user_id, actor_kind, action, target_type, target_id, effect, allowed, detail)
+          values ($1, $2, 'user', 'mls.compliance_terms_recorded', 'mls_provider', $3, 'write', true, $4::jsonb)`,
+          [actor.organizationId, actor.userId, input.providerCode, JSON.stringify({ providerCode: input.providerCode, termsRecorded: true })])
+        return { ...provider, compliance: compliance[0] } as unknown as MlsProviderState
+      })
+    } finally { client.release() }
+  }
+
+  async recordMlsProviderConnection(actor: Actor, providerCode: string, ok: boolean, message: string): Promise<MlsProviderState> {
+    this.assertMlsAdmin(actor)
+    const client = await getPgPool().connect()
+    try {
+      const updated = await withRlsSession(client, actor, async scoped => {
+        const rows = (await scoped.query(`update mls_providers set status = case when status = 'disabled' then 'disabled' when $3 then 'connected' else 'degraded' end,
+          last_connection_test_at = now(), last_connection_error = case when $3 then null else left($4, 500) end, updated_at = now()
+          where organization_id = $1 and provider_code = $2 returning provider_code as "providerCode", status, connection_mode as "connectionMode",
+          secret_configured as "secretConfigured", selected_access_path as "selectedAccessPath", credential_ref as "credentialRef",
+          last_connection_test_at as "lastConnectionTestAt", last_connection_error as "lastConnectionError"`,
+          [actor.organizationId, providerCode, ok, message]) as { rows?: Record<string, unknown>[] }).rows ?? []
+        if (!rows[0]) throw new Error('MLS provider configuration is not saved')
+        await scoped.query(`insert into audit_events (organization_id, actor_user_id, actor_kind, action, target_type, target_id, effect, allowed, detail)
+          values ($1, $2, 'user', 'mls.connection_tested', 'mls_provider', $3, 'write', true, $4::jsonb)`,
+          [actor.organizationId, actor.userId, providerCode, JSON.stringify({ providerCode, outcome: ok ? 'connected' : 'failed' })])
+        return rows[0]
+      })
+      const all = await this.listMlsProviderStates(actor)
+      return all.find(row => row.providerCode === providerCode) ?? updated as unknown as MlsProviderState
+    } finally { client.release() }
   }
 
   async getOrganization(actor: Actor, id: string): Promise<Organization | null> {

@@ -1,5 +1,7 @@
 import { requireActor, AccessError, type PlatformActor } from '@/lib/platform/auth'
 import { inspectAgents } from '@/lib/agent-inspector'
+import { inspectAgentsDurable } from '@/lib/services/agent-inspector-durable'
+import { getRepository } from '@/lib/db'
 import { dataMode } from '@/lib/config/env'
 import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 
@@ -9,14 +11,11 @@ export async function GET(request: Request) {
   let actor: PlatformActor | null = null
   try {
     actor = await requireActor()
-    if (dataMode() === 'live') {
-      const response = Response.json({ error: 'Agent activity details are temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'private, no-store' } })
-      await recordCaughtRouteFailure(request, '/api/agent-inspector', actor, 503, new Error('DURABLE_AGENT_INSPECTOR_UNAVAILABLE'))
-      return response
-    }
     const url = new URL(request.url)
     const id = url.searchParams.get('agentId') || undefined
-    const data = inspectAgents(actor, id)
+    const data = dataMode() === 'live'
+      ? await inspectAgentsDurable(actor, id, await getRepository())
+      : inspectAgents(actor, id)
     if (url.searchParams.get('download') === '1') {
       if (!id) throw new AccessError('Select an agent to export', 400)
       return new Response(JSON.stringify(data.agent, null, 2), { headers: { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="rcre-scoped-agent-inspection.json"', 'Cache-Control': 'private, no-store' } })

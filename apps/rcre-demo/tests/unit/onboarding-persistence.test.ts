@@ -12,6 +12,9 @@ describe('durable onboarding profile progress', () => {
     const saved = await saveOnboarding(agent, { version: 0, phone: '(904) 555-0100', professionalTitle: 'REALTOR®', officeId: 'fl', licenses: [{ state: 'Florida', number: 'SL0000001' }], markets: ['Jacksonville'], specialties: ['First-time buyers'], biography: 'A short profile.', socialLinks: { instagram: '', facebook: '', linkedin: '' }, websiteTemplate: 'urban-modern', websiteSlug: 'agent-example', steps: { identityConfirmed: true, profileReviewed: true, licenseReviewed: true, marketsReviewed: true, websiteSelected: true } }, database)
     const loaded = await loadOnboarding(agent, database)
     expect(loaded.profile.version).toBe(saved.version)
+    expect(saved.verifiedPersonId).toMatch(/^morgan-agent-[a-f0-9]{10}$/)
+    const person = await database.getDomainRecord<any>({ userId: agent.id, organizationId: agent.organizationId, role: 'agent' }, 'canonical_people', saved.verifiedPersonId!)
+    expect(person?.data).toMatchObject({ userId: agent.id, email: 'morgan@example.test', status: 'pending_review', publicVisible: false, name: agent.name, licenses: [{ state: 'Florida', number: 'SL0000001' }] })
     expect(loaded.profile.licenses).toEqual([{ state: 'Florida', number: 'SL0000001' }])
     expect(loaded.profile.officeId).toBe('fl')
     expect(loaded.profile.steps.websiteSelected).toBe(true)
@@ -34,8 +37,10 @@ describe('durable onboarding profile progress', () => {
       biography: '', socialLinks: {}, websiteTemplate: 'signature', steps: {},
     }, database)
     expect(saved.officeId).toBe('fl')
-    expect(saved.verifiedPersonId).toBeNull()
-    expect(saved.publicVisible).toBeUndefined()
+    expect(saved.verifiedPersonId).toMatch(/^morgan-agent-[a-f0-9]{10}$/)
+    expect(saved.publicVisible).toBe(false)
+    const person = await database.getDomainRecord<any>({ userId: agent.id, organizationId: agent.organizationId, role: 'agent' }, 'canonical_people', saved.verifiedPersonId!)
+    expect(person?.data).toMatchObject({ status: 'pending_review', publicVisible: false })
   })
 
   it('rejects cross-user profile reads and writes at the repository boundary', async () => {

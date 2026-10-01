@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 /**
  * RCRE Investor — Home Page
  * Route: /agent/investor
@@ -16,9 +17,9 @@ import { InvestorContactForm } from './InvestorContactForm'
 import './rcre-investor.css'
 
 export const metadata: Metadata = {
-  title: 'Jordan Mercer | RCRE Investment Division, Income Properties',
-  description:
-    'Jordan Mercer — Investment specialist with RCRE Group, serving rental investors, BRRRR buyers, and portfolio builders in Jacksonville, Birmingham, and the Florida panhandle.',
+  robots: { index: false, follow: false },
+  title: process.env.NODE_ENV === 'production' ? 'Page not found | RCRE Group' : 'Jordan Mercer | RCRE Investment Division, Income Properties',
+  description: process.env.NODE_ENV === 'production' ? 'The requested page is unavailable.' : 'Jordan Mercer — Investment specialist with RCRE Group, serving rental investors, BRRRR buyers, and portfolio builders in Jacksonville, Birmingham, and the Florida panhandle.',
 }
 
 const INVESTOR_CONFIG = {
@@ -137,6 +138,7 @@ function formatPrice(p: number) {
 }
 
 export default function InvestorHomePage() {
+  if (process.env.NODE_ENV === 'production') notFound()
   const agent = getExampleAgent('rcre-signature-demo')!
   const seo = buildHomeSEO(agent, INVESTOR_CONFIG)
 

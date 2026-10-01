@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { requireActor } from '@/lib/platform/auth'
+import { AccessError, requireActor } from '@/lib/platform/auth'
+import type { PlatformActor } from '@/lib/platform/auth'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 import { GoogleOAuthHttp, makeState, pkcePair, workspaceOAuthConfig } from '@/lib/google-workspace/oauth'
 import type { WorkspaceService } from '@/lib/google-workspace/types'
 import { WORKSPACE_SERVICES } from '@/lib/google-workspace/types'
@@ -8,8 +10,9 @@ import { WORKSPACE_SERVICES } from '@/lib/google-workspace/types'
 export const dynamic = 'force-dynamic'
 const STATE = 'rcre_google_workspace_state', VERIFIER = 'rcre_google_workspace_verifier', SERVICE = 'rcre_google_workspace_service', ACTOR = 'rcre_google_workspace_actor'
 export async function GET(request: Request) {
+  let actor: PlatformActor | null = null
   try {
-    const actor = await requireActor()
+    actor = await requireActor()
     const url = new URL(request.url), service = url.searchParams.get('service') as WorkspaceService | null
     if (!service || !WORKSPACE_SERVICES.includes(service)) return NextResponse.json({ error: 'Choose Gmail, Calendar, or Drive.' }, { status: 400 })
     const config = workspaceOAuthConfig()
@@ -23,5 +26,5 @@ export async function GET(request: Request) {
     // to the newly active user.
     jar.set(STATE, state, cookieBase); jar.set(VERIFIER, verifier, cookieBase); jar.set(SERVICE, service, cookieBase); jar.set(ACTOR, actor.userId, cookieBase)
     return NextResponse.redirect(provider.authorizationUrl(service, state, verifier), 303)
-  } catch { return NextResponse.json({ error: 'Sign in to RCRE before connecting Google Workspace.' }, { status: 401 }) }
+  } catch (error) { const response = NextResponse.json({ error: 'Sign in to RCRE before connecting Google Workspace.' }, { status: 401 }); await recordCaughtRouteFailure(request, '/api/integrations/google/connect', actor, error instanceof AccessError ? error.status : actor ? 503 : 401, error); return response }
 }

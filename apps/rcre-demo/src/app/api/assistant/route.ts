@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireActor, AccessError } from '@/lib/platform/auth'
+import type { PlatformActor } from '@/lib/platform/auth'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 import { getRepository } from '@/lib/db'
 import { createCrmTaskDurable } from '@/lib/platform/crm-durable'
 import { assertSameOriginMutation } from '@/lib/auth/request-origin'
@@ -28,20 +30,22 @@ function errorResponse(error: unknown) {
   return NextResponse.json({ error: message }, { status })
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  let actor: PlatformActor | null = null
   try {
-    const actor = await requireActor()
+    actor = await requireActor()
     const [conversations, jobs, saved] = await Promise.all([
       listAIConversationsDurable(actor), listAIJobsDurable(actor), getAIConfigDurable(actor),
     ])
     return NextResponse.json({ conversations, jobs, config: saved }, { headers: { 'Cache-Control': 'no-store' } })
-  } catch (error) { return errorResponse(error) }
+  } catch (error) { const response=errorResponse(error);await recordCaughtRouteFailure(request,'/api/assistant',actor,response.status,error);return response }
 }
 
 export async function POST(req: NextRequest) {
+  let actor: PlatformActor | null = null
   try {
     assertSameOriginMutation(req)
-    const actor = await requireActor()
+    actor = await requireActor()
     const body = await req.json() as Record<string, unknown>
     switch (body.action) {
       case 'config': {
@@ -76,10 +80,11 @@ export async function POST(req: NextRequest) {
           const encoder = new TextEncoder()
           const send = (event: unknown) => { try { controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`)) } catch { /* consumer disconnected */ } }
           try {
-            const result = await runAIJobDurable(actor, id, delta => send({ delta }))
+            const result = await runAIJobDurable(actor!, id, delta => send({ delta }))
             send({ job: result })
             if (result.state === 'failed') send({ error: result.error || 'The assistant request could not be completed.' })
           } catch (error) {
+            await recordCaughtRouteFailure(req, '/api/assistant', actor, error instanceof AccessError ? error.status : 503, error)
             send({ error: error instanceof AccessError ? error.message : 'The assistant request could not be completed.' })
           } finally { controller.close() }
         } })
@@ -87,5 +92,5 @@ export async function POST(req: NextRequest) {
       }
       default: throw new AccessError('Unknown assistant action', 400)
     }
-  } catch (error) { return errorResponse(error) }
+  } catch (error) { const response=errorResponse(error);await recordCaughtRouteFailure(req,'/api/assistant',actor,response.status,error);return response }
 }

@@ -22,6 +22,9 @@ describe('production readiness repair migrations', () => {
       '0021_managing_broker_academy_assignment_guard.sql',
       '0022_public_content_projection.sql',
       '0023_public_agent_roster_projection.sql',
+      '0024_canonical_agent_website_projection.sql',
+      '0025_canonical_agent_identity_records.sql',
+      '0026_canonical_public_agent_directory.sql',
     ])
   })
 
@@ -41,6 +44,44 @@ describe('production readiness repair migrations', () => {
     const website = read('0010_agent_website_lifecycle.sql')
     expect(website).toMatch(/u\.id::text\s*=\s*mp\.record_id/i)
     expect(website).not.toMatch(/mp\.record_id::uuid/i)
+  })
+
+  it('constrains canonical agent identities to one org-scoped owner and stable slug', () => {
+    const sql = read('0025_canonical_agent_identity_records.sql')
+    expect(sql).toMatch(/create unique index if not exists rcre_canonical_people_org_slug_unique/i)
+    expect(sql).toMatch(/create unique index if not exists rcre_canonical_people_org_user_unique/i)
+    expect(sql).toMatch(/record_id\s*=\s*data->>'slug'/i)
+    expect(sql).toMatch(/data->>'userId'\s*=\s*owner_user_id::text/i)
+    expect(sql).toMatch(/data->>'organizationId'\s*=\s*organization_id::text/i)
+    expect(sql).toMatch(/'pending_review',\s*'active',\s*'inactive'/i)
+    expect(sql).toMatch(/validate constraint rcre_canonical_people_identity_shape/i)
+    expect(sql).toMatch(/rcre_domain_records/i)
+    expect(sql).not.toMatch(/create table/i)
+  })
+
+  it('projects durable public profile edits while retaining member and canonical identity gates', () => {
+    const sql = read('0026_canonical_public_agent_directory.sql')
+    expect(sql).toMatch(/collection = 'agent_profile_overlays'/)
+    expect(sql).toMatch(/coalesce\(ov\.data->'publicVisible', mp\.data->'publicVisible'\)/)
+    expect(sql).toMatch(/coalesce\(ov\.data->>'publicTitle'/)
+    expect(sql).toMatch(/coalesce\(ov\.data->>'bio'/)
+    expect(sql).toMatch(/coalesce\(ov\.data->>'email'/)
+    expect(sql).toMatch(/mp\.owner_user_id = u\.id/)
+    expect(sql).toMatch(/cp\.owner_user_id = u\.id/)
+  })
+
+  it('uses canonical approval and publication gates for dynamic public identities and headshots', () => {
+    const sql = read('0026_canonical_public_agent_directory.sql')
+    expect(sql).toMatch(/rcre_public_agent_profiles_v2/)
+    expect(sql).toMatch(/cp\.data->>'status'\s*=\s*'active'/i)
+    expect(sql).toMatch(/cp\.data->'publicVisible'\s*=\s*'true'::jsonb/i)
+    expect(sql).toMatch(/site\.data->>'published'\s*=\s*'true'/i)
+    expect(sql).toMatch(/rcre_public_agent_headshot/)
+    expect(sql).toMatch(/cp\.owner_user_id\s*=\s*u\.id/i)
+    expect(sql).toMatch(/cp\.data->>'organizationId'\s*=\s*u\.organization_id::text/i)
+    expect(sql).not.toMatch(/lekeshia-jones/i)
+    expect(sql).toMatch(/revoke all on function rcre_public_agent_profiles_v2/i)
+    expect(sql).toMatch(/revoke all on function rcre_public_agent_headshot/i)
   })
 
   it('guards Managing Broker Academy assignment targets in PostgreSQL as well as the service', () => {

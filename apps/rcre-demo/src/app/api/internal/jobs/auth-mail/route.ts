@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import { processAuthMailBatch } from '@/lib/auth/mail-worker'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 export const dynamic = 'force-dynamic'
 function authorized(request: NextRequest) {
   const secret = process.env.RCRE_JOB_SECRET
@@ -18,7 +19,8 @@ export async function POST(request: NextRequest) {
     const result = await processAuthMailBatch(limit)
     if (result.state === 'waiting_for_mail_configuration') return NextResponse.json({ state: result.state }, { status: 503, headers: { 'cache-control': 'no-store' } })
     return NextResponse.json(result, { headers: { 'cache-control': 'no-store' } })
-  } catch {
+  } catch (error) {
+    await recordCaughtRouteFailure(request, '/api/internal/jobs/auth-mail', null, 503, error)
     return NextResponse.json({ error: 'Mail queue processing failed.' }, { status: 503, headers: { 'cache-control': 'no-store' } })
   }
 }

@@ -3,6 +3,8 @@ import { exchangeGoogleCode, googleConfig, OidcError } from '@/lib/auth/google-o
 import { getAuthPersistence, hashSecret } from '@/lib/auth/persistence'
 import { issueDurableSession, SESSION_COOKIE, sessionCookieOptions } from '@/lib/platform/auth'
 import { enqueueMemberNotice, memberNotificationIdentity } from '@/lib/services/notification-producers'
+import type { PlatformActor } from '@/lib/platform/auth'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 
 export const dynamic = 'force-dynamic'
 const cookiePath = '/api/auth/google'
@@ -34,12 +36,13 @@ export async function GET(request: NextRequest) {
   const nonce = request.cookies.get('rcre_oidc_nonce')?.value
   const verifier = request.cookies.get('rcre_oidc_verifier')?.value
   if (params.has('error') || !code || !returnedState || !state || !nonce || !verifier || returnedState !== state) return failure(request, 'sign-in-failed', trustedOrigin)
+  let actor: PlatformActor | null = null
   try {
     const identity = await exchangeGoogleCode({ config, code, verifier, expectedNonce: nonce })
     const inviteToken = request.cookies.get('rcre_invitation_token')?.value
     const auth = await getAuthPersistence()
     const invitation = inviteToken ? await auth.invitationStatus(hashSecret(inviteToken)) : null
-    const actor = await auth.linkGoogle({
+    actor = await auth.linkGoogle({
       email: identity.email,
       subject: identity.subject,
       name: identity.name,
@@ -75,6 +78,7 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     const reason = error instanceof OidcError ? 'sign-in-failed' : 'sign-in-unavailable'
+    await recordCaughtRouteFailure(request, '/api/auth/google/callback', actor, 503, error)
     return failure(request, reason, trustedOrigin)
   }
 }

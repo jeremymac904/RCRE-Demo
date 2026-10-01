@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 /**
  * RCRE Urban Modern — Home Page
  * Route: /agent/jacksonville-urban
@@ -16,9 +17,9 @@ import { UrbanContactForm } from './UrbanContactForm'
 import './rcre-urban.css'
 
 export const metadata: Metadata = {
-  title: 'Priya Nair | RCRE Urban Modern, Jacksonville Urban Core',
-  description:
-    'Priya Nair — Urban REALTOR® with RCRE Group, specializing in Jacksonville urban core: Riverside, Avondale, San Marco, Downtown, and Brooklyn.',
+  robots: { index: false, follow: false },
+  title: process.env.NODE_ENV === 'production' ? 'Page not found | RCRE Group' : 'Priya Nair | RCRE Urban Modern, Jacksonville Urban Core',
+  description: process.env.NODE_ENV === 'production' ? 'The requested page is unavailable.' : 'Priya Nair — Urban REALTOR® with RCRE Group, specializing in Jacksonville urban core: Riverside, Avondale, San Marco, Downtown, and Brooklyn.',
 }
 
 const URBAN_CONFIG = {
@@ -138,6 +139,7 @@ const TESTIMONIAL = {
 }
 
 export default function UrbanHomePage() {
+  if (process.env.NODE_ENV === 'production') notFound()
   const agent = getExampleAgent('jacksonville-urban')!
   const seo = buildHomeSEO(agent, URBAN_CONFIG)
 

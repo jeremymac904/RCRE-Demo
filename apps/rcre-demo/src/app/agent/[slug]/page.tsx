@@ -28,7 +28,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params
   const website = await resolveAgentWebsite(slug)
-  const agent = website?.profile || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
+  const previewAgent = process.env.NODE_ENV === 'production' ? null : getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
+  const agent = website?.profile || previewAgent
   if (!agent) return { title: 'Agent Not Found' }
   const config = website?.config
   if (!config) return { title: 'Agent Not Found' }
@@ -58,7 +59,8 @@ export default async function AgentHomePage({
 
   // Try profile first, fall back to example agents
   const website = await resolveAgentWebsite(slug)
-  const agent = website?.profile || getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
+  const previewAgent = process.env.NODE_ENV === 'production' ? null : getExampleAgent(slug as keyof typeof import('@/lib/agent-website/agent-service').EXAMPLE_AGENTS)
+  const agent = website?.profile || previewAgent
 
   if (!agent) notFound()
 

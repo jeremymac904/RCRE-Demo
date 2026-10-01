@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 /**
  * RCRE Historic Heritage — Home Page
  * Route: /agent/birmingham-historic
@@ -15,9 +16,9 @@ import { HistoricContactForm } from './HistoricContactForm'
 import './historic.css'
 
 export const metadata: Metadata = {
-  title: 'Eleanor Whitmore | RCRE Historic Heritage, Birmingham Alabama',
-  description:
-    'Eleanor Whitmore — Historic & Heritage Property Specialist with RCRE Group, serving Highland Park, Mountain Brook, English Village, and Birmingham\'s historic districts.',
+  robots: { index: false, follow: false },
+  title: process.env.NODE_ENV === 'production' ? 'Page not found | RCRE Group' : 'Eleanor Whitmore | RCRE Historic Heritage, Birmingham Alabama',
+  description: process.env.NODE_ENV === 'production' ? 'The requested page is unavailable.' : 'Eleanor Whitmore — Historic & Heritage Property Specialist with RCRE Group, serving Highland Park, Mountain Brook, English Village, and Birmingham\'s historic districts.',
 }
 
 const HH_CONFIG = {
@@ -138,6 +139,7 @@ function formatPrice(p: number) {
 }
 
 export default function HistoricHomePage() {
+  if (process.env.NODE_ENV === 'production') notFound()
   const agent = getExampleAgent('birmingham-historic')!
   const seo = buildHomeSEO(agent, HH_CONFIG)
 

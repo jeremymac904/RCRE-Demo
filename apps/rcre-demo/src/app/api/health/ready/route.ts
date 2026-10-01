@@ -1,11 +1,12 @@
 import { dependencyReadiness, coreReadinessConfigured } from '@/lib/operations/readiness'
 import { getPgPool } from '@/lib/db/pg'
 import { isProduction } from '@/lib/config/env'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 
 export const dynamic = 'force-dynamic'
 
 /** Readiness is intentionally dependency-only and never returns configuration values. */
-export async function GET() {
+export async function GET(request: Request) {
   const dependencies = dependencyReadiness()
   let database: string = dependencies.core.database.state
   let databaseReachable = false
@@ -14,8 +15,9 @@ export async function GET() {
       await getPgPool().query('select 1')
       database = 'reachable'
       databaseReachable = true
-    } catch {
+    } catch (error) {
       database = 'unavailable'
+      await recordCaughtRouteFailure(request, '/api/health/ready', null, 503, error)
     }
   }
   const configured = coreReadinessConfigured(dependencies)

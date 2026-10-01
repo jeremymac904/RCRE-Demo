@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 import { SESSION_COOKIE, sessionCookieOptions, AccessError } from '@/lib/platform/auth'
 import { getAuthPersistence, hashSecret, opaqueSecret } from '@/lib/auth/persistence'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 export const dynamic = 'force-dynamic'
 const TTL = 12 * 60 * 60_000
 const digest = (value: string | null) => createHash('sha256').update(value ?? '').digest('hex')
@@ -25,6 +26,8 @@ export async function POST(request: NextRequest) {
     return response
   } catch (error) {
     const status = error instanceof AccessError ? error.status : 503
-    return NextResponse.json({ error: status === 503 ? 'Session service is temporarily unavailable.' : error instanceof Error ? error.message : 'Request failed.' }, { status })
+    const response = NextResponse.json({ error: status === 503 ? 'Session service is temporarily unavailable.' : error instanceof Error ? error.message : 'Request failed.' }, { status })
+    await recordCaughtRouteFailure(request, '/api/auth/session/rotate', null, status, error)
+    return response
   }
 }

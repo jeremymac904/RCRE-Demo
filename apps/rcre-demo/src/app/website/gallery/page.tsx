@@ -42,8 +42,7 @@ export default async function TemplateGalleryPage() {
             </Link>
           </div>
           <p style={{ fontSize: '0.95rem', color: 'var(--color-muted)', lineHeight: 1.65, maxWidth: '560px' }}>
-            Choose a template for your agent website. Click &quot;Preview&quot; to see the full theme with
-            a demo profile. Select a template to apply it to your website.
+            Choose a template for your agent website. Preview any design with your saved profile, then select a template to apply it to your website.
           </p>
         </div>
 

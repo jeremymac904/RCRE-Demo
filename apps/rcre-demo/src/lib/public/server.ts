@@ -45,8 +45,7 @@ async function livePublicAgentProfiles() {
   } catch { return [] }
 }
 export async function publicAgentDirectorySlugs(){
-  if(dataMode()==='live') return (await livePublicAgentProfiles()).map(profile => profile.verifiedPersonId).filter(slug => activePublicAgent(slug) && publicAgents.some(person => person.slug === slug))
-  return publicAgents.filter(p=>agentProfileFor(p.slug)?.publicVisible).map(p=>p.slug)
+  return (await publicAgentProfiles()).map(profile => profile.slug)
 }
 function publicAgentFromProjection(slug: string, projection?: { profile: Record<string, unknown> }) {
   const original = publicAgents.find(agent => agent.slug === slug)
@@ -59,16 +58,50 @@ function publicAgentFromProjection(slug: string, projection?: { profile: Record<
     return [item.state, item.number].filter(value => typeof value === 'string' && value.trim()).join(' ')
   }).filter(Boolean).join(' · ') : ''
   const markets = Array.isArray(profile.markets) ? profile.markets.filter(value => typeof value === 'string').join(', ') : ''
-  return { ...original, phone: typeof profile.phone === 'string' && profile.phone ? profile.phone : original.phone, license: licenses || original.license, market: markets || original.market, role: typeof profile.professionalTitle === 'string' && profile.professionalTitle ? profile.professionalTitle : original.role, bio: typeof profile.biography === 'string' && profile.biography ? profile.biography : original.bio, publicVisible: true }
+  return { ...original, phone: typeof profile.phone === 'string' && profile.phone ? profile.phone : original.phone, email: typeof profile.email === 'string' && profile.email ? profile.email : original.email, license: licenses || original.license, market: markets || original.market, role: typeof profile.professionalTitle === 'string' && profile.professionalTitle ? profile.professionalTitle : original.role, bio: typeof profile.biography === 'string' && profile.biography ? profile.biography : original.bio, publicVisible: true }
+}
+function publicCanonicalAgentFromProjection(projection: { verifiedPersonId: string; profile: Record<string, unknown>; person?: Record<string, unknown>; websiteSlug?: string }) {
+  const person = projection.person
+  const slug = typeof person?.slug === 'string' ? person.slug : ''
+  const websiteSlug = projection.websiteSlug
+  if (!slug || !websiteSlug || person?.publicVisible !== true || projection.profile.publicVisible !== true || publicAgents.some(agent => agent.slug === slug)) return undefined
+  const array = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+  const licenseItems = Array.isArray(person.licenses) ? person.licenses : []
+  const licenses = licenseItems.map(value => {
+    if (!value || typeof value !== 'object') return ''
+    const license = value as Record<string, unknown>
+    return [license.number, license.state ? `(${license.state})` : ''].filter(value => typeof value === 'string' && value.trim()).join(' ')
+  }).filter(Boolean).join(' · ')
+  const markets = array(person.markets)
+  return {
+    slug: websiteSlug,
+    canonicalPersonId: slug,
+    name: String(person.name ?? ''),
+    phone: String(person.phone ?? ''),
+    email: String(projection.profile.email ?? person.email ?? ''),
+    license: licenses,
+    market: markets.join(', '),
+    role: String(person.professionalTitle ?? 'REALTOR®'),
+    bio: String(person.biography ?? ''),
+    image: projection.profile.headshotAssetId ? `/api/public/agent-photo/${encodeURIComponent(websiteSlug)}` : null,
+    specialties: array(person.specialties),
+    publicVisible: true,
+  }
 }
 export async function publicAgentProfiles() {
   if (dataMode() === 'live') {
     const projections = await livePublicAgentProfiles()
     const bySlug = new Map(projections.map(profile => [profile.verifiedPersonId, profile]))
-    return publicAgents.flatMap(agent => {
+    const legacy = publicAgents.flatMap(agent => {
       const profile = publicAgentFromProjection(agent.slug, bySlug.get(agent.slug))
       return profile ? [profile] : []
     })
+    const legacySlugs = new Set(publicAgents.map(agent => agent.slug))
+    const canonical = projections.flatMap(projection => {
+      const profile = publicCanonicalAgentFromProjection(projection)
+      return profile && !legacySlugs.has(projection.verifiedPersonId) ? [profile] : []
+    })
+    return [...legacy, ...canonical]
   }
   return publicAgents.flatMap(agent => {
     if (!activePublicAgent(agent.slug)) return []
@@ -77,13 +110,11 @@ export async function publicAgentProfiles() {
   })
 }
 export async function publicAgentProfileFor(slug:string){
-  if (dataMode() !== 'live') return (await publicAgentProfiles()).find(profile => profile.slug === slug)
-  const projection = (await livePublicAgentProfiles()).find(row => row.verifiedPersonId === slug)
-  return publicAgentFromProjection(slug, projection)
+  return (await publicAgentProfiles()).find(profile => profile.slug === slug)
 }
 export async function resolvePublicProfile(path:string){
-  const slug=publicAgents.find(a=>path==='/agent/'+a.slug)?.slug
-  if(!slug)return undefined
+  const slug = path.startsWith('/agent/') ? path.slice('/agent/'.length) : undefined
+  if(!slug || slug.includes('/'))return undefined
   const profile=await publicAgentProfileFor(slug)
   if(!profile)return undefined
   if(dataMode()==='live')return profile

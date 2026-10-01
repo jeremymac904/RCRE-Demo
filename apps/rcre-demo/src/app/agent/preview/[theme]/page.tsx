@@ -1,228 +1,67 @@
-/**
- * Agent Website Theme Preview
- * Route: /agent/preview/[theme]
- *
- * Shows a demo agent home page with the selected theme.
- * This is a preview mode — not a published agent site.
- */
-
-import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect, notFound } from 'next/navigation'
+import { actorOrNull } from '@/lib/platform/auth'
+import { loadAgentWebsite } from '@/lib/agent-website/lifecycle'
 import { THEME_CATALOG, type AgentWebsiteTheme } from '@/lib/agent-website/types'
-import { getExampleAgent, EXAMPLE_AGENTS, getWebsiteConfig } from '@/lib/agent-website/agent-service'
-import { buildHomeSEO } from '@/lib/agent-website/seo'
-import { AgentWebsiteThemeProvider } from '@/components/agent-website/theme-context'
-import { AgentWebsiteLayout } from '@/components/agent-website/AgentWebsiteLayout'
-import { SEOMetadata } from '@/components/agent-website/SEOMetadata'
-import '@/components/agent-website/agent-website.css'
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ theme: string }>
-}): Promise<Metadata> {
-  const { theme } = await params
-  if (!THEME_CATALOG[theme as AgentWebsiteTheme]) return { title: 'Theme Not Found' }
-  const meta = THEME_CATALOG[theme as AgentWebsiteTheme]
-  return {
-    title: `${meta.name} — Theme Preview | RCRE`,
-    description: meta.description,
-    robots: { index: false, follow: false },
-  }
+export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'Website Theme Preview | RCRE',
+  robots: { index: false, follow: false },
 }
 
-// Use the Signature demo agent for all theme previews
-const PREVIEW_AGENT_SLUG = 'rcre-signature-demo'
-const PREVIEW_AGENT = EXAMPLE_AGENTS[PREVIEW_AGENT_SLUG]
+export default async function ThemePreviewPage({ params }: { params: Promise<{ theme: string }> }) {
+  const { theme: rawTheme } = await params
+  if (!Object.hasOwn(THEME_CATALOG, rawTheme)) notFound()
+  const theme = rawTheme as AgentWebsiteTheme
+  const actor = await actorOrNull()
+  if (!actor) redirect(`/login?next=${encodeURIComponent(`/agent/preview/${theme}`)}`)
 
-export default async function ThemePreviewPage({
-  params,
-}: {
-  params: Promise<{ theme: string }>
-}) {
-  const { theme } = await params
-  if (process.env.NODE_ENV === 'production') notFound()
-
-  const validTheme = THEME_CATALOG[theme as AgentWebsiteTheme]
-  if (!validTheme) notFound()
-
-  if (!PREVIEW_AGENT) notFound()
-
-  // Build a preview config using the selected theme
-  const previewConfig = {
-    theme: theme as AgentWebsiteTheme,
-    markets: PREVIEW_AGENT.markets,
-    specialties: PREVIEW_AGENT.specialties || [],
-    published: false,
-    lastUpdated: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    completenessScore: 85,
-    tagline: PREVIEW_AGENT.tagline,
-    headline: PREVIEW_AGENT.headline,
-    heroImage: PREVIEW_AGENT.heroImage,
-    seoTitle: `${PREVIEW_AGENT.name} | ${validTheme.name} Theme | RCRE`,
-    seoDescription: validTheme.description,
-  }
-
-  const seo = buildHomeSEO(PREVIEW_AGENT, previewConfig)
+  const website = await loadAgentWebsite(actor)
+  if (!website.member?.active) notFound()
+  const meta = THEME_CATALOG[theme]
+  const canonical = website.canonical
+  const name = canonical?.name || actor.name
+  const title = canonical?.title || actor.role.replaceAll('_', ' ')
+  const markets = canonical?.markets ?? []
+  const bio = canonical?.bio?.trim() || ''
+  const photo = website.profile?.headshotAssetId ? '/api/profile/photo' : canonical?.image
+  const headline = website.website?.headline?.trim() || meta.tagline
+  const candidateHeroImage = website.website?.heroImage?.trim()
+  const heroImage = candidateHeroImage && (candidateHeroImage.startsWith('/') && !candidateHeroImage.startsWith('//') || /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:[/?#]|$)/i.test(candidateHeroImage)) ? candidateHeroImage : ''
+  const colors = meta.cssVars
 
   return (
-    <AgentWebsiteThemeProvider
-      theme={theme as AgentWebsiteTheme}
-      profile={PREVIEW_AGENT}
-      config={previewConfig}
-    >
-      <head>
-        <SEOMetadata seo={seo} />
-      </head>
-
-      {/* Preview banner */}
-      <div
-        style={{
-          backgroundColor: '#1a2e4a',
-          color: '#ffffff',
-          padding: '0.625rem 1.5rem',
-          fontSize: '0.8rem',
-          textAlign: 'center',
-        }}
-      >
-        <strong>Theme Preview:</strong> {validTheme.name} · {validTheme.tagline} ·{' '}
-        <Link
-          href="/admin/website"
-          style={{ color: '#c9a84c', textDecoration: 'none', fontWeight: 600 }}
-        >
-          Back to theme selection →
-        </Link>
+    <main style={{ minHeight: '100vh', background: colors['--color-bg'], color: colors['--color-text'], fontFamily: colors['--font-body'] }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, padding: '12px clamp(16px, 4vw, 48px)', background: colors['--color-surface'], borderBottom: `1px solid ${colors['--color-border']}` }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{meta.name} · Private preview</p>
+        <Link href="/website/gallery" style={{ color: colors['--color-text'], fontSize: 14, fontWeight: 700 }}>Back to templates</Link>
       </div>
-
-      <AgentWebsiteLayout agent={PREVIEW_AGENT}>
-        {/* Hero */}
-        <section className="agent-hero" style={{ minHeight: '580px' }}>
-          <img
-            src={previewConfig.heroImage || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1600&q=80'}
-            alt={`${PREVIEW_AGENT.name} — ${PREVIEW_AGENT.market} real estate`}
-            className="agent-hero-bg"
-            loading="eager"
-          />
-          <div className="agent-hero-overlay" />
-          <div className="agent-hero-content">
-            <p className="agent-hero-kicker">{PREVIEW_AGENT.market}</p>
-            <h1 className="agent-hero-title">
-              {previewConfig.headline || PREVIEW_AGENT.tagline}
-            </h1>
-            <p className="agent-hero-sub">{PREVIEW_AGENT.tagline}</p>
-            <div className="agent-hero-ctas">
-              <Link href={`/agent/preview/${theme}/contact`} className="agent-btn-primary">
-                Schedule a Consultation
-              </Link>
-              <Link href={`/agent/preview/${theme}/listings`} className="agent-btn-outline" style={{ borderColor: '#ffffff', color: '#ffffff' }}>
-                Browse Listings
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* Quick Stats */}
-        <section className="agent-stats">
-          <div className="agent-stats-inner">
-            {[
-              { number: '12+', label: 'Years Experience' },
-              { number: '185+', label: 'Transactions Closed' },
-              { number: '260+', label: 'Clients Served' },
-            ].map((s) => (
-              <div key={s.label}>
-                <p className="agent-stat-number">{s.number}</p>
-                <p className="agent-stat-label">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Markets */}
-        <section
-          className="agent-section-sm"
-          style={{ backgroundColor: 'var(--color-surface, #ffffff)', borderTop: '1px solid var(--color-border, #e5e0d8)', borderBottom: '1px solid var(--color-border, #e5e0d8)' }}
-        >
-          <div className="agent-wrap">
-            <p className="agent-section-label">Service Areas</p>
-            <h2 className="agent-section-title" style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}>
-              Markets I Serve
-            </h2>
-            <div className="agent-markets-scroll" style={{ marginTop: '1rem' }}>
-              {PREVIEW_AGENT.markets.map((m) => (
-                <span key={m} className="agent-market-pill" style={{ cursor: 'default' }}>
-                  {m}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* About Preview */}
-        <section
-          className="agent-section"
-          style={{ backgroundColor: 'var(--color-surface, #ffffff)', borderTop: '1px solid var(--color-border, #e5e0d8)' }}
-        >
-          <div className="agent-wrap">
-            <div className="agent-about-split">
-              <div>
-                <img
-                  src={PREVIEW_AGENT.headshot || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&q=80'}
-                  alt={PREVIEW_AGENT.name}
-                  style={{ width: '100%', maxWidth: '280px', aspectRatio: '4/5', objectFit: 'cover', borderRadius: '4px', display: 'block' }}
-                />
-              </div>
-              <div>
-                <p className="agent-section-label">About</p>
-                <h2 style={{ fontFamily: 'var(--font-display, Georgia, serif)', fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 600, color: 'var(--color-primary, #1a2e4a)', marginBottom: '0.5rem' }}>
-                  {PREVIEW_AGENT.name}
-                </h2>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-accent, #c9a84c)', fontWeight: 600, marginBottom: '1.25rem' }}>
-                  {PREVIEW_AGENT.title} · {PREVIEW_AGENT.market}
-                </p>
-                <p style={{ fontSize: '0.95rem', color: 'var(--color-text, #1a1a1a)', lineHeight: 1.8 }}>
-                  {PREVIEW_AGENT.bio.slice(0, 320)}…
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Contact CTA */}
-        <section className="agent-cta-section">
-          <div className="agent-wrap">
-            <h2>Ready to start? Let&apos;s talk.</h2>
-            <p>
-              {PREVIEW_AGENT.name.split(' ')[0]} is available for consultations in {PREVIEW_AGENT.market}.
-            </p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link
-                href={`/agent/preview/${theme}/contact`}
-                className="agent-btn-primary"
-                style={{ fontSize: '1rem', padding: '0.875rem 2.5rem' }}
-              >
-                Schedule a Consultation
-              </Link>
-              <a
-                href={`tel:${PREVIEW_AGENT.phone.replace(/\D/g, '')}`}
-                style={{
-                  display: 'inline-block',
-                  padding: '0.875rem 2rem',
-                  border: '1.5px solid rgba(255,255,255,0.5)',
-                  borderRadius: '4px',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  color: '#ffffff',
-                  textDecoration: 'none',
-                }}
-              >
-                {PREVIEW_AGENT.phone}
-              </a>
-            </div>
-          </div>
-        </section>
-      </AgentWebsiteLayout>
-    </AgentWebsiteThemeProvider>
+      <header style={{ padding: '18px clamp(16px, 5vw, 72px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, background: colors['--color-surface'] }}>
+        <div><strong style={{ color: colors['--color-primary'], letterSpacing: '.08em' }}>RCRE</strong><div style={{ fontSize: 12, marginTop: 3 }}>{name}</div></div>
+        <Link href="/website/settings" style={{ background: colors['--color-cta'], color: '#fff', padding: '11px 17px', borderRadius: 5, textDecoration: 'none', fontWeight: 700 }}>Configure website</Link>
+      </header>
+      <section style={{ minHeight: 420, position: 'relative', display: 'grid', alignItems: 'end', padding: 'clamp(28px, 8vw, 96px)', background: heroImage ? `linear-gradient(90deg, rgba(0,0,0,.62), rgba(0,0,0,.12)), url("${heroImage}") center/cover` : `linear-gradient(135deg, ${colors['--color-primary']}, ${colors['--color-accent']})`, color: '#fff' }}>
+        <div style={{ maxWidth: 760 }}>
+          <p style={{ textTransform: 'uppercase', letterSpacing: '.16em', fontSize: 12, fontWeight: 700 }}>{markets.length ? markets.join(' · ') : 'River City Real Estate Group'}</p>
+          <h1 style={{ fontFamily: colors['--font-display'], fontSize: 'clamp(38px, 7vw, 76px)', lineHeight: 1.02, margin: '16px 0' }}>{headline}</h1>
+          <p style={{ fontSize: 18, maxWidth: 640 }}>{title} · {name}</p>
+          <Link href="/website/settings" style={{ display: 'inline-block', marginTop: 12, padding: '13px 19px', background: colors['--color-cta'], color: '#fff', borderRadius: 5, textDecoration: 'none', fontWeight: 700 }}>Personalize this design</Link>
+        </div>
+      </section>
+      <section style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(32px, 7vw, 84px) 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 40, alignItems: 'center' }}>
+        {photo ? <img src={photo} alt={name} style={{ width: '100%', maxWidth: 380, aspectRatio: '4 / 5', objectFit: 'cover', borderRadius: 6 }} /> : <div aria-hidden="true" style={{ width: '100%', maxWidth: 380, aspectRatio: '4 / 5', background: colors['--color-surface'], border: `1px solid ${colors['--color-border']}`, borderRadius: 6 }} />}
+        <div>
+          <p style={{ textTransform: 'uppercase', letterSpacing: '.14em', fontSize: 12, color: colors['--color-accent'], fontWeight: 700 }}>Your website preview</p>
+          <h2 style={{ fontFamily: colors['--font-display'], fontSize: 'clamp(30px, 4vw, 48px)', margin: '12px 0' }}>{name}</h2>
+          <p style={{ lineHeight: 1.8 }}>{bio || 'Your professional biography will appear here when your profile is complete.'}</p>
+          {markets.length > 0 && <p style={{ lineHeight: 1.7 }}><strong>Markets:</strong> {markets.join(' · ')}</p>}
+          <p style={{ marginTop: 24, fontSize: 14, opacity: .8 }}>This private preview uses your saved profile information. No listing or transaction metrics are displayed unless verified data is connected.</p>
+        </div>
+      </section>
+      <footer style={{ padding: 28, textAlign: 'center', background: colors['--color-primary'], color: '#fff' }}>River City Real Estate Group · Alabama &amp; Florida</footer>
+    </main>
   )
 }

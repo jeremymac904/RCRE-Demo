@@ -75,13 +75,13 @@ function SettingsPage() {
       const canonical = data.canonical ?? {}
       const social = profile.socialLinks ?? {}
       setValues({
-        name: canonical.name ?? data.member?.name ?? '', title: profile.professionalTitle ?? '',
-        tagline: website.tagline ?? '', bio: profile.biography ?? '', phone: profile.phone ?? '',
-        email: data.member?.email ?? '', markets: website.markets ?? profile.markets ?? [],
-        specialties: website.specialties ?? profile.specialties ?? [], theme: website.theme ?? 'rcre-signature',
+        name: canonical.name ?? data.member?.name ?? '', title: canonical.title ?? profile.professionalTitle ?? '',
+        tagline: website.tagline ?? '', bio: canonical.bio ?? profile.biography ?? '', phone: canonical.phone ?? profile.phone ?? '',
+        email: canonical.email ?? data.member?.email ?? '', markets: website.markets ?? canonical.markets ?? profile.markets ?? [],
+        specialties: website.specialties ?? canonical.specialties ?? profile.specialties ?? [], theme: website.theme ?? 'rcre-signature',
         seoTitle: website.seoTitle ?? '', seoDescription: website.seoDescription ?? '', heroImage: website.heroImage ?? '',
-        customDomain: website.customDomain ?? '', linkedin: social.linkedin ?? '', instagram: social.instagram ?? '',
-        facebook: social.facebook ?? '', websiteSlug: website.slug ?? profile.websiteSlug ?? canonical.slug ?? '',
+        customDomain: website.customDomain ?? '', linkedin: social.linkedin ?? canonical.socialLinks?.linkedin ?? '', instagram: social.instagram ?? canonical.socialLinks?.instagram ?? '',
+        facebook: social.facebook ?? canonical.socialLinks?.facebook ?? '', websiteSlug: website.slug ?? profile.websiteSlug ?? canonical.slug ?? '',
         version: data.version ?? 0, published: website.published ?? false,
       })
     }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Website settings are unavailable right now.') })

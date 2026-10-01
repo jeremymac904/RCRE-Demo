@@ -42,7 +42,7 @@ beforeEach(() => {
 
 describe('production data health source selection', () => {
   it('reports PostgreSQL-backed state and never reads the local SQLite adapter', async () => {
-    const response = await GET()
+    const response = await GET(new Request('http://localhost/api/data-health'))
     const body = await response.json()
 
     expect(response.status).toBe(200)
@@ -59,7 +59,7 @@ describe('production data health source selection', () => {
   it('reports database unavailable without falling back to SQLite when PostgreSQL is down', async () => {
     query.mockRejectedValueOnce(new Error('private connection detail'))
 
-    const response = await GET()
+    const response = await GET(new Request('http://localhost/api/data-health'))
     const body = await response.json()
 
     expect(response.status).toBe(200)

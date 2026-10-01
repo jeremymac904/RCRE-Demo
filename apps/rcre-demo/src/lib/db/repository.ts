@@ -50,9 +50,26 @@ export interface PublicContentProjection {
   published?: Record<string, unknown>
 }
 
+export interface MlsProviderState {
+  providerCode: string
+  status: string
+  connectionMode: 'live_query' | 'incremental_mirror' | 'hybrid'
+  secretConfigured: boolean
+  selectedAccessPath: string | null
+  credentialRef: string | null
+  lastConnectionTestAt: string | null
+  lastConnectionError: string | null
+  compliance: null | { approvalState: 'pending_approval' | 'approved' | 'rejected'; requiredAttribution: string | null; requiredDisclaimer: string | null; copyrightText: string | null; listingBrokerageRules: Record<string, unknown>; refreshRequirements: Record<string, unknown>; photoRules: Record<string, unknown>; permittedStatuses: string[]; soldDisplayAllowed: boolean | null; openHouseRules: Record<string, unknown>; searchIndexingAllowed: boolean | null; approvedSource: string | null; approvedAt: string | null; approvedBy: string | null }
+}
+export interface MlsProviderComplianceInput { providerCode: string; agreementReference: string; requiredAttribution: string; requiredDisclaimer: string; copyrightText: string; listingBrokerageRules: Record<string, unknown>; refreshRequirements: Record<string, unknown>; photoRules: Record<string, unknown>; permittedStatuses: string[]; soldDisplayAllowed: boolean; openHouseRules: Record<string, unknown>; searchIndexingAllowed: boolean; approvedBy: string }
+
 export interface PublicAgentProfileProjection {
   verifiedPersonId: string
   profile: Record<string, unknown>
+  /** Present only for an approved canonical_people record. */
+  person?: Record<string, unknown>
+  /** Public URL slug for canonical identities with a published personal site. */
+  websiteSlug?: string
 }
 
 export interface DomainRecord<T extends Record<string, unknown> = Record<string, unknown>> {
@@ -105,6 +122,9 @@ export interface Repository {
   listPublicContentProjections(organizationId: string): Promise<PublicContentProjection[]>
   /** Narrow anonymous projection of active, public canonical agent profiles. */
   listPublicAgentProfiles?(organizationId: string): Promise<PublicAgentProfileProjection[]>
+  listMlsProviderStates(actor: Actor): Promise<MlsProviderState[]>
+  saveMlsProviderCompliance(actor: Actor, input: MlsProviderComplianceInput): Promise<MlsProviderState>
+  recordMlsProviderConnection(actor: Actor, providerCode: string, ok: boolean, message: string): Promise<MlsProviderState>
 
   getOrganization(actor: Actor, id: string): Promise<Organization | null>
   getUser(actor: Actor, id: string): Promise<User | null>
@@ -188,6 +208,7 @@ export function emptySeed(): MemorySeed {
 export class MemoryRepository implements Repository {
   private audit: (AuditEvent & { occurredAt: string })[] = []
   private domainRecords = new Map<string, DomainRecord>()
+  private mlsProviderStates = new Map<string, MlsProviderState & { organizationId: string }>()
 
   constructor(private seed: MemorySeed) {}
 
@@ -232,9 +253,29 @@ export class MemoryRepository implements Repository {
       const user = this.seed.users.find(member => member.id === row.recordId && member.organizationId === organizationId)
       const slug = row.data.verifiedPersonId
       if (!user || !user.isActive || typeof slug !== 'string' || !slug) continue
-      out.push({ verifiedPersonId: slug, profile: structuredClone(row.data) })
+      const canonical = this.domainRecords.get(this.domainKey(organizationId, 'canonical_people', slug))
+      if (!canonical) {
+        out.push({ verifiedPersonId: slug, profile: structuredClone(row.data) })
+        continue
+      }
+      const person = canonical.data
+      const website = this.domainRecords.get(this.domainKey(organizationId, 'agent_websites', user.id))
+      if (canonical.ownerUserId !== user.id || person.userId !== user.id || person.slug !== slug || person.id !== slug || person.status !== 'active' || person.publicVisible !== true || !website || website.ownerUserId !== user.id || website.data.published !== true || typeof website.data.slug !== 'string') continue
+      out.push({ verifiedPersonId: slug, profile: structuredClone(row.data), person: structuredClone(person), websiteSlug: String(website.data.slug) })
     }
     return out
+  }
+
+  private assertMlsAdmin(actor: Actor) { if (!['owner', 'broker', 'managing_broker'].includes(actor.role)) throw new PermissionDeniedError('mls_provider_config', 'brokerage administrator required') }
+  async listMlsProviderStates(actor: Actor): Promise<MlsProviderState[]> { return [...this.mlsProviderStates.values()].filter(row => row.organizationId === actor.organizationId).map(({ organizationId: _org, ...row }) => structuredClone(row)) }
+  async saveMlsProviderCompliance(actor: Actor, input: MlsProviderComplianceInput): Promise<MlsProviderState> {
+    this.assertMlsAdmin(actor); const key = `${actor.organizationId}:${input.providerCode}`; const old = this.mlsProviderStates.get(key);
+    const state: MlsProviderState & { organizationId: string } = { ...(old ?? { providerCode: input.providerCode, status: 'ready_for_connection', connectionMode: 'live_query', secretConfigured: false, selectedAccessPath: null, credentialRef: null, lastConnectionTestAt: null, lastConnectionError: null }), organizationId: actor.organizationId, status: 'ready_for_connection', compliance: { approvalState: 'approved', requiredAttribution: input.requiredAttribution, requiredDisclaimer: input.requiredDisclaimer, copyrightText: input.copyrightText, listingBrokerageRules: input.listingBrokerageRules, refreshRequirements: input.refreshRequirements, photoRules: input.photoRules, permittedStatuses: input.permittedStatuses, soldDisplayAllowed: input.soldDisplayAllowed, openHouseRules: input.openHouseRules, searchIndexingAllowed: input.searchIndexingAllowed, approvedSource: input.agreementReference, approvedAt: new Date().toISOString(), approvedBy: actor.userId } };
+    this.mlsProviderStates.set(key, state); this.audit.push({ organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'user', action: 'mls.compliance_terms_recorded', targetType: 'mls_provider', targetId: input.providerCode, effect: 'write', allowed: true, detail: { providerCode: input.providerCode, termsRecorded: true }, occurredAt: new Date().toISOString() }); const { organizationId: _org, ...result } = state; return structuredClone(result)
+  }
+  async recordMlsProviderConnection(actor: Actor, providerCode: string, ok: boolean, message: string): Promise<MlsProviderState> {
+    this.assertMlsAdmin(actor); const key = `${actor.organizationId}:${providerCode}`; const old = this.mlsProviderStates.get(key); if (!old) throw new Error('MLS provider configuration is not saved');
+    const state = { ...old, status: old.status === 'disabled' ? 'disabled' : ok ? 'connected' : 'degraded', lastConnectionTestAt: new Date().toISOString(), lastConnectionError: ok ? null : message }; this.mlsProviderStates.set(key, state); this.audit.push({ organizationId: actor.organizationId, actorUserId: actor.userId, actorKind: 'user', action: 'mls.connection_tested', targetType: 'mls_provider', targetId: providerCode, effect: 'write', allowed: true, detail: { providerCode, outcome: ok ? 'connected' : 'failed' }, occurredAt: new Date().toISOString() }); const { organizationId: _org, ...result } = state; return structuredClone(result)
   }
 
   async getOrganization(actor: Actor, id: string) {

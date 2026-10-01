@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 /**
  * RCRE New Construction — Home Page
  * Route: /agent/jacksonville-newconstruction
@@ -15,9 +16,9 @@ import { NewConstructionContactForm } from './NewConstructionContactForm'
 import './newconstruction.css'
 
 export const metadata: Metadata = {
-  title: 'Marcus Webb | RCRE New Construction, Northeast Florida',
-  description:
-    'Marcus Webb — New Construction REALTOR® with RCRE Group, specializing in builder representation, Nocatee, Silverleaf, and Durbin Creek communities in Northeast Florida.',
+  robots: { index: false, follow: false },
+  title: process.env.NODE_ENV === 'production' ? 'Page not found | RCRE Group' : 'Marcus Webb | RCRE New Construction, Northeast Florida',
+  description: process.env.NODE_ENV === 'production' ? 'The requested page is unavailable.' : 'Marcus Webb — New Construction REALTOR® with RCRE Group, specializing in builder representation, Nocatee, Silverleaf, and Durbin Creek communities in Northeast Florida.',
 }
 
 const NC_CONFIG = {
@@ -122,6 +123,7 @@ const RESOURCES = [
 ]
 
 export default function NewConstructionHomePage() {
+  if (process.env.NODE_ENV === 'production') notFound()
   const agent = getExampleAgent('jacksonville-newconstruction')!
   const seo = buildHomeSEO(agent, NC_CONFIG)
 

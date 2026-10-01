@@ -336,3 +336,39 @@ The prior “18 activation pending” label is retired because P1-07 and P1-10 h
 - The desktop runtime repository remains an exact external source dependency; no second desktop application was created.
 
 **Status: implementation is materially advanced, but not ready for production activation.** The code-side P1 work queue is now four items rather than treating missing credentials as implementation work. External activation inputs remain consolidated in `EXTERNAL_ACTIVATION_PACKET.md`. PR #2 is not merged.
+
+## Continued implementation snapshot — 2026-09-30 (supersedes previous queue snapshot)
+
+This snapshot incorporates the canonical onboarding/site identity path, durable Agent Profile Admin, durable MLS Admin configuration, durable agent-inspector reporting, production theme previews tied to the signed-in member, and durable production lead-alert dispatch. It does not claim live production activation.
+
+### P1 disposition
+
+| Disposition | Count | IDs | Evidence / boundary |
+|---|---:|---|---|
+| **Code-incomplete P1** | **0** | — | Independent focused verification and the final route-gap review found no remaining P1 that is blocked solely by missing implementation in the examined production contracts. The production catchall routes either dispatch to durable repositories, fail closed, or direct to the dedicated durable endpoint. |
+| **Implementation present; external activation or live operational proof pending** | **20** | P1-01–P1-05, P1-07–P1-21 | Local implementation and automated tests cover the code paths. Real PostgreSQL migration/RLS execution, hosted storage and backup/restore, Google OAuth, mail delivery, OpenRouter, optional Workspace, provider services, approved compliance content, production secrets, the authorized desktop source, and live journeys still require external setup and verification. These 20 gates are not described as production-ready or live. |
+| **Closed locally** | **1** | P1-06 | Managing Broker agent-administration scope remains covered by local permission and negative-scope tests. |
+
+### Repairs added since the previous snapshot
+
+- Agent onboarding now creates and maintains one owner-bound canonical-person record atomically with its durable member profile. Broker lifecycle controls can select, activate, deactivate, assign, and hide the identity without changing operating roles; public publishing still requires active membership and explicit visibility.
+- The profile editor persists to PostgreSQL and updates the canonical/public projection atomically; MLS provider status and compliance state also use migration 0004 tables and same-transaction audit records.
+- Public website-template previews now require an active signed-in member and use that member's saved/canonical identity. They contain no canned agent identity or unsupported production metrics. Public example agent routes remain blocked in production.
+- The agent-inspector reporting route now reads scoped durable CRM/member/task/appointment/deal records and labels unavailable history instead of manufacturing zero activity.
+- Production lead-alert dispatch now uses durable CRM evidence plus the idempotent in-app notification outbox. This endpoint sends no email or external communication.
+- The catchall platform API review confirmed existing durable handlers for core supported operations; legacy-only paths remain explicitly unavailable in production or are served by their dedicated durable route.
+
+### Verification
+
+- Full RCRE unit suite: **1,012 passed, 2 skipped across 129 files**. Both skips require explicitly configured local PostgreSQL integration URLs.
+- TypeScript: passed after the final feature edits.
+- ESLint: passed with `--quiet` and zero errors.
+- Production build: see this snapshot's final status update below after the final build completes.
+- Independent review: no concrete P0/P1 defect was found in the scoped auth/session/OIDC/invitation/site/MLS/profile checks; the bounded catchall review identified and helped wire the durable lead-alert path. The durable profile editor does not enumerate arbitrary new invitees in its static roster-specific screen, but the lifecycle admin supports those canonical profiles. This is not counted as a P1.
+- `git diff --check` passes. No PostgreSQL server/client or container runtime is installed; migrations 0001–0026, RLS, tenant isolation, concurrent database writes, backups/restores, and storage scanning were not executed.
+- Rendered browser/accessibility QA was not performed. The prior user instruction requires the built-in browser only, and no browser-interaction tool is available in this session. Unit/build output is not presented as visual QA.
+- GitHub's repository connector confirms PR #2 is open, draft, and unmerged at `baab8400fcf1d0be7440377161347707fd8d8035`. Direct shell GitHub DNS is unavailable in this session; final changes still need publication through the authenticated GitHub API path before the PR can reflect this snapshot.
+
+**Production activation remains NO GO** until the external activation and live-proof gates above pass. This is not a code-incomplete P1 count; see `EXTERNAL_ACTIVATION_PACKET.md` for the exact grouped inputs and where to provide them.
+
+**Final verification addendum:** after the durable lead-alert change, the complete test suite remained at 1,012 passing / 2 skipped, TypeScript passed after the production build, ESLint `--quiet` exited successfully, `next build` exited successfully, and `git diff --check` passed. The build retains existing non-fatal `<img>` optimization warnings. No browser visual inspection or database integration result is claimed.

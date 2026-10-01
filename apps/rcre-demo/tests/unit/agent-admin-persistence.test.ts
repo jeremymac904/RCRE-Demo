@@ -3,6 +3,7 @@ import { MemoryRepository, emptySeed } from '../../src/lib/db/repository'
 import { configureAuthPersistenceForTests, type AuthPersistence, type MemberSummary } from '../../src/lib/auth/persistence'
 import type { PlatformActor } from '../../src/lib/platform/auth'
 import { listAdminAgents, listCanonicalPersonChoices, revokeAdminAgentSessions, updateAdminAgent } from '../../src/lib/platform/agent-admin'
+import { saveOnboarding } from '../../src/lib/platform/onboarding'
 const owner: PlatformActor = { id: 'owner-1', userId: 'owner-1', organizationId: 'org-1', name: 'Julio', role: 'broker_owner', officeId: 'all', teamId: 'all', market: 'Both markets' }
 const manager: PlatformActor = { id: 'manager-1', userId: 'manager-1', organizationId: 'org-1', name: 'Taquilla', role: 'managing_broker', officeId: 'al', teamId: 'al', market: 'Alabama' }
 const floridaManager: PlatformActor = { id: 'manager-fl', userId: 'manager-fl', organizationId: 'org-1', name: 'Florida Manager', role: 'managing_broker', officeId: 'fl', teamId: 'fl', market: 'Florida' }
@@ -45,6 +46,28 @@ describe('agent lifecycle administration', () => {
     expect(profile?.data.verifiedPersonId).toBe('sarah-brockner')
     expect((await listAdminAgents(owner, repo)).find(agent => agent.userId === flAgent.userId)?.canonicalPersonId).toBe('sarah-brockner')
     expect(auth.updateMember).toHaveBeenCalledOnce()
+  })
+
+
+  it('creates one pending canonical identity through onboarding and leadership can approve that same record', async () => {
+    const auth = authMock([flAgent])
+    const repo = repository()
+    const memberActor: PlatformActor = { id: flAgent.userId, userId: flAgent.userId, organizationId: flAgent.organizationId, name: flAgent.name, role: 'agent', officeId: 'fl', teamId: 'fl', market: 'Florida' }
+    const profile = await saveOnboarding(memberActor, {
+      phone: '(904) 555-0100', professionalTitle: 'REALTOR®',
+      licenses: [{ state: 'Florida', number: 'SL0001' }], markets: ['Jacksonville, Florida'],
+      specialties: ['Residential'], biography: 'Verified after onboarding.', socialLinks: {},
+      websiteTemplate: 'signature', websiteSlug: 'new-agent-florida',
+      steps: { identityConfirmed: true, profileReviewed: true, licenseReviewed: true, marketsReviewed: true, websiteSelected: true },
+    }, repo)
+    const personId = profile.verifiedPersonId!
+    const before = await repo.getDomainRecord<any>({ userId: owner.id, organizationId: owner.organizationId, role: 'owner' }, 'canonical_people', personId)
+    expect(before?.data).toMatchObject({ userId: flAgent.userId, status: 'pending_review', publicVisible: false })
+    await updateAdminAgent(owner, flAgent.userId, { ...payload, officeId: 'fl', teamId: 'fl', market: 'Florida', active: true, publicVisible: true, licenses: [{ state: 'Florida' as const, number: 'SL0001' }], markets: ['Jacksonville, Florida'] }, repo)
+    const approved = await repo.getDomainRecord<any>({ userId: owner.id, organizationId: owner.organizationId, role: 'owner' }, 'canonical_people', personId)
+    expect(approved?.data).toMatchObject({ userId: flAgent.userId, status: 'active', publicVisible: true })
+    expect((await listCanonicalPersonChoices(owner, repo)).find(choice => choice.id === personId)).toMatchObject({ name: flAgent.name, assignedToUserId: flAgent.userId })
+    expect(auth.updateMember).toHaveBeenCalledWith(owner, flAgent.userId, expect.objectContaining({ active: true, role: 'agent' }))
   })
 
   it('rejects identity claims outside the verified roster and duplicate canonical links', async () => {

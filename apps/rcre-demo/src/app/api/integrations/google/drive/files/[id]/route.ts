@@ -1,5 +1,19 @@
 import { NextResponse } from 'next/server'
 import { AccessError, requireActor } from '@/lib/platform/auth'
+import type { PlatformActor } from '@/lib/platform/auth'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 import { getGoogleWorkspaceService } from '@/lib/google-workspace/service'
 export const dynamic='force-dynamic'
-export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){try{const actor=await requireActor(),{id}=await params;return NextResponse.json(await getGoogleWorkspaceService().driveRead(actor,id),{headers:{'cache-control':'private, no-store'}})}catch(error){return NextResponse.json({error:error instanceof Error?error.message:'Drive is unavailable'},{status:error instanceof AccessError?error.status:503})}}
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  let actor: PlatformActor | null = null
+  try {
+    actor = await requireActor()
+    const { id } = await params
+    return NextResponse.json(await getGoogleWorkspaceService().driveRead(actor, id), { headers: { 'cache-control': 'private, no-store' } })
+  } catch (error) {
+    const status = error instanceof AccessError ? error.status : 503
+    const response = NextResponse.json({ error: error instanceof Error ? error.message : 'Drive is unavailable' }, { status })
+    await recordCaughtRouteFailure(request, '/api/integrations/google/drive/files/[id]', actor, status, error)
+    return response
+  }
+}

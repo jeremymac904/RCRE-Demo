@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { requireActor } from '@/lib/platform/auth'
+import { AccessError, requireActor } from '@/lib/platform/auth'
+import type { PlatformActor } from '@/lib/platform/auth'
+import { recordCaughtRouteFailure } from '@/lib/operations/caught-route-failure'
 import { GoogleOAuthHttp, workspaceOAuthConfig } from '@/lib/google-workspace/oauth'
 import { getGoogleWorkspaceService } from '@/lib/google-workspace/service'
 import type { WorkspaceService } from '@/lib/google-workspace/types'
@@ -12,8 +14,10 @@ function safeEqual(a: string, b: string) { return a.length === b.length && Buffe
 export async function GET(request: Request) {
   const url = new URL(request.url), jar = await cookies()
   const clear = () => { for (const key of [STATE, VERIFIER, SERVICE, ACTOR]) jar.delete({ name: key, path: '/api/integrations/google/callback' }) }
+  let actor: PlatformActor | null = null
   try {
-    const actor = await requireActor(), state = url.searchParams.get('state') ?? '', cookieState = jar.get(STATE)?.value ?? ''
+    actor = await requireActor()
+    const state = url.searchParams.get('state') ?? '', cookieState = jar.get(STATE)?.value ?? ''
     const verifier = jar.get(VERIFIER)?.value ?? '', service = jar.get(SERVICE)?.value as WorkspaceService | undefined, initiatingActor = jar.get(ACTOR)?.value ?? ''
     if (!state || state.length > 128 || !cookieState || !safeEqual(state, cookieState) || !verifier || !initiatingActor || !safeEqual(actor.userId, initiatingActor) || !['gmail','calendar','drive'].includes(service ?? '')) { clear(); return settings(url, 'failed') }
     if (url.searchParams.has('error')) { clear(); return settings(url, 'denied') }
@@ -25,8 +29,9 @@ export async function GET(request: Request) {
     await getGoogleWorkspaceService().connect(actor, service!, tokens)
     clear()
     return settings(url, 'connected')
-  } catch {
+  } catch (error) {
     clear()
+    await recordCaughtRouteFailure(request, '/api/integrations/google/callback', actor, error instanceof AccessError ? error.status : actor ? 503 : 401, error)
     return settings(url, 'failed')
   }
 }
