@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.rcre-btn-primary {
+  background-color: #1a2e4a;
+  color: #ffffff;
+  padding: 0.625rem 1.25rem;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+.rcre-btn-primary:hover {
+  background-color: #243d63;
+}
+
+.rcre-btn-accent {
+  background-color: #c9a84c;
+  color: #1a2e4a;
+  padding: 0.625rem 1.25rem;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+.rcre-btn-accent:hover {
+  background-color: #b8963b;
+}
+
+.rcre-card {
+  background-color: #ffffff;
+  border: 1px solid #e5e0d8;
+  border-radius: 6px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}

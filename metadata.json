@@ -1,0 +1,8 @@
+{
+  "name": "RCRE Platform — River City Real Estate Group OS",
+  "description": "Connected digital operating system for RCRE Group operating in Alabama and Florida: public website, agent portals, AI Academy, CRM, Command Center, and transaction workflows.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
