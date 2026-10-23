@@ -4,10 +4,11 @@ import {notFound} from 'next/navigation'
 import {getPublished,getPublicRecord} from '@/lib/public/server'
 import {PublicShell,PublicHero} from '@/components/public/PublicShell'
 import {InquiryForm} from '@/components/public/PublicInteractions'
+import {AgentWebsiteShowcase} from '@/components/public/AgentWebsiteShowcase'
 
 const defaultMetadata:Metadata={
   title:'Join RCRE | Build your real estate business',
-  description:'Structure, coaching, accountability, training, multiple markets, and a plan for growth. Start a confidential career conversation with RCRE.',
+  description:'Structure, coaching, accountability, training, multiple markets, and a plan for growth. Every RCRE agent also gets a professionally designed personal Realtor website. Start a confidential career conversation with RCRE.',
   alternates:{canonical:'https://rcregroup.com/join'}
 }
 
@@ -15,12 +16,13 @@ export const dynamic='force-dynamic'
 
 const joinFaq: Array<[string,string]> =[
   ['Do I need prior real estate experience to join RCRE?','No. RCRE works with agents at every stage — new licensees, experienced agents transitioning from another brokerage, and those building toward production goals. The conversation starts with where you are.'],
-  ['What technology does RCRE provide its agents?','Agents have access to a connected platform for contacts, appointments, property search, transaction tracking, and AI-assisted guidance. The goal is to reduce duplicated effort and keep the work organized.'],
+  ['What technology does RCRE provide its agents?','A connected platform for contacts, appointments, property search, transaction tracking, and AI-assisted guidance — plus a professionally designed personal Realtor website built around your market and specialty. The goal is to reduce duplicated effort and keep the work organized.'],
+  ['Do I get my own personal real estate website?','Yes. Every RCRE agent chooses from eight professionally designed templates — Signature, Luxury, Rural & Land, Investor, Urban Modern, Suburban Family, New Construction, and Historic Heritage. Your site is mobile-first, SEO and AEO ready, integrated with lead capture, and designed to support your own custom domain.'],
   ['How does the RCRE AI assistant work?','The AI assistant draws on published public pages and brokerage-approved material. It does not access private client records or make final decisions. It drafts, explains, and summarizes — not executes.'],
   ['What markets does RCRE serve?','RCRE operates in Alabama and Florida, with active agents and offices supporting both states.'],
   ['How is RCRE different from other brokerages?','RCRE prioritizes coaching, accountability, and training alongside technology and market presence. Leadership focuses on agent development and growth rather than volume alone.'],
   ['What kind of training does RCRE offer?','Agents have access to the AI Advantage Realtor curriculum and brokerage-created material. Progress and assignments are tracked within the platform.'],
-  ['What does the RCRE platform include?','A connected workspace covering contacts, appointments, property search, transaction milestones, AI-assisted guidance, and compliance records. It is designed to support the full real estate lifecycle.'],
+  ['What does the RCRE platform include?','A connected workspace covering contacts, appointments, property search, transaction milestones, AI-assisted guidance, and compliance records — plus your own personal Realtor website and lead capture. It is designed to support the full real estate lifecycle.'],
 ]
 
 const faqJsonLd={
@@ -99,6 +101,34 @@ export default async function Join(){
           ['Business growth','Build the habits, client relationships, and business development plan that support your own goals.'],
         ].map(([title,text])=><article key={title}><h2>{title}</h2><p>{text}</p></article>)}
       </section>
+      <section className="public-market-band" id="personal-website">
+        <div className="public-wrap public-feature">
+          <div>
+            <p className="public-kicker">Your personal Realtor website</p>
+            <h2>Your brand deserves more than a profile page.</h2>
+            <p>Every RCRE agent can choose from professionally designed personal real estate websites built around their market, their specialty, and how they actually work. Pick the template, customize what matters, and launch. When you&apos;re ready, point your own URL at it.</p>
+          </div>
+          <div>
+            <p className="public-lead">What every RCRE agent website includes:</p>
+            <ul>
+              <li><strong>Professional design</strong> — without building it yourself. The eight templates are designed around real real-estate niches, not generic themes.</li>
+              <li><strong>Local market optimized</strong> — Jacksonville, Northeast Florida, Birmingham, Alabama — each template is tuned to a niche and the markets RCRE actually serves.</li>
+              <li><strong>Mobile-first</strong> — Designed for the phone, not stretched from a desktop. Real estate conversion happens on mobile.</li>
+              <li><strong>SEO + AEO ready</strong> — Unique page titles, schema, sitemap, structured data, and a real local knowledge footprint.</li>
+              <li><strong>Integrated lead capture</strong> — Every inquiry is attributed to the agent, page, market, source, and campaign. Ready for FUB synchronization.</li>
+              <li><strong>Preferred lender resources</strong> — Jeremy McDonald, RCRE Financial Services, surfaced naturally. Consumer choice language preserved.</li>
+              <li><strong>Connected</strong> — Talks to RCRE CRM, RCRE Today, and the broader platform. Your site is part of your business, not a brochure.</li>
+              <li><strong>Custom URL ready</strong> — RCRE hosted URL, branded path, or your own custom domain. Designed to support your own domain.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+      <AgentWebsiteShowcase
+        heading="Eight templates. One platform. Your brand."
+        intro="Pick the template that fits how you actually work — or stay flexible and switch later. The platform, the data, the lead capture, and the SEO are shared. Only the presentation changes."
+        ctaLabel="Preview Every Template"
+        joinLabel="Start a Conversation"
+      />
       <section className="public-market-band">
         <div className="public-wrap public-feature">
           <div>
